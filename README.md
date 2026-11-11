@@ -29,7 +29,7 @@ No real patient data and nothing derived from any real system is used anywhere. 
 
 ## Public sources only
 
-The schema, the misuse scenarios and the calibration targets come from published papers, the audit-log field list in the Herrera Montano et al. preprint and public summaries of the ASTM E2147 audit-log standard. Each parameter in [config/calibration.yaml](config/calibration.yaml) names the source it came from, and parameters with no published source are marked as assumptions.
+The schema, the misuse scenarios and the calibration targets come from published papers, the audit-log field list in the Herrera Montano et al. preprint and public summaries of the ASTM E2147 audit-log standard. Volumes, repeat rates and rule matches follow US audit-log studies. How unevenly activity is spread across users follows the UK log. Each parameter in [config/calibration.yaml](config/calibration.yaml) names the source it came from, and parameters with no published source are marked as assumptions.
 
 ## What a run produces
 
@@ -39,16 +39,16 @@ One run writes three folders.
 - `context/` holds what a hospital would know about its people and their care, such as staff, schedule, encounters, care teams and orders.
 - `labels/` holds the ground truth, meaning why each access happened, the injected misuse scenarios and the true family ties. Nothing under evaluation reads this folder.
 
-The default run has 300 staff, 3,500 patients and about 450,000 events. The scenarios and what each system is expected to catch are in [docs/spec.md](docs/spec.md).
+The default run has about 400 staff, 3,500 patients and about 670,000 events. The scenarios and what each system is expected to catch are in [docs/spec.md](docs/spec.md).
 
 ## How close it is to real logs
 
-The [calibration report](docs/calibration-report.md) puts every published target next to the generated value. Durations, self-access and the share of first accesses with direct evidence land on target. Others miss, and the misses are reported as they are.
+The [calibration report](docs/calibration-report.md) puts every published target next to the generated value. Access volume, the repeat share, self-access and the share of first accesses with direct evidence are on or near target. Others miss, and the misses are reported as they are.
 
-- Access volume is 359 per staff member per week, just under the published range of 375-580.
-- The repeat-access share is 86%, against a published 92%.
-- Activity is spread far more evenly across users than in the real UK log, which has a long tail of very heavy users.
-- Staff are about 8% of the patient population here, so the organization-wide coworker rule matches about 10% of first accesses. The published figure is under 4%.
+- Inpatient nurses spend 25% of a shift in the chart, against a published figure of about 34%.
+- Activity is still spread more evenly across users than in the real UK log, which has a long tail of very heavy users.
+- Staff are about 11% of the patient population here, so the co-worker rules fire far more often than in the published data.
+- In real logs, the relationship rules fire 1.5 to 4 times more often than chance. Here they fire at chance, because care is handed out without regard to who knows whom.
 
 ## Run it
 

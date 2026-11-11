@@ -1,10 +1,10 @@
 # Spec: data model and scenarios
 
-Status: reviewed on 10 Nov 2026. This covers steps 1 and 2 of the build order. Section 8 records the decisions from that review.
+Status: reviewed on 10 Nov 2026 and revised the same day after the Herrera Montano and Hedda papers were read in full. This covers steps 1 and 2 of the build order. Section 8 records the decisions.
 
 ## 1. Scope of this milestone
 
-One synthetic hospital with about 300 staff, about 3,500 patients and 30 days of EHR access logs. The output has to serve four systems later (rules, explanation templates, an LLM on raw log lines, an LLM grounded on an identity graph), so the main job of this spec is to fix what each of them is allowed to see.
+One synthetic hospital with about 400 staff (308 full-time equivalents), about 3,500 patients and 30 days of EHR access logs. The output has to serve four systems later (rules, explanation templates, an LLM on raw log lines, an LLM grounded on an identity graph), so the main job of this spec is to fix what each of them is allowed to see.
 
 ## 2. Output layout and visibility
 
@@ -43,17 +43,17 @@ Rules that keep labels from leaking.
 | patient_id | string | Joins to patients.csv |
 | device_id | string | Joins to devices.csv |
 | action_code | string | Joins to actions.csv |
-| duration_s | int | Seconds spent in the action |
+| duration_s | int | Seconds until the user's next action, capped at five minutes |
 
-The six fields after `event_id` mirror the Herrera Montano field list (timestamp, user, patient, device, routine, duration), so real data could slot in later.
+The six fields after `event_id` mirror the Herrera Montano field list (timestamp, user, patient, device, routine, duration), so real data could slot in later. The fields are the UK log's. The unit of an event is the US one (3.6).
 
 ### 3.2 context/
 
 | Table | Fields | Built from |
 |---|---|---|
 | patients.csv | patient_id, first_name, last_name, birth_date, gender, address, city, zip, lat, lon, emergency_contact_id, vip | Synthea patients.csv plus the household overlay (3.4). Synthea's synthetic SSN, licence and passport columns are dropped |
-| staff.csv | user_id, patient_id, role, department_id, usual_shift | Ours. Every staff member is also a person in patients.csv, sampled from Synthea adults of working age |
-| departments.csv | department_id, name, kind | Ours. Kinds are inpatient unit, emergency, clinic, ancillary and back office |
+| staff.csv | user_id, patient_id, role, department_id, usual_shift, employment | Ours. Employment is full-time, part-time or occasional. Every staff member is also a person in patients.csv, sampled from Synthea adults of working age |
+| departments.csv | department_id, name, kind | Ours. Kinds are inpatient unit, emergency, clinic, ancillary, back office and hospital-wide |
 | devices.csv | device_id, department_id, kind | Ours. Kinds are workstation, shared workstation, mobile and remote |
 | schedule.csv | user_id, date, shift_start, shift_end, department_id | Ours. The documented assignment for each shift |
 | encounters.csv | encounter_id, patient_id, class, start, stop, department_id, reason_description, description, synthea_encounter_id | Synthea encounters, re-dated (3.5). Class is inpatient, emergency or clinic |
@@ -88,6 +88,27 @@ US volumes need much more. At 375-580 accesses per staff member per week with 92
 
 Proposed approach. Treat the hospital as the only provider for the population. Take each patient's Synthea encounters from the last 10 years as a pool and re-date a sample of them into the 30-day window. Five years holds too few inpatient stays to fill the beds. The clinical content stays Synthea's (reason, medications, imaging, labs). The timing, the department and the staffing are ours. The class mix is reweighted toward inpatient and emergency, since the pool is about 1% inpatient. The sampling rate and the class weights are config parameters marked as assumptions.
 
+### 3.6 The unit of an access
+
+Two kinds of log sit behind the calibration targets, and they do not count the same thing. The US audit logs in the explanation and rules literature record 375-580 accesses per employee per week, and about 10 per user and patient in a week. The UK log of Herrera Montano et al. records about 9 events per user per week, each a routine with a duration. Raw vendor logs are finer again. One study of inpatient nurses counts about 2,000 logged actions per shift.
+
+This generator uses the US unit, because the rules and the explanation templates are defined on it. Three things follow.
+
+- Volume, repeats, self-access, explanation rates and rule matches are compared with the US papers as numbers.
+- The UK log is used only where the unit does not matter, and only by shape. That covers how unevenly events, patients and devices are spread across users, and the long tail of action codes.
+- US audit logs carry no duration. The field stays, to keep the UK field list, and holds the time until the user's next action, capped at the five-minute inactivity threshold that audit-log studies use. Its scale is set from published chart time for inpatient nurses, about a third of a shift.
+
+### 3.7 Users differ
+
+In the UK log, activity is far from even. Over 18 months the median user has 220 events and the 99th percentile 7,321. The median user works on 22 devices. Most users are active on a minority of days, and 72% fit no common behavioral role. Device diversity is the strongest marker of an atypical user. Four mechanisms put this into the generator. Their parameters are assumptions, since the paper gives outcomes and not causes.
+
+- **Presence.** Staff are full-time, part-time or occasional, with 5, 3 or 1 shifts a week. The staffing table is in full-time equivalents, so headcount is higher.
+- **Uneven load.** Each person has a workload weight. Patients, appointments and orders are handed out in proportion to it.
+- **Hospital-wide roles.** Care management (bed management, case management, infection control) opens charts across every unit. Only the role explains it, which makes it hard negative H6.
+- **Device roaming.** People habitually use anything from one workstation to most of the unit's. Pharmacists, technicians, consultants, registration staff and care managers sometimes work at a shared workstation in the patient's department.
+
+The last point matters for the evaluation. If honest work never happened on a device outside the user's department, that one fact would give shared credentials away.
+
 ## 4. How legitimate accesses arise
 
 Each mechanism below produces accesses and either leaves a trace in `context/` or does not. The share that leaves a trace is what moves the explanation-rate targets.
@@ -101,11 +122,12 @@ Each mechanism below produces accesses and either leaves a trace in `context/` o
 | Staff cover another unit for a shift | schedule row for some, nothing for others | H2 |
 | Coding, billing and records staff work the chart after discharge | role only | H5 |
 | Care-team member happens to be a coworker, neighbor or namesake | care_team row, plus a relationship | H4 |
+| Care management reviews patients across the house | role only | H6 |
 | Staff member opens their own record | name and birth date match | P1 |
 
-Hard negatives H1, H2, H3 and H5 are not injected. They are the undocumented share of normal work, labeled by mechanism. The hard-negative test set is a sample of them.
+Hard negatives H1, H2, H3, H5 and H6 are not injected. They are the undocumented share of normal work, labeled by mechanism. The hard-negative test set is a sample of them.
 
-Within a shift, a user works through patients in visits. Each visit is a short run of consecutive events on one patient, which is what produces the immediate-repeat share. Durations are lognormal.
+Within a shift, a user works through patients in visits. Each visit is a short run of consecutive accesses to one patient, 3.3 on average, which with about three visits per patient per week gives the roughly 10 accesses per user and patient that Hedda et al. report. A person works one chart at a time. Durations are lognormal and capped at five minutes.
 
 ## 5. Scenarios
 
@@ -119,7 +141,7 @@ Within a shift, a user works through patients in visits. Each visit is a short r
 | M3 | Neighbor | Same as M1 | Actor lives within 0.25 miles or on the same street. No care path |
 | M4 | VIP | Same as M1. Sometimes several users over a stay | `vip` flag on the patient. No care path |
 | M5 | Curiosity after a news event | Several users from several departments open one chart within hours. Each is a single short view | The burst itself, plus no care path for any of them. The news event is not in context |
-| M6a | Shared credentials, overlap | One account active on two devices in different departments at overlapping times | Timestamps and devices. Device department differs from the owner's schedule |
+| M6a | Shared credentials, overlap | One account active on two devices in different departments at overlapping times | The overlap itself. A device outside the owner's department is not enough, since honest work happens there too |
 | M6b | Shared credentials, off shift | Account active when its owner is not scheduled, with an action mix unusual for the role | Schedule and role |
 | H1 | Consult | 2-6 events over 1-2 days, longer durations, includes a note-writing action | No care-team row or order. Specialty matches the encounter reason |
 | H2a | Coverage, documented | Many patients of an unfamiliar unit across one shift, on that unit's devices | Schedule row for the covered unit |
@@ -127,6 +149,7 @@ Within a shift, a user works through patients in visits. Each visit is a short r
 | H3 | Undocumented care team | Repeated accesses through the stay, charting actions, interleaved with the documented team | Same department as the encounter, scheduled on that unit, inside the stay |
 | H4 | Legitimate care with a relationship present | Indistinguishable from normal care | care_team row. Also a coworker, proximity or surname match |
 | H5 | Back-office work | View and coding actions in the days after discharge | Role and discharge date |
+| H6 | Hospital-wide role | A care manager opens many patients across units, briefly, sometimes on the unit's shared workstation | Role and department. No care-team row, order or department link |
 | P1 | Self-access | User opens their own record | First name, last name and birth date match (the Hedda et al. definition) |
 | A1 | Covering accesses | Any of M1-M4, plus extra accesses "made to disguise a target access" (Xu et al. 2023, evasion setting, see 5.3) | Same as the base scenario |
 
@@ -162,6 +185,7 @@ These are predictions to be tested. Nothing in the generator enforces them, and 
 | H3 | clear | false alert, unless a department template applies | no basis | clear |
 | H4 | false alert | clear | clear by default (nothing to flag) | clear |
 | H5 | clear | false alert, unless a role template applies | no basis | clear |
+| H6 | clear | false alert, unless a role template applies | no basis | clear |
 | A1 | as base scenario | as base scenario | open question | open question |
 
 Three things keep this table from being a foregone conclusion.
@@ -200,18 +224,22 @@ repeat_access_share:
 | Self-accesses | about 0.3% | Hedda et al. 2017 | level |
 | First accesses explained by direct evidence | about 23%, 41% with diagnosis-department links | Fabbri & LeFevre 2013 | level |
 | All accesses explained once repeats are filtered | over 94% | Fabbri & LeFevre 2011, 2013 | reported |
-| Accesses matching each relationship rule | 0.03-3.8% by rule | Hedda et al. 2017 | reported |
+| First accesses matching each rule | 3.84% organization co-worker, 0.04% department co-worker, 0.14% last name, 0.16% proximity, 0.12% same street | Hedda et al. 2017, Table 3 | reported |
+| Rule matches against random pairing | 1.0, 3.2, 1.5, 2.5 and 4.0 times chance, in the same order | Hedda et al. 2017, Table 2 | reported |
 | Alerts per access | about 10% | Laszka et al. 2017 | not measurable until step 4 |
-| Access duration | median 45 s, 95th percentile 775 s | Herrera Montano et al. | level |
-| Events that immediately repeat the same patient | 55.4% | Herrera Montano et al. | level |
-| Distinct patients per user per day | median 5, 99th percentile 80 | Herrera Montano et al. | shape |
+| Inpatient nurse chart time | about 34% of a shift | JMIR Nursing 2026 nursing workload study | level |
+| Primary care physician chart time | 5.9 hours per weekday | Arndt et al. 2017 | reported |
 | Events per user | median 220, 95th percentile 2,160 over 18 months | Herrera Montano et al. | shape |
 | Distinct patients per user | median 149, 99th percentile 3,424 | Herrera Montano et al. | shape |
+| Devices per user | median 22, 95th percentile 93 | Herrera Montano et al. | shape |
+| Position of a patient among the user's patients that day, per event | median 5, 99th percentile 80 | Herrera Montano et al. | shape |
 | Action codes | 21 of 13,723 codes cover about 80% of events | Herrera Montano et al. | shape |
+| Events with zero time since the user last opened the patient | 55.4%, of which about 54 points are first accesses | Herrera Montano et al. | reported |
+| Duration per routine | median 45 s, 95th percentile 775 s | Herrera Montano et al. | reported |
+
+"Level" means the generated value is compared to the number. "Shape" means only ratios are compared (the 95th or 99th percentile over the median). "Reported" means the value is measured and shown but nothing is set to hit it.
 
 Action categories are create, read, update, delete, copy, print and query. The list comes from a public summary of ASTM E2147-18 in the CASRAI guide to audit-log requirements. The same list has break-the-glass and audit-status events, which are left out because no scenario uses them yet.
-
-"Level" means the generated value is compared to the number. "Shape" means only ratios are compared (for example the 95th percentile over the median), because the UK log is far sparser than the US ones and a 30-day window at 300 staff cannot reproduce its absolute counts. "Reported" means the value is measured and shown but nothing is set to hit it.
 
 The report lists every target next to the generated value and the gap. If a gap is large, the fix is a visible config change, or the gap stays in the report.
 
@@ -225,7 +253,7 @@ The identity graph, the four systems, the Privacy Officer summary format and any
 
 Reviewed on 10 Nov 2026.
 
-1. **Sizing.** 300 staff at US volumes, roughly 480,000-740,000 events in 30 days, with most of the 3,500 patients touched every week. Going above 300 staff is allowed if it helps and is not needed yet.
+1. **Sizing.** About 400 staff (308 full-time equivalents) at US volumes, roughly 680,000 events in 30 days.
 2. **Encounters are re-dated** from each patient's recent Synthea history (3.5).
 3. **Households are an overlay,** with true ties in labels only (3.4).
 4. **The news event stays out of context, the VIP flag stays in.** Hospitals keep VIP flags. They do not reliably know what was on the news, so M5 has to be caught from the burst.
@@ -233,5 +261,7 @@ Reviewed on 10 Nov 2026.
 6. **Covering accesses use the heuristic attack from Xu et al.** (5.3). Each covered scenario will be generated as a pair, with and without cover, so robustness is a paired difference.
 7. **Rules are the five from Hedda et al.** (organization co-worker, department co-worker, last name, proximity within 0.25 miles, same street). Nothing is added, so results can be compared with theirs directly.
 8. **Action categories** come from a public summary of ASTM E2147-18 (section 6).
+9. **The log uses the US unit of an access** (3.6). Duration is derived, since US logs do not record one.
+10. **Users differ** in presence, load and device use, and care management is a new hard negative, H6 (3.7).
 
 Still open, and reserved for step 5. LLM provider, model and budget, and the Privacy Officer summary template.
