@@ -14,8 +14,8 @@ Every generated value below is measured from the log and context files only. Gap
 | repeat access share | 92.0% | 90.6% | -1.4 points | level | Hedda et al. 2017 (6.9M of 7.5M accesses in one week) |
 | self access share | 0.30% | 0.30% | +0.00 points | level | Hedda et al. 2017 (21K of 7.5M accesses in one week) |
 | first access explained direct | 23.0% | 22.8% | -0.2 points | level | Fabbri & LeFevre 2013 |
-| first access explained with department link | 41.0% | 74.5% | +33.5 points | reported | Fabbri & LeFevre 2013 (with diagnosis-department links) |
-| all accesses explained | 94.0% | 97.6% | +3.6 points | reported | Fabbri & LeFevre 2011, 2013 (over 94% once repeats are filtered) |
+| first access explained with responsibility | 41.0% | 28.4% | -12.6 points | reported | Fabbri & LeFevre 2013 (evidence plus departmental responsibility, s = 1, t = 2) |
+| all accesses explained | 94.0% | 93.3% | -0.7 points | reported | Fabbri & LeFevre 2011, 2013 (over 94% once repeats are filtered) |
 | rule match share | organization co-worker 3.8%, department co-worker 0.04%, last name 0.14%, proximity 0.16%, same street 0.12% | organization co-worker 12.8%, department co-worker 1.3%, last name 0.29%, proximity 0.46%, same street 0.11% | organization co-worker 3.3x, department co-worker 32.1x, last name 2.1x, proximity 2.9x, same street 0.9x | reported | Hedda et al. 2017, Table 3 (observed share of 100,000 unique non-self accesses) |
 | rule observed to expected | organization co-worker 1.00, department co-worker 3.22, last name 1.53, proximity 2.51, same street 4.04 | organization co-worker 1.00, department co-worker 1.32, last name 1.50, proximity 1.77, same street 1.69 | organization co-worker 1.0x, department co-worker 0.4x, last name 1.0x, proximity 0.7x, same street 0.4x | reported | Hedda et al. 2017, Table 2 (patients permuted) |
 | rule match explained share | organization co-worker 38.8%, department co-worker 43.9%, last name 21.4%, proximity 24.8%, same street 16.1% | organization co-worker 22.7%, department co-worker 28.2%, last name 13.6%, proximity 21.8%, same street 18.0% | organization co-worker 0.6x, department co-worker 0.6x, last name 0.6x, proximity 0.9x, same street 1.1x | reported | Hedda et al. 2017, Table 4 (share of rule-matching accesses explained by five clinical reasons) |
@@ -35,7 +35,7 @@ Weekly measures use the four whole weeks of the window. Repeats, first accesses 
 
 The log uses the US unit of an access. The UK log of Herrera Montano et al. records about 9 events per user per week, so its rows are compared by shape only, as the ratio of a high percentile to the median, and its duration and zero-gap rows are shown for reference. A duration here is time until the user's next action, capped at five minutes.
 
-The department-link row is a stand-in. It counts a first access as explained when the patient had an encounter in the user's department or an order sent to it. That is broader than the diagnosis-department links in Fabbri and LeFevre, so it is shown for orientation and is not a like-for-like comparison.
+Departmental responsibility is mined from this log with the method and thresholds of Fabbri and LeFevre 2013. Their evidence covers more sources than exist here (documents, for one), so the two explanation rows are comparable in kind and not exactly in scope.
 
 ## Workload check
 
@@ -89,10 +89,10 @@ Chart time per user per day is 1.3 hours at the median and 4.8 hours at the 95th
 | Basis | Parameters |
 |---|---|
 | setting | 4 |
-| published | 8 |
+| published | 9 |
 | derived | 4 |
-| assumption | 48 |
+| assumption | 49 |
 
-Assumptions have no public source. They are `duration_sigma`, `departments`, `staffing`, `employment_mix`, `load_weight_sigma`, `staff_age_range`, `shifts`, `shift_weights`, `physician_shift_pattern`, `devices_per_staff`, `usual_device_count`, `away_device_prob`, `remote_share`, `encounter_lookback_years`, `inpatient_census`, `inpatient_los_clip_hours`, `ed_visits_per_day`, `ed_night_relative_rate`, `ed_los_clip_hours`, `clinic_los_clip_minutes`, `specialty_keywords`, `helper_prob`, `inpatient_daily_orders`, `order_caps`, `order_second_visit_prob`, `registration_prob_clinic`, `coding_delay_days`, `billing_delay_days`, `hospital_wide_review_prob`, `consult_prob`, `consult_visits`, `consult_specialty_match_prob`, `consult_departments`, `consult_duration_factor`, `float_prob`, `float_documented_prob`, `max_backlog_s`, `households`, `vip_share`, `action_code_count`, `role_action_tilt`, `scenario_counts`, `m5_users_per_event`, `target_in_actor_department_share`, `misuse_events_per_visit`, `misuse_repeat_prob`, `misuse_duration_cap_s`, `shared_credential_visits`.
+Assumptions have no public source. They are `duration_sigma`, `departments`, `staffing`, `employment_mix`, `load_weight_sigma`, `staff_age_range`, `shifts`, `shift_weights`, `physician_shift_pattern`, `devices_per_staff`, `usual_device_count`, `away_device_prob`, `remote_share`, `encounter_lookback_years`, `inpatient_census`, `inpatient_los_clip_hours`, `ed_visits_per_day`, `ed_night_relative_rate`, `ed_los_clip_hours`, `clinic_los_clip_minutes`, `specialty_keywords`, `helper_prob`, `inpatient_daily_orders`, `order_caps`, `order_second_visit_prob`, `registration_prob_clinic`, `coding_delay_days`, `billing_delay_days`, `hospital_wide_review_prob`, `consult_prob`, `consult_visits`, `consult_specialty_match_prob`, `consult_departments`, `consult_duration_factor`, `float_prob`, `float_documented_prob`, `max_backlog_s`, `households`, `vip_share`, `action_code_count`, `role_action_tilt`, `review_budget_per_day`, `scenario_counts`, `m5_users_per_event`, `target_in_actor_department_share`, `misuse_events_per_visit`, `misuse_repeat_prob`, `misuse_duration_cap_s`, `shared_credential_visits`.
 
 Encounter sampling notes from the manifest: 57% of the inpatient pool was used, and the share of clinic visits whose Synthea reason matched the clinic's specialty was PCP 0%, CARD 91%, ORTH 97%.

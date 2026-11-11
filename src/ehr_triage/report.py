@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from .baselines import responsibility
 from .config import Config, load_config
 from .population import miles_between, street_of
 
@@ -56,23 +57,25 @@ def first_accesses(weekly: pd.DataFrame, staff: pd.DataFrame) -> pd.DataFrame:
     return first[first["user_id"].map(own) != first["patient_id"]]
 
 
-def explained(first: pd.DataFrame, t: dict) -> tuple[pd.Series, pd.Series]:
-    """Which first accesses have direct evidence, and which have a department link.
+def explained(first: pd.DataFrame, t: dict, cfg: Config) -> tuple[pd.Series, pd.Series]:
+    """Which first accesses have direct evidence, and which are explained once
+    departmental responsibility is added, both as in Fabbri & LeFevre 2013.
 
     Direct: the user is on the care team of one of the patient's encounters,
-    or ordered something for the patient. Department link: the patient had an
-    encounter in the user's department, or an order sent to it.
+    or ordered something for the patient. Responsibility: the user's
+    department is responsible for one of the patient's diagnoses.
     """
     enc_patient = dict(zip(t["encounters"]["encounter_id"], t["encounters"]["patient_id"]))
     direct = set(zip(t["care_team"]["user_id"], t["care_team"]["encounter_id"].map(enc_patient)))
     direct |= set(zip(t["orders"]["ordered_by"], t["orders"]["patient_id"]))
-    dept_patient = set(zip(t["encounters"]["department_id"], t["encounters"]["patient_id"]))
-    dept_patient |= set(zip(t["orders"]["performing_department_id"], t["orders"]["patient_id"]))
+    responsible = responsibility(first, t["encounters"], t["staff"], cfg)
+    seen = t["encounters"][t["encounters"]["reason_description"] != ""]
+    diagnoses = seen.groupby("patient_id")["reason_description"].agg(set).to_dict()
     dept = first["user_id"].map(dict(zip(t["staff"]["user_id"], t["staff"]["department_id"])))
     pairs = list(zip(first["user_id"], first["patient_id"]))
     is_direct = pd.Series([p in direct for p in pairs], index=first.index)
-    is_linked = pd.Series([p in dept_patient for p in zip(dept, first["patient_id"])], index=first.index)
-    return is_direct, is_direct | is_linked
+    by_dept = [any((d, c) in responsible for c in diagnoses.get(p, ())) for d, p in zip(dept, first["patient_id"])]
+    return is_direct, is_direct | pd.Series(by_dept, index=first.index)
 
 
 def rule_matches(first: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, miles: float) -> pd.DataFrame:
@@ -161,7 +164,7 @@ def measure(t: dict, cfg: Config) -> dict:
     weekly = with_week(events, cfg["window_start"], days)
     weeks = days // 7
     first = first_accesses(weekly, staff)
-    direct, linked = explained(first, t)
+    direct, linked = explained(first, t, cfg)
     rules, rule_share, rule_ratio = rule_shares(first, staff, t["patients"], cfg["proximity_miles"])
     own = events["user_id"].map(dict(zip(staff["user_id"], staff["patient_id"]))) == events["patient_id"]
     per_user = events.groupby("user_id")
@@ -175,7 +178,7 @@ def measure(t: dict, cfg: Config) -> dict:
         "repeat_access_share": repeat_share(weekly),
         "self_access_share": own.mean(),
         "first_access_explained_direct": direct.mean(),
-        "first_access_explained_with_department_link": linked.mean(),
+        "first_access_explained_with_responsibility": linked.mean(),
         "all_accesses_explained": (is_repeat.sum() + linked.sum()) / len(weekly),
         "rule_match_share": rule_share,
         "rule_observed_to_expected": rule_ratio,
@@ -314,9 +317,9 @@ def write_report(run_dir: str | Path, cfg: Config, out_path: str | Path) -> dict
         "duration and zero-gap rows are shown for reference. A duration here is time until the user's next action, "
         "capped at five minutes.",
         "",
-        "The department-link row is a stand-in. It counts a first access as explained when the patient had an encounter "
-        "in the user's department or an order sent to it. That is broader than the diagnosis-department links in "
-        "Fabbri and LeFevre, so it is shown for orientation and is not a like-for-like comparison.",
+        "Departmental responsibility is mined from this log with the method and thresholds of Fabbri and LeFevre 2013. "
+        "Their evidence covers more sources than exist here (documents, for one), so the two explanation rows are "
+        "comparable in kind and not exactly in scope.",
         "",
         "## Workload check",
         "",

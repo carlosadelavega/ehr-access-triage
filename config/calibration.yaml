@@ -34,11 +34,11 @@ targets:
     value: 0.23
     use: level
     source: "Fabbri & LeFevre 2013"
-  first_access_explained_with_department_link:
+  first_access_explained_with_responsibility:
     value: 0.41
     use: reported
-    source: "Fabbri & LeFevre 2013 (with diagnosis-department links)"
-    note: "Measured here with a coarser stand-in, the department of the patient's encounter. The real templates arrive in build step 4"
+    source: "Fabbri & LeFevre 2013 (evidence plus departmental responsibility, s = 1, t = 2)"
+    note: "Responsibility is mined from the generated log with their method and thresholds"
   all_accesses_explained:
     value: 0.94
     use: reported
@@ -426,6 +426,17 @@ parameters:
       coordinator: {read: 1.3, query: 1.5, create: 0.5, update: 0.6}
     basis: assumption
     note: "Multipliers on the category shares, by role"
+
+  # ---- baselines (build step 4), not used by the generator ----
+  responsibility_thresholds:
+    value: {s: 1.0, t: 2.0, min_patients: 30}
+    basis: published
+    source: "Fabbri & LeFevre 2013 (s = 1, t = 2, diagnoses occurring at least 30 times)"
+    note: "A department is responsible for a diagnosis when its z-scored access probability is at least s and its z-scored treatment probability at least t"
+  review_budget_per_day:
+    value: [10, 25, 50]
+    basis: assumption
+    note: "How many alerts a privacy office reviews in a day. Hedda et al. describe one or two people with part of their time. No public figure for a hospital this size"
 
   # ---- injected misuse ----
   scenario_counts:
