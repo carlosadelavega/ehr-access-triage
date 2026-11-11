@@ -41,8 +41,9 @@ class Requests:
 class Roster:
     """Who is working where and when."""
 
-    def __init__(self, shifts: pd.DataFrame):
+    def __init__(self, shifts: pd.DataFrame, weight: np.ndarray):
         self.shifts = shifts
+        self.weight = weight  # per-person workload weight
         self._cache: dict = {}
         self.slot = {
             key: (g["u"].to_numpy(), g["floated"].to_numpy(), g["float_documented"].to_numpy())
@@ -66,17 +67,20 @@ class Roster:
         With wait=False, returns None when nobody is on shift at `t`.
         """
         start, end, u, floated, documented = self._group(dept, roles)
+        def choose(candidates):
+            w = self.weight[u[candidates]]
+            return candidates[rng.choice(len(candidates), p=w / w.sum())]
+
         on = np.flatnonzero((start <= t) & (t < end))
         if len(on):
-            i = on[rng.integers(len(on))]
+            i = choose(on)
             return int(u[i]), t, bool(floated[i]), bool(documented[i])
         if not wait:
             return None
         k = np.searchsorted(start, t)
         if k >= len(start):
             return None
-        same = np.flatnonzero(start == start[k])
-        i = same[rng.integers(len(same))]
+        i = choose(np.flatnonzero(start == start[k]))
         return int(u[i]), float(start[i] + rng.random() * spread), bool(floated[i]), bool(documented[i])
 
 
@@ -150,7 +154,7 @@ def build_encounters(syn: dict, patients: pd.DataFrame, staff: pd.DataFrame, cfg
     lo, hi = (m * 60 for m in cfg["clinic_los_clip_minutes"])
     matched = {}
     for dept, rate in cfg["clinic_visits_per_physician_day"].items():
-        per_day = int(round(rate * ((staff["dept"] == dept) & (staff["role"] == "physician")).sum()))
+        per_day = int(round(rate * cfg["staffing"][dept]["physician"]))  # per physician FTE
         total = per_day * len(weekdays)
         own = cl.index[(spec == dept).to_numpy()][:total]
         fill = general[used : used + total - len(own)]
@@ -174,7 +178,11 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
     W = cfg["window_days"] * DAY
     rates = cfg["visit_rates"]
     doc_p = cfg["documentation_prob"]
-    roster = Roster(shifts)
+    weight = staff["load_weight"].to_numpy()
+    roster = Roster(shifts, weight)
+    wide = [d for d, v in cfg["departments"].items() if v["kind"] == "hospital_wide"]
+    review = cfg["hospital_wide_review_prob"]
+    away_prob = cfg["away_device_prob"]
     req = Requests()
     care_team: list[tuple] = []  # (e, u, team_role, start, stop)
     orders: list[tuple] = []  # (e, p, kind, ordered_by, performing_dept, t, description)
@@ -184,6 +192,19 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
     users = np.arange(len(staff))
     by = {(d, r): users[(home == d) & (role == r)] for d in cfg["departments"] for r in set(role)}
     documented: dict[tuple, bool] = {}
+
+    def weighted(users):
+        w = weight[users]
+        return int(rng.choice(users, p=w / w.sum()))
+
+    def on_duty(dept: str, role: str, t: float) -> int:
+        """Someone of this role at work in the department now, else anyone of that role."""
+        got = roster.pick(dept, (role,), t, rng, wait=False)
+        return got[0] if got else weighted(by[(dept, role)])
+
+    def away(kind: str, e: int) -> str:
+        """Department whose workstation is used, when the work is done at the patient's side."""
+        return enc_dept[e] if enc_cls[e] != "clinic" and rng.random() < away_prob[kind] else ""
 
     def is_documented(u: int, e: int, p: float) -> bool:
         if (u, e) not in documented:
@@ -214,7 +235,7 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
     for unit in cfg["inpatient_census"]:
         mine = np.flatnonzero(enc_dept == unit)
         day_docs = by[(unit, "physician")][usual[by[(unit, "physician")]] == "day"]
-        physician[mine] = rng.choice(day_docs, len(mine))
+        physician[mine] = [weighted(day_docs) for _ in mine]
         for e in mine:
             care_team.append((e, physician[e], "attending", enc_start[e], enc_stop[e]))
         affinity = rng.random((len(staff), len(mine)))  # keeps a nurse on the same patients across days
@@ -230,7 +251,8 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
             clerks = roster.slot.get((unit, "clerk", s0), (np.array([], int),) * 3)[0]
             present = np.flatnonzero((enc_start[mine] < s1) & (enc_stop[mine] > s0))
             load = np.zeros(len(nurses), dtype=int)
-            cap = -(-len(present) // max(len(nurses), 1))  # even split, rounded up
+            share = weight[nurses] / weight[nurses].sum() if len(nurses) else weight[nurses]
+            cap = np.ceil(len(present) * share)  # each nurse's share of the unit, by workload weight
             for k in present:
                 e = mine[k]
                 p = enc_p[e]
@@ -239,7 +261,8 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
                     continue
                 f = (t1 - t0) / slot_len
                 if len(nurses):
-                    i = int(next(j for j in np.argsort(-affinity[nurses, k]) if load[j] < cap))
+                    order = np.argsort(-affinity[nurses, k])
+                    i = int(next((j for j in order if load[j] < cap[j]), order[0]))
                     load[i] += 1
                     nurse_work(nurses[i], n_floated[i], n_doc[i], e, p, t0, t1,
                                rng.poisson(nurse_rate * f), doc_p["inpatient_nurse"], (s0, s1))
@@ -266,7 +289,6 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
                     req.add(u, p, e, t0, t1, n, "care_team" if u == att else "undocumented_team", u == att)
 
     # ---- emergency and clinic: visit by visit ----
-    turn = {d: 0 for d in cfg["clinic_visits_per_physician_day"]}
     for e in np.flatnonzero(enc_cls != "inpatient"):
         p, dept, s, x = enc_p[e], enc_dept[e], enc_start[e], enc_stop[e]
         if enc_cls[e] == "emergency":
@@ -286,17 +308,15 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
                 req.add(got[0], p, e, got[1], min(max(x, got[1] + HOUR), W), rng.poisson(rates["ed_clerk"]),
                         "undocumented_team", False)
         else:
-            docs = by[(dept, "physician")]
-            u = int(docs[turn[dept] % len(docs)])
-            turn[dept] += 1
+            u = on_duty(dept, "physician", s)
             physician[e] = u
             care_team.append((e, u, "attending", s, x))
             req.add(u, p, e, max(s - 0.5 * HOUR, 0), min(x + 2 * HOUR, W), max(1, rng.poisson(rates["clinic_physician"])),
                     "care_team", True)
-            u = int(rng.choice(by[(dept, "nurse")]))
+            u = on_duty(dept, "nurse", s)
             nurse_work(u, False, False, e, p, max(s - 0.25 * HOUR, 0), min(x, W),
                        max(1, rng.poisson(rates["clinic_nurse"])), doc_p["clinic_nurse"])
-            u = int(rng.choice(by[(dept, "clerk")]))
+            u = on_duty(dept, "clerk", s)
             req.add(u, p, e, max(s - 20 * 60, 0), min(x + 15 * 60, W), max(1, rng.poisson(rates["clinic_clerk"])),
                     "undocumented_team", False)
 
@@ -347,7 +367,22 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
             got = roster.pick(ORDER_DEPT[kind], None, t, rng)
             if got and got[1] < W:
                 n = 1 + int(rng.random() < cfg["order_second_visit_prob"])
-                req.add(got[0], p, e, got[1], min(got[1] + 2 * HOUR, W), n, "order", True)
+                req.add(got[0], p, e, got[1], min(got[1] + 2 * HOUR, W), n, "order", True, device_dept=away("order", e))
+
+        # Care management looks across the whole house. Nothing but the role documents it.
+        looks = []
+        if wide and cls == "inpatient":
+            for d in range(int(np.ceil((t1 - t0) / DAY))):
+                if rng.random() < review["inpatient_per_day"]:
+                    a = t0 + d * DAY
+                    looks.append(a + rng.random() * (min(a + DAY, t1) - a))
+        elif wide and cls == "emergency" and rng.random() < review["emergency"]:
+            looks.append(t0 + rng.random() * (t1 - t0))
+        for t in looks:
+            got = roster.pick(wide[0], None, t, rng)
+            if got and got[1] < W:
+                req.add(got[0], p, e, got[1], min(got[1] + 2 * HOUR, W), max(1, rng.poisson(rates["hospital_wide_review"])),
+                        "hospital_wide", False, device_dept=away("hospital_wide", e))
 
         if cls != "clinic" and rng.random() < cfg["consult_prob"][cls]:
             match = [d for d, words in cfg["specialty_keywords"].items() if any(w in reason[e] for w in words)]
@@ -361,14 +396,14 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
             # would be explained by that row, so pick one who is not.
             free = [u for u in by[(dept, "physician")] if (u, p) not in on_team]
             if free:
-                req.add(int(rng.choice(free)), p, e, a, b, int(rng.integers(consult_lo, consult_hi + 1)),
-                        "consult", False, mode="consult")
+                req.add(weighted(np.array(free)), p, e, a, b, int(rng.integers(consult_lo, consult_hi + 1)),
+                        "consult", False, mode="consult", device_dept=away("consult", e))
 
         if s >= 0 and (cls != "clinic" or rng.random() < cfg["registration_prob_clinic"]):
             got = roster.pick("REG", ("clerk",), s, rng)
             if got and got[1] < W:
                 req.add(got[0], p, e, got[1], min(got[1] + 0.5 * HOUR, W), max(1, rng.poisson(rates["registration"])),
-                        "back_office", False)
+                        "back_office", False, device_dept=away("registration", e))
         if x < W:
             lo, hi = cfg["coding_delay_days"]
             back_office("HIM", ("coder",), x + (lo + rng.random() * (hi - lo)) * DAY, e, max(1, rng.poisson(rates["coding"])))

@@ -16,6 +16,7 @@
 #               setting     run setup, not a calibration choice
 
 targets:
+  # ---- US audit logs, the unit this generator uses for an access ----
   accesses_per_staff_week:
     value: [375, 580]
     use: level
@@ -24,7 +25,7 @@ targets:
     value: 0.92
     use: level
     source: "Hedda et al. 2017 (6.9M of 7.5M accesses in one week)"
-    note: "A repeat is the same user opening the same patient earlier in the same week"
+    note: "A repeat is the same user opening the same patient earlier in the same week. The same table lists 710K unique non-self accesses, which would put the share nearer 90%"
   self_access_share:
     value: 0.003
     use: level
@@ -43,42 +44,67 @@ targets:
     use: reported
     source: "Fabbri & LeFevre 2011, 2013 (over 94% once repeats are filtered)"
   rule_match_share:
-    value: [0.0003, 0.038]
+    value: {organization co-worker: 0.0384, department co-worker: 0.0004, last name: 0.0014, proximity: 0.0016, same street: 0.0012}
     use: reported
-    source: "Hedda et al. 2017 (0.03-3.8% by rule)"
+    source: "Hedda et al. 2017, Table 3 (observed share of 100,000 unique non-self accesses)"
+  rule_observed_to_expected:
+    value: {organization co-worker: 1.0, department co-worker: 3.22, last name: 1.53, proximity: 2.51, same street: 4.04}
+    use: reported
+    source: "Hedda et al. 2017, Table 2 (patients permuted)"
+    note: "How much more often a rule fires than it would if users and patients were paired at random"
   alerts_per_access:
     value: 0.10
     use: later
     source: "Laszka et al. 2017"
-  duration_median_s:
-    value: 45
+  nurse_chart_time_share:
+    value: 0.34
     use: level
-    source: "Herrera Montano et al."
-  duration_p95_s:
-    value: 775
-    use: level
-    source: "Herrera Montano et al."
-  immediate_repeat_share:
-    value: 0.554
-    use: level
-    source: "Herrera Montano et al."
-    note: "Measured per user as the share of events on the same patient as that user's previous event"
-  patients_per_user_day:
-    value: {median: 5, p99: 80}
-    use: shape
-    source: "Herrera Montano et al."
+    source: "Association Between EHR-Based Nursing Workload and Turnover, JMIR Nursing 2026 (432 inpatient nurses, median 260 minutes of EHR time per shift, about 34% of a shift)"
+    note: "Chart time of inpatient nurses as a share of scheduled shift time. Read from the abstract and results summary only, the full text could not be fetched"
+  physician_ehr_hours_per_day:
+    value: 5.9
+    use: reported
+    source: "Arndt et al. 2017 (primary care, 355 minutes per weekday per clinical FTE, from EHR event logs)"
+    note: "Measured here for primary care physicians per scheduled day"
+
+  # ---- UK log (Herrera Montano et al.). It records about 9 events per user
+  # per week, a much coarser unit, so only measures that do not depend on the
+  # unit are compared, and only by shape ----
   events_per_user:
     value: {median: 220, p95: 2160}
     use: shape
-    source: "Herrera Montano et al. (over 18 months)"
+    source: "Herrera Montano et al., Table 3 (over 18 months)"
   patients_per_user:
     value: {median: 149, p99: 3424}
     use: shape
-    source: "Herrera Montano et al. (over 18 months)"
+    source: "Herrera Montano et al., Table 3 (over 18 months)"
+  devices_per_user:
+    value: {median: 22, p95: 93}
+    use: shape
+    source: "Herrera Montano et al., Table 3 (over 18 months)"
+  patient_index_in_user_day:
+    value: {median: 5, p99: 80}
+    use: shape
+    source: "Herrera Montano et al., Table 5 (patient_day_user_id)"
+    note: "Per event, the position of its patient among the distinct patients that user opened that day"
   action_top21_share:
     value: 0.80
     use: shape
     source: "Herrera Montano et al. (21 of 13,723 routine codes cover about 80% of events)"
+  zero_gap_same_patient_share:
+    value: 0.554
+    use: reported
+    source: "Herrera Montano et al. (is_repeat_same_patient_immediate)"
+    note: "Share of events with zero time since the same user last opened the same patient. A first access counts as zero by the paper's convention, and timestamps have minute resolution. About 54 of the 55 points are first accesses, so this mostly reflects the coarser unit"
+  duration_median_s:
+    value: 45
+    use: reported
+    source: "Herrera Montano et al., Table 5"
+    note: "Per routine in the UK log, not per access in the US sense"
+  duration_p95_s:
+    value: 775
+    use: reported
+    source: "Herrera Montano et al., Table 5"
 
 parameters:
   # ---- run setup ----
@@ -98,20 +124,25 @@ parameters:
     note: "Must match scripts/run_synthea.sh"
 
   # ---- taken from published sources ----
+  duration_cap_s:
+    value: 300
+    basis: published
+    source: "Five-minute inactivity threshold used to turn audit-log timestamps into active time (JMIR Nursing 2026 nursing workload study; reviewed in Rule et al. 2020)"
+    note: "Longest time one access can hold the user. US audit logs carry no duration field, so duration here means time until the user's next action, capped at this threshold"
   duration_median_s:
-    value: 45
-    basis: published
-    source: "Herrera Montano et al."
-  duration_p95_s:
-    value: 775
-    basis: published
-    source: "Herrera Montano et al."
-    note: "Durations are lognormal, fitted to the median and the 95th percentile"
+    value: 25
+    basis: derived
+    source: "Sized against inpatient nurse chart time, about 34% of a shift (JMIR Nursing 2026)"
+    note: "Worked out on paper before the run, from an estimate of about 206 accesses per nurse shift and a mean capped duration near 47 s. The run has about 150 accesses per nurse shift, so nurse chart time comes out near 25%. The value is left as first set"
+  duration_sigma:
+    value: 1.2
+    basis: assumption
+    note: "Spread of the lognormal duration. No published figure at this log unit"
   visit_continue_prob:
-    value: 0.554
-    basis: published
-    source: "Herrera Montano et al. (55.4% of events immediately repeat the same patient)"
-    note: "Chance that a visit to a chart continues with another event. Back-to-back visits to the same patient will push the measured share above this"
+    value: 0.7
+    basis: derived
+    source: "Sized against Hedda et al. 2017, 7.5M accesses over 710K unique user-patient pairs in a week, about 10.6 accesses per pair"
+    note: "Chance that a visit to a chart continues with another access. 0.7 gives 3.3 accesses per visit. With about 3.2 visits per user-patient pair per week that is near 10.6"
   self_access_share:
     value: 0.003
     basis: published
@@ -152,6 +183,7 @@ parameters:
       REG: {name: "Registration", kind: back_office, hours: round_the_clock}
       HIM: {name: "Health information management", kind: back_office, hours: office}
       BILL: {name: "Billing", kind: back_office, hours: office}
+      CM: {name: "Care management", kind: hospital_wide, hours: round_the_clock}
     basis: assumption
     note: "A small community hospital. No public source for this layout"
   staffing:
@@ -170,8 +202,20 @@ parameters:
       REG: {clerk: 16}
       HIM: {coder: 16}
       BILL: {coder: 17}
+      CM: {coordinator: 8}
     basis: assumption
-    note: "300 staff in total, as agreed for milestone 1"
+    note: "Full-time equivalents, 308 in total. Headcount is higher because of the employment mix below"
+  employment_mix:
+    value:
+      full_time: {share: 0.60, shifts_per_week: 5}
+      part_time: {share: 0.25, shifts_per_week: 3}
+      occasional: {share: 0.15, shifts_per_week: 1}
+    basis: assumption
+    note: "Share of headcount in each class. Herrera Montano et al. show most users are active on a minority of days, but give no employment data. At 0.78 FTE per head, 308 FTE is about 395 people"
+  load_weight_sigma:
+    value: 0.6
+    basis: assumption
+    note: "Spread of a per-person workload weight (lognormal). Work is handed out in proportion to it, so some people carry far more than others, as in the heavy tail of events per user in Herrera Montano et al."
   staff_age_range:
     value: [22, 67]
     basis: assumption
@@ -190,18 +234,18 @@ parameters:
       ED: [day, evening, night, day, evening, night, day, evening]
     basis: assumption
     note: "Physicians in a round-the-clock department take shifts in this order, so every unit has day cover and the emergency department is staffed evenly"
-  shifts_per_week:
-    value: 5
-    basis: assumption
-    note: "Round-the-clock staff take two random days off a week. Office staff work weekdays"
   devices_per_staff:
-    value: 0.6
+    value: 1.0
     basis: assumption
-    note: "Workstations per department as a share of its staff. Physicians also get a mobile device"
-  usual_device_weights:
-    value: [0.7, 0.2, 0.1]
+    note: "Workstations per department per FTE. Physicians also get a mobile device. Herrera Montano et al. report 2,270 devices for 1,515 users"
+  usual_device_count:
+    value: {median: 4, sigma: 0.8}
     basis: assumption
-    note: "How often a user works on their first, second and third usual device"
+    note: "How many of the department's workstations a person habitually uses (lognormal, at least 1). Use falls off as 1 over rank. Herrera Montano et al. report a median of 22 devices per user over 18 months and find device diversity the strongest marker of atypical users"
+  away_device_prob:
+    value: {order: 0.3, consult: 0.5, hospital_wide: 0.5, registration: 0.5}
+    basis: assumption
+    note: "Chance that this kind of work is done on a shared workstation in the patient's department instead of the person's own, for inpatient and emergency patients. Without it, a device outside the home department would give shared credentials away"
   remote_share:
     value: 0.3
     basis: assumption
@@ -233,9 +277,10 @@ parameters:
     basis: assumption
     note: "Synthea visit lengths are kept, clipped to this range"
   clinic_visits_per_physician_day:
-    value: {PCP: 16, CARD: 9, ORTH: 9}
-    basis: assumption
-    note: "Appointments per physician on a weekday"
+    value: {PCP: 12, CARD: 9, ORTH: 9}
+    basis: published
+    source: "Tai-Seale et al. 2017, 12.3 visits per physician per day, as cited in Adler-Milstein et al. 2020"
+    note: "Appointments per physician FTE on a weekday. The primary care figure is published. The two specialty figures are assumptions"
   clinic_los_clip_minutes:
     value: [15, 60]
     basis: assumption
@@ -264,9 +309,10 @@ parameters:
       registration: 1
       coding: 2
       billing: 1
+      hospital_wide_review: 1.5
     basis: derived
     source: "Sized against accesses per staff member per week (375-580)"
-    note: "Mean chart visits per patient. No public source gives these. They are bounded by workload. A visit averages 2.2 events and about 7 minutes of chart time, so a shift cannot hold many more visits than these. Within that bound they aim at the low end of the published volume range"
+    note: "Mean chart visits per patient. No public source gives these. They are bounded by workload. Set before the first run so that no role needs more chart time than a shift holds, and unchanged since"
   helper_prob:
     value: 0.5
     basis: assumption
@@ -300,6 +346,10 @@ parameters:
     value: [3, 10]
     basis: assumption
     note: "Days after discharge before billing opens the chart"
+  hospital_wide_review_prob:
+    value: {inpatient_per_day: 0.6, emergency: 0.15}
+    basis: assumption
+    note: "Chance that care management (bed management, case management, infection control) opens a patient's chart, per inpatient day and per emergency visit"
   consult_prob:
     value: {inpatient: 0.25, emergency: 0.08}
     basis: assumption
@@ -332,11 +382,6 @@ parameters:
     value: 7200
     basis: assumption
     note: "A user works one chart at a time and can fall this far behind. Past that, visits overlap as if on a second screen"
-  duration_cap_s:
-    value: 3600
-    basis: assumption
-    note: "Longest single action. Affects under 1% of draws"
-
   # ---- people ----
   households:
     value:
@@ -366,6 +411,7 @@ parameters:
       pharmacist: {update: 1.3}
       clerk: {query: 2.0, read: 1.2, create: 0.5, update: 0.6, print: 1.5}
       coder: {read: 1.3, create: 0.3, print: 1.5, copy: 2.0}
+      coordinator: {read: 1.3, query: 1.5, create: 0.5, update: 0.6}
     basis: assumption
     note: "Multipliers on the category shares, by role"
 
@@ -391,7 +437,7 @@ parameters:
     basis: assumption
     note: "Chance that an M2a or M4 actor comes back on 2-4 different shifts"
   misuse_duration_cap_s:
-    value: 300
+    value: 120
     basis: assumption
     note: "The spec describes snooping views as short"
   shared_credential_visits:

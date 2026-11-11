@@ -17,7 +17,7 @@ def generate(cfg: Config, slim_dir: str | Path, out_dir: str | Path) -> dict:
     syn = population.load_synthea(slim_dir)
     patients, rel = population.build_patients(syn["patients"], cfg, rng)
     staff = population.build_staff(patients, cfg, rng)
-    devices, usual, usual_cum, by_dept = population.build_devices(staff, cfg, rng)
+    devices, usual, usual_cum, by_dept, shared = population.build_devices(staff, cfg, rng)
     shifts = population.build_shifts(staff, cfg, rng)
     actions, action_probs = population.build_actions(cfg, rng)
     enc, stats = encounters.build_encounters(syn, patients, staff, cfg, rng)
@@ -25,7 +25,7 @@ def generate(cfg: Config, slim_dir: str | Path, out_dir: str | Path) -> dict:
     legit = work.frame()
     extra, scen, public, notes = scenarios.inject(legit, staff, patients, rel, enc, orders, shifts, cfg, rng)
     req = pd.concat([legit, extra], ignore_index=True)
-    ev = events.expand(req, staff, usual, usual_cum, by_dept, action_probs, cfg, rng)
+    ev = events.expand(req, staff, usual, usual_cum, by_dept, shared, action_probs, cfg, rng)
 
     ws = pd.Timestamp(cfg["window_start"])
 
@@ -57,7 +57,7 @@ def generate(cfg: Config, slim_dir: str | Path, out_dir: str | Path) -> dict:
     patients[cols].to_csv(context / "patients.csv", index=False)
     pd.DataFrame(
         {"user_id": uid, "patient_id": pid[staff["pidx"]], "role": staff["role"], "department_id": staff["dept"],
-         "usual_shift": staff["usual_shift"]}
+         "usual_shift": staff["usual_shift"], "employment": staff["employment"]}
     ).to_csv(context / "staff.csv", index=False)
     pd.DataFrame(
         [(k, v["name"], v["kind"]) for k, v in cfg["departments"].items()], columns=["department_id", "name", "kind"]

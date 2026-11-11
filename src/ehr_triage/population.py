@@ -112,64 +112,80 @@ def build_patients(syn_patients: pd.DataFrame, cfg, rng) -> tuple[pd.DataFrame, 
 
 
 def build_staff(patients: pd.DataFrame, cfg, rng) -> pd.DataFrame:
-    """Staff are Synthea adults, so every staff member also has a patient record."""
+    """Staff are Synthea adults, so every staff member also has a patient record.
+
+    The staffing table is in full-time equivalents. Headcount is larger,
+    because part-time and occasional staff share the same work.
+    """
     lo, hi = cfg["staff_age_range"]
-    slots = [(dept, role) for dept, roles in cfg["staffing"].items() for role, k in roles.items() for _ in range(k)]
-    eligible = np.flatnonzero((patients["age"] >= lo) & (patients["age"] < hi))
-    people = rng.choice(eligible, len(slots), replace=False)
+    mix = cfg["employment_mix"]
+    classes = list(mix)
+    share = np.array([mix[c]["share"] for c in classes])
+    fte_per_head = float(sum(mix[c]["share"] * mix[c]["shifts_per_week"] for c in classes)) / 5
     names = list(cfg["shift_weights"])
     probs = np.array(list(cfg["shift_weights"].values()))
     probs = probs / probs.sum()
     rows = []
-    turn: dict[tuple, int] = {}
-    for (dept, role), pidx in zip(slots, people):
-        k = turn.get((dept, role), 0)
-        turn[(dept, role)] = k + 1
-        if cfg["departments"][dept]["hours"] == "office":
-            shift = "office"
-        elif role == "physician":
-            pattern = cfg["physician_shift_pattern"]
-            pattern = pattern.get(dept, pattern["default"])
-            shift = pattern[k % len(pattern)]
-        else:
-            # Spread each group over the shifts in proportion to the weights,
-            # so no unit ends up with an empty shift by chance.
-            size = cfg["staffing"][dept][role]
-            shift = names[int(np.searchsorted(np.cumsum(probs), (k + 0.5) / size))]
-        rows.append((int(pidx), role, dept, shift))
-    staff = pd.DataFrame(rows, columns=["pidx", "role", "dept", "usual_shift"])
+    for dept, roles in cfg["staffing"].items():
+        for role, fte in roles.items():
+            heads = max(1, round(fte / fte_per_head))
+            # Spread the group over employment classes in proportion to the
+            # shares, in a shuffled order so class and shift are unrelated.
+            position = (rng.permutation(heads) + 0.5) / heads
+            employment = [classes[int(np.searchsorted(np.cumsum(share), x))] for x in position]
+            for k in range(heads):
+                if cfg["departments"][dept]["hours"] == "office":
+                    shift = "office"
+                elif role == "physician":
+                    pattern = cfg["physician_shift_pattern"]
+                    pattern = pattern.get(dept, pattern["default"])
+                    shift = pattern[k % len(pattern)]
+                else:
+                    # Spread each group over the shifts in proportion to the
+                    # weights, so no unit ends up with an empty shift by chance.
+                    shift = names[int(np.searchsorted(np.cumsum(probs), (k + 0.5) / heads))]
+                rows.append((role, dept, shift, employment[k]))
+    staff = pd.DataFrame(rows, columns=["role", "dept", "usual_shift", "employment"])
+    eligible = np.flatnonzero((patients["age"] >= lo) & (patients["age"] < hi))
+    staff.insert(0, "pidx", rng.choice(eligible, len(staff), replace=False))
+    staff["load_weight"] = rng.lognormal(0.0, cfg["load_weight_sigma"], len(staff))
     # Shuffle before numbering so a user ID says nothing about the department.
     staff = staff.iloc[rng.permutation(len(staff))].reset_index(drop=True)
     staff["user_id"] = [f"U{i + 1:04d}" for i in range(len(staff))]
     return staff
 
 
-def build_devices(staff: pd.DataFrame, cfg, rng) -> tuple[pd.DataFrame, list, list, dict]:
-    """Devices, each user's usual devices with weights, and workstations by department."""
+def build_devices(staff: pd.DataFrame, cfg, rng) -> tuple[pd.DataFrame, list, list, dict, dict]:
+    """Devices, each user's usual devices with weights, and each department's
+    workstations, all of them and the shared ones."""
     rows = []  # (dept, kind)
     by_dept: dict[str, list[int]] = {}
-    for dept in cfg["departments"]:
-        k = max(3, round(cfg["devices_per_staff"] * int((staff["dept"] == dept).sum())))
+    for dept, roles in cfg["staffing"].items():
+        k = max(3, round(cfg["devices_per_staff"] * sum(roles.values())))
         by_dept[dept] = list(range(len(rows), len(rows) + k))
         rows += [(dept, "shared workstation" if j % 4 == 3 else "workstation") for j in range(k)]
-    weights = np.array(cfg["usual_device_weights"], dtype=float)
+    spread = cfg["usual_device_count"]
     usual, usual_cum = [], []
     for role, dept in zip(staff["role"], staff["dept"]):
-        mine = [int(d) for d in rng.choice(by_dept[dept], min(3, len(by_dept[dept])), replace=False)]
-        w = weights[: len(mine)].copy()
+        # Some people sit at one desk, others use whatever is free on the unit.
+        count = int(np.clip(round(rng.lognormal(np.log(spread["median"]), spread["sigma"])), 1, len(by_dept[dept])))
+        mine = [int(d) for d in rng.choice(by_dept[dept], count, replace=False)]
         if role == "physician":
             rows.append((dept, "mobile"))
-            mine, w = [mine[0], len(rows) - 1] + mine[1:2], np.array([0.6, 0.3, 0.1])[: len(mine[:1]) + 1 + len(mine[1:2])]
+            mine.insert(1, len(rows) - 1)
         elif cfg["departments"][dept]["kind"] == "back_office" and rng.random() < cfg["remote_share"]:
             rows.append((dept, "remote"))
-            mine, w = [len(rows) - 1, mine[0]], np.array([0.7, 0.3])
+            mine.insert(0, len(rows) - 1)
+        w = 1.0 / np.arange(1, len(mine) + 1)
         usual.append(np.array(mine))
         usual_cum.append(np.cumsum(w / w.sum()))
     devices = pd.DataFrame(rows, columns=["dept", "kind"])
     # Number devices in a shuffled order for the same reason as users.
     number = rng.permutation(len(devices))
     devices["device_id"] = [f"D{k + 1:04d}" for k in number]
-    return devices, usual, usual_cum, {d: np.array(v) for d, v in by_dept.items()}
+    every = {d: np.array(v) for d, v in by_dept.items()}
+    shared = {d: v[devices["kind"].to_numpy()[v] == "shared workstation"] for d, v in every.items()}
+    return devices, usual, usual_cum, every, shared
 
 
 def build_shifts(staff: pd.DataFrame, cfg, rng) -> pd.DataFrame:
@@ -181,20 +197,22 @@ def build_shifts(staff: pd.DataFrame, cfg, rng) -> pd.DataFrame:
     """
     days = cfg["window_days"]
     hours = cfg["shifts"]
+    mix = cfg["employment_mix"]
     weekday0 = pd.Timestamp(cfg["window_start"]).dayofweek
     float_targets = [d for d, v in cfg["departments"].items() if v["kind"] in ("inpatient", "emergency")]
     rows = []
-    for u, (role, dept, shift) in enumerate(zip(staff["role"], staff["dept"], staff["usual_shift"])):
+    columns = zip(staff["role"], staff["dept"], staff["usual_shift"], staff["employment"])
+    for u, (role, dept, shift, employment) in enumerate(columns):
         start_h, end_h = hours[shift]
-        if shift == "office":
-            worked = [d for d in range(days) if (weekday0 + d) % 7 < 5]
-        else:
-            worked = []
-            for week in range(0, days, 7):
-                block = np.arange(week, min(week + 7, days))
-                off = rng.choice(block, min(7 - cfg["shifts_per_week"], len(block)), replace=False)
-                worked += [int(d) for d in block if d not in off]
-        if shift == "night" and rng.random() < cfg["shifts_per_week"] / 7:
+        per_week = mix[employment]["shifts_per_week"]
+        worked = []
+        for week in range(0, days, 7):
+            block = np.arange(week, min(week + 7, days))
+            if shift == "office":
+                block = block[(weekday0 + block) % 7 < 5]
+            take = min(per_week, len(block))
+            worked += sorted(int(d) for d in rng.choice(block, take, replace=False)) if take else []
+        if shift == "night" and rng.random() < per_week / 7:
             worked = [-1] + worked  # the night that runs into the first morning
         can_float = role == "nurse" and cfg["departments"][dept]["kind"] == "inpatient"
         for d in worked:

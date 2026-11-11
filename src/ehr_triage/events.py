@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 
-def expand(req: pd.DataFrame, staff: pd.DataFrame, usual: list, usual_cum: list, by_dept: dict,
+def expand(req: pd.DataFrame, staff: pd.DataFrame, usual: list, usual_cum: list, by_dept: dict, shared: dict,
            action_probs: dict, cfg, rng) -> pd.DataFrame:
     """One row per event. Label columns ride along and are split off on write."""
     W = cfg["window_days"] * 86400
@@ -24,10 +24,10 @@ def expand(req: pd.DataFrame, staff: pd.DataFrame, usual: list, usual_cum: list,
     vid = np.repeat(np.arange(V), n_events)
     N = len(vid)
 
-    # Durations: lognormal through the published median and 95th percentile.
-    mu = np.log(cfg["duration_median_s"])
-    sigma = (np.log(cfg["duration_p95_s"]) - mu) / 1.6449
-    duration = np.exp(mu + sigma * rng.standard_normal(N))
+    # Durations: lognormal, capped at the inactivity threshold. A duration is
+    # the time until the user's next action, the way audit-log studies
+    # measure active time.
+    duration = np.exp(np.log(cfg["duration_median_s"]) + cfg["duration_sigma"] * rng.standard_normal(N))
     duration[mode[vid] == "consult"] *= cfg["consult_duration_factor"]
     limit = np.where(mode[vid] == "view", cfg["misuse_duration_cap_s"], cfg["duration_cap_s"])
     duration = np.maximum(1, np.round(np.minimum(duration, limit))).astype(np.int64)
@@ -47,8 +47,9 @@ def expand(req: pd.DataFrame, staff: pd.DataFrame, usual: list, usual_cum: list,
     first = np.cumsum(n_events) - n_events
     ts = np.floor(start[vid] + before - before[first][vid]).astype(np.int64)
 
-    # Device: one of the person's usual devices, or a workstation of the unit
-    # they are covering.
+    # Device: one of the person's usual devices. A nurse covering another unit
+    # uses any of its workstations. Anyone else working at a patient's side
+    # in another department uses one of its shared workstations.
     device = np.empty(V, dtype=np.int64)
     r = rng.random(V)
     for a in np.unique(actor):
@@ -57,8 +58,9 @@ def expand(req: pd.DataFrame, staff: pd.DataFrame, usual: list, usual_cum: list,
         device[idx] = usual[a][k]
     home = staff["dept"].to_numpy()
     away = visit["device_dept"].to_numpy()
+    covering = visit["reason"].to_numpy() == "coverage"
     for i in np.flatnonzero((away != "") & (away != home[actor])):
-        device[i] = rng.choice(by_dept[away[i]])
+        device[i] = rng.choice(by_dept[away[i]] if covering[i] else shared[away[i]])
 
     # Action: drawn from the acting person's role mix. Snooping only looks.
     role = staff["role"].to_numpy()[actor][vid]

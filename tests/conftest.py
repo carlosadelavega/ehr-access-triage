@@ -55,7 +55,7 @@ def make_slim(folder: Path, n_patients: int = 500, seed: int = 7) -> Path:
 
 
 def small_config():
-    """The real config, shrunk to a hospital of 79 staff and two weeks."""
+    """The real config, shrunk to a hospital of 81 full-time equivalents and two weeks."""
     cfg = load_config(ROOT / "config" / "calibration.yaml")
     small = {
         "window_days": 14,
@@ -66,6 +66,7 @@ def small_config():
             "CARD": {"physician": 1, "nurse": 2, "clerk": 1}, "ORTH": {"physician": 1, "nurse": 2, "clerk": 1},
             "LAB": {"technician": 4}, "RAD": {"physician": 1, "technician": 3},
             "PHARM": {"pharmacist": 3, "technician": 1}, "REG": {"clerk": 4}, "HIM": {"coder": 3}, "BILL": {"coder": 3},
+            "CM": {"coordinator": 2},
         },
         "inpatient_census": {"MED1": 6, "MED2": 6, "SURG": 3, "ICU": 2},
         "ed_visits_per_day": 8,

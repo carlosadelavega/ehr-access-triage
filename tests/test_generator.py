@@ -162,3 +162,27 @@ def test_care_team_rows_match_the_documented_flag(run):
     pairs = lambda reason: set(zip(*[labelled.loc[labelled["reason"] == reason, c] for c in ("user_id", "patient_id")]))
     assert pairs("care_team") <= team
     assert not pairs("consult") & team  # a consult is only a hard negative if nothing documents it
+
+
+# ---- users differ from each other ----
+
+def test_part_time_and_occasional_staff_work_fewer_shifts(run):
+    shifts = run["schedule"].groupby("user_id").size().reindex(run["staff"]["user_id"]).fillna(0)
+    mean = shifts.groupby(run["staff"]["employment"].to_numpy()).mean()
+    assert mean["full_time"] > mean["part_time"] > mean["occasional"]
+
+
+def test_honest_work_also_happens_on_devices_outside_the_home_department(run):
+    """Otherwise a foreign device alone would give shared credentials away."""
+    labelled = run["events"].merge(run["event_labels"], on="event_id")
+    device_dept = labelled["device_id"].map(dict(zip(run["devices"]["device_id"], run["devices"]["department_id"])))
+    home = labelled["user_id"].map(dict(zip(run["staff"]["user_id"], run["staff"]["department_id"])))
+    reasons = set(labelled.loc[device_dept != home, "reason"])
+    assert {"order", "hospital_wide"} <= reasons
+
+
+def test_care_management_reads_widely_and_is_documented_nowhere(run):
+    labelled = run["events"].merge(run["event_labels"], on="event_id")
+    wide = labelled[labelled["reason"] == "hospital_wide"]
+    assert len(wide) and not wide["documented"].any()
+    assert not wide["user_id"].isin(run["care_team"]["user_id"]).any()
