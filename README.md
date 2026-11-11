@@ -43,9 +43,8 @@ The default run has about 400 staff, 3,500 patients and about 670,000 events. Th
 
 ## How close it is to real logs
 
-The [calibration report](docs/calibration-report.md) puts every published target next to the generated value. Access volume, the repeat share, self-access and the share of first accesses with direct evidence are on or near target. Others miss, and the misses are reported as they are.
+The [calibration report](docs/calibration-report.md) puts every published target next to the generated value. Access volume, the repeat share, self-access, nurse chart time and the share of first accesses with direct evidence are on or near target. Others miss, and the misses are reported as they are.
 
-- Inpatient nurses spend 25% of a shift in the chart, against a published figure of about 34%.
 - Activity is still spread more evenly across users than in the real UK log, which has a long tail of very heavy users.
 - Staff are about 11% of the patient population here, so the co-worker rules fire far more often than in the published data.
 - In real logs, the relationship rules fire 1.5 to 4 times more often than chance. Here they fire at chance, because care is handed out without regard to who knows whom.

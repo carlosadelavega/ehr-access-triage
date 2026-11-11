@@ -130,10 +130,10 @@ parameters:
     source: "Five-minute inactivity threshold used to turn audit-log timestamps into active time (JMIR Nursing 2026 nursing workload study; reviewed in Rule et al. 2020)"
     note: "Longest time one access can hold the user. US audit logs carry no duration field, so duration here means time until the user's next action, capped at this threshold"
   duration_median_s:
-    value: 25
+    value: 36
     basis: derived
     source: "Sized against inpatient nurse chart time, about 34% of a shift (JMIR Nursing 2026)"
-    note: "Worked out on paper before the run, from an estimate of about 206 accesses per nurse shift and a mean capped duration near 47 s. The run has about 150 accesses per nurse shift, so nurse chart time comes out near 25%. The value is left as first set"
+    note: "First set to 25 s on paper, from an estimate of about 206 accesses per nurse shift. The run had about 150, and nurse chart time came out at 25%. Raised to 36 s on 11 Nov 2026 after that comparison: with sigma 1.2 and the five-minute cap the mean is about 64 s, and 150 accesses at 64 s is a third of an 8-hour shift"
   duration_sigma:
     value: 1.2
     basis: assumption
