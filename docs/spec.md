@@ -1,6 +1,6 @@
 # Spec: data model and scenarios
 
-Status: draft for review. This covers steps 1 and 2 of the build order. No generator code exists yet, and section 8 lists the decisions that need an answer before it does.
+Status: reviewed on 10 Nov 2026. This covers steps 1 and 2 of the build order. Section 8 records the decisions from that review.
 
 ## 1. Scope of this milestone
 
@@ -58,7 +58,7 @@ The six fields after `event_id` mirror the Herrera Montano field list (timestamp
 | schedule.csv | user_id, date, shift_start, shift_end, department_id | Ours. The documented assignment for each shift |
 | encounters.csv | encounter_id, patient_id, class, start, stop, department_id, reason_code, reason_description, synthea_encounter_id | Synthea encounters, re-dated (3.5) |
 | care_team.csv | encounter_id, user_id, team_role, start, stop | Ours. Documented assignments only |
-| orders.csv | order_id, encounter_id, patient_id, kind, ordered_by, performing_department_id, timestamp, code, description | Synthea medications, procedures and imaging studies attached to the encounter |
+| orders.csv | order_id, encounter_id, patient_id, kind, ordered_by, performing_department_id, timestamp, description | Synthea medications, imaging studies and laboratory observations attached to the encounter. They route to pharmacy, radiology and the lab |
 | actions.csv | action_code, category, description | Ours. A long-tailed code vocabulary |
 
 Staff who are also patients come for free, since every staff member has a patient record. That is what makes the coworker scenario and self-access possible.
@@ -68,11 +68,11 @@ Staff who are also patients come for free, since every staff member has a patien
 | Table | Fields |
 |---|---|
 | event_labels.csv | event_id, reason, documented, scenario_id, part |
-| scenarios.csv | scenario_id, type, class, actor_user_id, target_patient_id, start, end, covered, evidence_in_context |
+| scenarios.csv | scenario_id, type, group_id, actor_user_id, target_patient_id, start, end, covered, evidence_in_context |
 | relationships.csv | patient_id_a, patient_id_b, kind, same_household |
 | public_events.csv | public_event_id, patient_id, timestamp |
 
-Every event gets a row in `event_labels.csv`. `reason` is the mechanism that produced it (care team, order, consult, coverage, back office, self, or a misuse type). `documented` says whether that reason left a trace in `context/`. `part` is `target` or `cover` for scenario events. `class` in scenarios.csv is `misuse`, `hard_negative` or `policy`.
+Every event gets a row in `event_labels.csv`. `reason` is the mechanism that produced it (care team, order, consult, coverage, back office, self, or a misuse type). `documented` says whether that reason left a trace in `context/`. `part` is `target` or `cover` for scenario events. scenarios.csv holds the injected misuse scenarios only, and `group_id` ties together the users who respond to the same news event. Hard negatives and self-access are not scenarios. They are selected from event_labels.csv by `reason` and `documented`.
 
 True family ties live only in labels. A hospital does not know who is related to whom. It knows surnames, addresses and emergency contacts, so that is what `context/` holds.
 
@@ -86,7 +86,7 @@ Synthea alone is far too sparse to drive hospital access volumes. The probe run 
 
 US volumes need much more. At 375-580 accesses per staff member per week with 92% repeats, each staff member opens about 30-46 distinct patients a week. Vanderbilt's numbers (710K unique non-self accesses across 152K patients in one week) put about 4.7 users on each patient. For 300 staff that means roughly 1,900-2,900 of the 3,500 patients are touched every week.
 
-Proposed approach. Treat the hospital as the only provider for the population. Take each patient's Synthea encounters from the last 5 years as a pool and re-date a sample of them into the 30-day window. The clinical content stays Synthea's (reason, medications, procedures, imaging). The timing, the department and the staffing are ours. The class mix is reweighted toward inpatient and emergency, since the pool is about 1% inpatient. The sampling rate and the class weights are config parameters marked as assumptions.
+Proposed approach. Treat the hospital as the only provider for the population. Take each patient's Synthea encounters from the last 5 years as a pool and re-date a sample of them into the 30-day window. The clinical content stays Synthea's (reason, medications, imaging, labs). The timing, the department and the staffing are ours. The class mix is reweighted toward inpatient and emergency, since the pool is about 1% inpatient. The sampling rate and the class weights are config parameters marked as assumptions.
 
 ## 4. How legitimate accesses arise
 
@@ -114,7 +114,7 @@ Within a shift, a user works through patients in visits. Each visit is a short r
 | ID | Scenario | In the logs | Deciding evidence |
 |---|---|---|---|
 | M1 | Coworker snooping. A user opens the record of a colleague from their own department | 1-3 view actions (summary, results, notes), short, on the user's usual device and shift, usually one visit and no return | Target is staff in the actor's department. No care-team, order or department path to the target's encounter |
-| M2a | Relative in the same household | Same as M1. Sometimes repeated over several days | Shared surname and shared address. No care path |
+| M2a | Relative in the same household | Same as M1. Sometimes repeated over several days | Shared surname and shared address (so same street and zero distance). No care path |
 | M2b | Relative with a different surname and address | Same as M1 | Emergency contact, when one is recorded. Otherwise nothing in context |
 | M3 | Neighbor | Same as M1 | Actor lives within 0.25 miles or on the same street. No care path |
 | M4 | VIP | Same as M1. Sometimes several users over a stay | `vip` flag on the patient. No care path |
@@ -128,7 +128,7 @@ Within a shift, a user works through patients in visits. Each visit is a short r
 | H4 | Legitimate care with a relationship present | Indistinguishable from normal care | care_team row. Also a coworker, proximity or surname match |
 | H5 | Back-office work | View and coding actions in the days after discharge | Role and discharge date |
 | P1 | Self-access | User opens their own record | First name, last name and birth date match (the Hedda et al. definition) |
-| A1 | Covering accesses | Any of M1-M4, plus extra accesses "made to disguise a target access" (Xu et al. 2023, evasion setting) | Same as the base scenario |
+| A1 | Covering accesses | Any of M1-M4, plus extra accesses "made to disguise a target access" (Xu et al. 2023, evasion setting, see 5.3) | Same as the base scenario |
 
 A set share of M1-M4 targets have an encounter in the actor's own department. Those look like care to any department-level explanation, which makes them the hard end of the misuse set.
 
@@ -148,10 +148,10 @@ These are predictions to be tested. Nothing in the generator enforces them, and 
 | ID | 1. Rules | 2. Templates | 3. LLM raw | 4. LLM + graph |
 |---|---|---|---|---|
 | M1 | flag (department co-worker) | unexplained | miss | flag |
-| M2a | flag (last name, street) | unexplained | miss | flag |
+| M2a | flag (last name, street, proximity) | unexplained | miss | flag |
 | M2b | miss | unexplained | miss | flag only when the emergency contact is recorded |
 | M3 | flag (proximity, street) | unexplained | miss | flag |
-| M4 | miss with the published rules | unexplained | miss | flag |
+| M4 | miss | unexplained | miss | flag |
 | M5 | miss | unexplained | flag only if shown the patient's other accesses | flag |
 | M6a | miss | unexplained | flag | flag |
 | M6b | miss | unexplained | miss | flag |
@@ -169,6 +169,16 @@ Three things keep this table from being a foregone conclusion.
 - The graph is incomplete on purpose. In M2b without an emergency contact and in H2b, the right output from System 4 is "the evidence does not settle this", and a confident answer either way counts against it.
 - In H4 the relationship evidence points the wrong way. It tests whether System 4 over-weights a relationship when a care-team row is present.
 - The rules are the ones Hedda et al. evaluated (organization co-worker, department co-worker, last name, proximity within 0.25 miles, same street). Their paper found the organization-wide rule no better than chance, so it is expected to add alerts without adding catches.
+
+### 5.3 Covering accesses
+
+Xu et al. give the attacker one realistic capability, which is making extra accesses from their own account. Their gradient attack needs a trained detector, so it does not apply here. Their heuristic baseline does. For a target access by user u to record v*, every other record v gets the score
+
+```
+M(v) = (1 - a) * sim(v, v*) + a * mean over v_i of sim(v, v_i)
+```
+
+where the v_i are the records u already accessed, sim is the Jaccard index of the sets of users who accessed each record, and a = 0.75. The K highest-scoring records become the covering accesses. The paper tests K from 2 to 50 within one week. Their unit is the encounter. Ours is the patient, since the log has no encounter field.
 
 ## 6. Calibration targets
 
@@ -199,6 +209,8 @@ repeat_access_share:
 | Distinct patients per user | median 149, 99th percentile 3,424 | Herrera Montano et al. | shape |
 | Action codes | 21 of 13,723 codes cover about 80% of events | Herrera Montano et al. | shape |
 
+Action categories are create, read, update, delete, copy, print and query. The list comes from a public summary of ASTM E2147-18 in the CASRAI guide to audit-log requirements. The same list has break-the-glass and audit-status events, which are left out because no scenario uses them yet.
+
 "Level" means the generated value is compared to the number. "Shape" means only ratios are compared (for example the 95th percentile over the median), because the UK log is far sparser than the US ones and a 30-day window at 300 staff cannot reproduce its absolute counts. "Reported" means the value is measured and shown but nothing is set to hit it.
 
 The report lists every target next to the generated value and the gap. If a gap is large, the fix is a visible config change, or the gap stays in the report.
@@ -207,16 +219,19 @@ Scenario counts (about 10 instances per misuse type by default) are assumptions.
 
 ## 7. Out of scope for this milestone
 
-The identity graph, the four systems, the Privacy Officer summary format and any LLM call. Covering accesses (A1) get their label fields now and their generator later (see 8.5).
+The identity graph, the four systems, the Privacy Officer summary format and any LLM call. Covering accesses (A1) have their label fields and their construction (5.3) now. Their generator arrives with the baselines.
 
-## 8. Decisions needed before generator code
+## 8. Decisions
 
-1. **Sizing.** 300 staff at US volumes gives roughly 480,000-740,000 events in 30 days, and most of the 3,500 patients are touched every week. The alternative is to keep 300 staff and accept volumes below the US targets, with the gap reported.
-2. **Re-dating Synthea encounters** into the window (3.5). The alternative is a much larger Synthea population, which the probe suggests would need tens of thousands of patients at the least and would still be about 1% inpatient.
-3. **The news event stays out of context, the VIP flag stays in.** Hospitals keep VIP flags. They do not reliably know what was on the news, so M5 has to be caught from the burst.
-4. **Self-access is labeled as policy,** not as misuse.
-5. **Covering accesses are deferred** until the baselines exist. The public abstract of Xu et al. defines the attack but the construction needs the full paper, and a cover is only meaningful against a detector. Each covered scenario will be generated as a pair, with and without cover, so robustness is a paired difference.
-6. **Rules.** Hedda et al. has no same-address rule. The nearest are same street and proximity within 0.25 miles. The plan is to implement their five and add same address as a sixth, noted as ours.
-7. **ASTM E2147.** The action categories (view, add, change, delete, print, copy) need a check against the standard's text, which is paywalled.
+Reviewed on 10 Nov 2026.
 
-Not needed yet, and reserved for Carlos when step 5 starts. LLM provider, model and budget, and the Privacy Officer summary template.
+1. **Sizing.** 300 staff at US volumes, roughly 480,000-740,000 events in 30 days, with most of the 3,500 patients touched every week. Going above 300 staff is allowed if it helps and is not needed yet.
+2. **Encounters are re-dated** from each patient's recent Synthea history (3.5).
+3. **Households are an overlay,** with true ties in labels only (3.4).
+4. **The news event stays out of context, the VIP flag stays in.** Hospitals keep VIP flags. They do not reliably know what was on the news, so M5 has to be caught from the burst.
+5. **Self-access is labeled as policy,** not as misuse.
+6. **Covering accesses use the heuristic attack from Xu et al.** (5.3). Each covered scenario will be generated as a pair, with and without cover, so robustness is a paired difference.
+7. **Rules are the five from Hedda et al.** (organization co-worker, department co-worker, last name, proximity within 0.25 miles, same street). Nothing is added, so results can be compared with theirs directly.
+8. **Action categories** come from a public summary of ASTM E2147-18 (section 6).
+
+Still open, and reserved for step 5. LLM provider, model and budget, and the Privacy Officer summary template.
