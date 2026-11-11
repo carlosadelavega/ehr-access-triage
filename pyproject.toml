@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Synthetic EHR access logs for testing LLM triage of access anomalies"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-dependencies = ["numpy>=1.26", "pandas>=2.1", "pyyaml>=6.0"]
+dependencies = ["networkx>=3.0", "numpy>=1.26", "pandas>=2.1", "pyyaml>=6.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
