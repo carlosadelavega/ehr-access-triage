@@ -7,6 +7,8 @@ Research repo testing LLM triage of EHR access anomalies on synthetic data. The 
 - Synthetic data only. No real patient data and nothing derived from any real system.
 - Public sources only for design. Schema, scenarios and calibration come from published papers, the Herrera Montano field list and ASTM E2147. Nothing from non-public sources. Every design choice should be traceable to a source or marked as an assumption.
 - Say "EHR", never "EMR".
+- The repo is purely academic. Keep personal and professional details about the author out of every file and commit message.
+- Rules baseline is the five rules from Hedda et al. 2017 and nothing else, so results stay comparable.
 - Present explanation-based auditing as complementary prior work, never as a weakness.
 
 ## Evaluation integrity
@@ -25,7 +27,8 @@ Research repo testing LLM triage of EHR access anomalies on synthetic data. The 
 - Keep abstractions to what the current milestone needs. A working pipeline and an honest README beat a platform.
 - If a session drifts into re-planning instead of shipping, say so.
 - Changes to the spec get reviewed by Carlos before code that depends on them.
-- Commit in small steps. Messages explain why, not only what.
+- Commit in small steps. Messages explain why, not only what. No session links in commit messages.
+- If a paper or standard needed for a design choice is not available in full, tell Carlos straight away.
 - Generated data, the Synthea jar and `.env` stay out of git.
 
 ## Decisions reserved for Carlos

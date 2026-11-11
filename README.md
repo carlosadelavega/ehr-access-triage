@@ -14,7 +14,7 @@ The working hypothesis is that LLM triage of these accesses fails without ground
 
 Four systems are compared on the same logs.
 
-1. Rules (shared surname, shared address, coworker)
+1. Rules, the five evaluated by Hedda et al. (2017)
 2. Explanation templates in the style of Fabbri and LeFevre
 3. An LLM reading raw log lines
 4. An LLM grounded on identity-graph evidence paths
