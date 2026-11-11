@@ -24,9 +24,17 @@ def generate(cfg: Config, slim_dir: str | Path, out_dir: str | Path) -> dict:
     pull = population.relationship_pull(staff, patients, cfg)
     work, care, orders, _ = encounters.assign_work(enc, staff, shifts, syn, pull, cfg, rng)
     legit = work.frame()
-    extra, scen, public, notes = scenarios.inject(legit, staff, patients, rel, enc, orders, shifts, cfg, rng)
+    extra, scen, covers, public, notes = scenarios.inject(legit, staff, patients, rel, enc, orders, shifts, cfg, rng)
     req = pd.concat([legit, extra], ignore_index=True)
     ev = events.expand(req, staff, usual, usual_cum, by_dept, shared, action_probs, cfg, rng)
+    if len(covers):
+        # Covering accesses get their own random stream and are merged in by
+        # time, so every other event is the same as in the run without them.
+        more = events.expand(covers, staff, usual, usual_cum, by_dept, shared, action_probs, cfg,
+                             np.random.default_rng([cfg["seed"], 2]))
+        ev = pd.concat([ev, more], ignore_index=True)
+        ev = ev.iloc[np.argsort(ev["ts"].to_numpy(), kind="stable")].reset_index(drop=True)
+        ev["event_id"] = np.arange(1, len(ev) + 1)
 
     ws = pd.Timestamp(cfg["window_start"])
 
@@ -94,7 +102,8 @@ def generate(cfg: Config, slim_dir: str | Path, out_dir: str | Path) -> dict:
     # ---- labels: ground truth, for evaluation code only ----
     pd.DataFrame(
         {"event_id": ev["event_id"], "reason": ev["reason"], "documented": ev["documented"],
-         "scenario_id": ev["scenario"], "part": np.where(ev["scenario"] != "", "target", "")}
+         "scenario_id": ev["scenario"],
+         "part": np.where(ev["reason"] == "cover", "cover", np.where(ev["scenario"] != "", "target", ""))}
     ).to_csv(labels / "event_labels.csv", index=False)
     borrower, target = scen["borrower_user"].to_numpy(), scen["target_patient"].to_numpy()
     pd.DataFrame(
@@ -130,10 +139,13 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", default="config/calibration.yaml")
     ap.add_argument("--synthea", default="data/synthea/slim")
-    ap.add_argument("--out", default=None, help="defaults to data/generated/seed<seed>")
+    ap.add_argument("--out", default=None, help="defaults to data/generated/seed<seed>, with -covered added for --covered")
+    ap.add_argument("--covered", action="store_true", help="add covering accesses before each M1-M4 target access")
     args = ap.parse_args()
     cfg = load_config(args.config)
-    out = args.out or f"data/generated/seed{cfg['seed']}"
+    if args.covered:
+        cfg.params["covering"]["value"] = {**cfg["covering"], "enabled": True}
+    out = args.out or f"data/generated/seed{cfg['seed']}" + ("-covered" if args.covered else "")
     manifest = generate(cfg, args.synthea, out)
     print(json.dumps(manifest["rows"]))
     print(f"Written to {out}")

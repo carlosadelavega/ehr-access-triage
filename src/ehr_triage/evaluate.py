@@ -63,11 +63,18 @@ def table(header: list[str], rows: list[list]) -> list[str]:
     return ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)] + ["| " + " | ".join(str(c) for c in r) + " |" for r in rows] + [""]
 
 
-def write_results(run_dir: str | Path, cfg: Config, out_path: str | Path) -> dict:
+def score_run(run_dir: str | Path, cfg: Config) -> pd.DataFrame:
+    """Run both baselines on a run and join the truth."""
     rules = run_rules(run_dir, cfg)
     templates = run_templates(run_dir, cfg)
     assert (rules["event_id"] == templates["event_id"]).all()
-    u = truth(run_dir, rules.assign(direct=templates["direct"], responsible=templates["responsible"]), cfg)
+    return truth(run_dir, rules.assign(direct=templates["direct"], responsible=templates["responsible"]), cfg)
+
+
+def write_results(run_dir: str | Path, cfg: Config, out_path: str | Path, covered_dir: str | Path | None = None) -> dict:
+    u = score_run(run_dir, cfg)
+    is_cover = u["misuse"] == "cover"
+    assert not is_cover.any(), "the main run must be the one without covering accesses"
     systems = variants(u)
     names = list(systems)
     is_misuse = u["misuse"] != ""
@@ -123,6 +130,20 @@ def write_results(run_dir: str | Path, cfg: Config, out_path: str | Path) -> dic
             hits, shown = expected_top_k(a["day"], score[alert], is_misuse[alert], k)
             rows.append([k, name, f"{shown:,.0f}", f"{hits:.1f}", f"{hits / max(shown, 1):.2%}", f"{hits / is_misuse.sum():.0%}"])
     lines += table(["Budget per day", "System", "Reviewed", "Misuse found", "Precision", "Recall"], rows)
+
+    if covered_dir is not None and Path(covered_dir).exists():
+        c = score_run(covered_dir, cfg)
+        covered = variants(c)
+        targets = ["M1", "M2a", "M2b", "M3", "M4"]
+        before, after, cover = u["misuse"].isin(targets), c["misuse"].isin(targets), c["misuse"] == "cover"
+        lines += ["## With covering accesses", "",
+                  f"A second run is identical except that each M1-M4 actor first makes {cfg['covering']['accesses']} "
+                  "covering accesses, chosen by the heuristic attack of Xu et al. 2023. Target accesses flagged without "
+                  "and with them, and how many of the covering accesses themselves are flagged.", ""]
+        rows = [[n, f"{int((systems[n][0] & before).sum())} of {int(before.sum())}",
+                 f"{int((covered[n][0] & after).sum())} of {int(after.sum())}",
+                 f"{int((covered[n][0] & cover).sum())} of {int(cover.sum())}"] for n in names]
+        lines += table(["System", "Targets flagged, no cover", "Targets flagged, with cover", "Covering accesses flagged"], rows)
     Path(out_path).write_text("\n".join(lines))
     return {"units": len(u), "misuse_units": int(is_misuse.sum())}
 
@@ -132,9 +153,11 @@ def main() -> None:
     ap.add_argument("--run", default=None, help="defaults to data/generated/seed<seed>")
     ap.add_argument("--config", default="config/calibration.yaml")
     ap.add_argument("--out", default="docs/baseline-results.md")
+    ap.add_argument("--covered-run", default=None, help="defaults to the run folder with -covered added, if it exists")
     args = ap.parse_args()
     cfg = load_config(args.config)
-    print(write_results(args.run or f"data/generated/seed{cfg['seed']}", cfg, args.out))
+    run = args.run or f"data/generated/seed{cfg['seed']}"
+    print(write_results(run, cfg, args.out, args.covered_run or f"{run}-covered"))
 
 
 if __name__ == "__main__":

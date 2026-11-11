@@ -20,7 +20,7 @@ SCENARIO_COLUMNS = [
 
 def inject(req: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, rel: pd.DataFrame, enc: pd.DataFrame,
            orders: pd.DataFrame, shifts: pd.DataFrame, cfg, rng):
-    """Return (extra requests, scenarios, public events, notes for the manifest)."""
+    """Return (extra requests, scenarios, covering requests, public events, notes for the manifest)."""
     W = cfg["window_days"] * DAY
     S, P = len(staff), len(patients)
     counts = cfg["scenario_counts"]
@@ -232,5 +232,38 @@ def inject(req: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, rel: 
         t = when(int(u))
         out.add(int(u), int(person[u]), -1, t, t + 60, 1, "self", True, mode="view", max_events=hi_ev)
 
-    return out.frame(), pd.DataFrame(scenarios, columns=SCENARIO_COLUMNS), \
+    # A1: covering accesses, after Xu et al. 2023. Before the target access,
+    # the actor opens the charts that look most like the target and most
+    # like their own usual patients, judged by who else opens them. They
+    # draw from their own random stream, so everything above is identical
+    # with and without them.
+    covers = Requests()
+    table = pd.DataFrame(scenarios, columns=SCENARIO_COLUMNS)
+    cover = cfg["covering"]
+    if cover["enabled"]:
+        cover_rng, main_rng = np.random.default_rng([cfg["seed"], 1]), rng
+        rng = cover_rng  # `when` draws from rng
+        opened = linked.astype(np.float32)  # users by patients
+        size = opened.sum(axis=0)
+        for row in table[table["type"].isin(["M1", "M2a", "M2b", "M3", "M4"])].itertuples():
+            u, target = row.actor_user, row.target_patient
+
+            def similarity(columns):
+                """Jaccard index of accessor sets, every patient against the given ones."""
+                both = opened.T @ opened[:, columns]
+                union = size[:, None] + size[columns][None, :] - both
+                return np.divide(both, union, out=np.zeros_like(both), where=union > 0)
+
+            usual = np.flatnonzero(linked[u])
+            score = (1 - cover["alpha"]) * similarity([target])[:, 0]
+            if len(usual):
+                score = score + cover["alpha"] * similarity(usual).mean(axis=1)
+            score[usual] = score[target] = score[person[u]] = -1
+            for p in np.argsort(-score, kind="stable")[: cover["accesses"]]:
+                t = when(u, (max(row.start - cover["days_before"] * DAY, 0.0), row.start))
+                covers.add(u, int(p), -1, t, t + 60, 1, "cover", False, scenario=row.scenario_id)
+            table.loc[row.Index, "covered"] = True
+        rng = main_rng
+
+    return out.frame(), table, covers.frame(), \
         pd.DataFrame(public_events, columns=["public_event_id", "p", "t"]), notes

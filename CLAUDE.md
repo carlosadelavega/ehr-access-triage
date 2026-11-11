@@ -49,6 +49,8 @@ Python 3.10+, pandas, NumPy, PyYAML, NetworkX, pytest, managed with uv. Synthea 
 ```
 scripts/run_synthea.sh           # population into data/synthea/slim, slow, rarely needed
 python -m ehr_triage.generate    # one run into data/generated/seed<seed>
+python -m ehr_triage.generate --covered   # the paired run with covering accesses, into seed<seed>-covered
+python -m ehr_triage.triage      # prompt sizes for the two LLM systems, no model call
 python -m ehr_triage.report      # rewrites docs/calibration-report.md, never edit that file by hand
 python -m ehr_triage.evaluate    # rewrites docs/baseline-results.md, same rule
 pytest                           # runs on a made-up population, no Java needed

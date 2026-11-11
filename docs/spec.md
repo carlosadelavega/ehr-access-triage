@@ -215,6 +215,8 @@ M(v) = (1 - a) * sim(v, v*) + a * mean over v_i of sim(v, v_i)
 
 where the v_i are the records u already accessed, sim is the Jaccard index of the sets of users who accessed each record, and a = 0.75. The K highest-scoring records become the covering accesses. The paper tests K from 2 to 50 within one week. Their unit is the encounter. Ours is the patient, since the log has no encounter field.
 
+The covering accesses are placed in the seven days before the target access, during the actor's shifts, and look like ordinary work for the actor's role. Rules and explanation templates do not model behavior, so covering accesses should leave them unchanged. The test is whether they move the LLM.
+
 ## 6. Calibration targets
 
 All parameters live in `config/calibration.yaml`. Each entry carries its value, its source and a `basis` of `published`, `derived` or `assumption`.
@@ -260,7 +262,7 @@ Scenario counts (about 10 instances per misuse type by default) are assumptions.
 
 ## 7. Out of scope for this milestone
 
-The identity graph, the four systems, the Privacy Officer summary format and any LLM call. Covering accesses (A1) have their label fields and their construction (5.3) now. Their generator arrives with the baselines.
+The identity graph, the four systems, the Privacy Officer summary format and any LLM call. These came later and are in sections 9 and 10.
 
 ## 8. Decisions
 
@@ -271,7 +273,7 @@ Reviewed on 10 Nov 2026.
 3. **Households are an overlay,** with true ties in labels only (3.4).
 4. **The news event stays out of context, the VIP flag stays in.** Hospitals keep VIP flags. They do not reliably know what was on the news, so M5 has to be caught from the burst.
 5. **Self-access is labeled as policy,** not as misuse.
-6. **Covering accesses use the heuristic attack from Xu et al.** (5.3). Each covered scenario will be generated as a pair, with and without cover, so robustness is a paired difference.
+6. **Covering accesses use the heuristic attack from Xu et al.** (5.3). `generate --covered` writes a second run that is identical except for 10 covering accesses before each M1-M4 target, so robustness is a paired difference. The covering accesses use their own random stream, and a test checks that every other event is unchanged.
 7. **Rules are the five from Hedda et al.** (organization co-worker, department co-worker, last name, proximity within 0.25 miles, same street). Nothing is added, so results can be compared with theirs directly.
 8. **Action categories** come from a public summary of ASTM E2147-18 (section 6).
 9. **The log uses the US unit of an access** (3.6). Duration is derived, since US logs do not record one.

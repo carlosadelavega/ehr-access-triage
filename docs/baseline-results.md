@@ -66,3 +66,15 @@ A reviewer takes the highest-priority alerts each day, up to the budget. Rules a
 | 50 | Templates, direct evidence | 1,500 | 4.3 | 0.29% | 3% |
 | 50 | Templates, direct and responsibility | 1,500 | 4.4 | 0.30% | 4% |
 | 50 | Rules, then direct evidence | 903 | 33.0 | 3.65% | 27% |
+
+## With covering accesses
+
+A second run is identical except that each M1-M4 actor first makes 10 covering accesses, chosen by the heuristic attack of Xu et al. 2023. Target accesses flagged without and with them, and how many of the covering accesses themselves are flagged.
+
+| System | Targets flagged, no cover | Targets flagged, with cover | Covering accesses flagged |
+|---|---|---|---|
+| Rules, all five | 36 of 58 | 36 of 58 | 71 of 500 |
+| Rules, without organization co-worker | 32 of 58 | 32 of 58 | 6 of 500 |
+| Templates, direct evidence | 58 of 58 | 58 of 58 | 499 of 500 |
+| Templates, direct and responsibility | 58 of 58 | 58 of 58 | 450 of 500 |
+| Rules, then direct evidence | 32 of 58 | 32 of 58 | 6 of 500 |

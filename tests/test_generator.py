@@ -2,6 +2,7 @@ import filecmp
 import re
 
 import pandas as pd
+import pytest
 
 from ehr_triage.generate import generate
 from ehr_triage.population import miles_between, relationship_pull, street_of
@@ -213,3 +214,38 @@ def test_nobody_works_on_their_own_chart(run):
     labelled = run["events"].merge(run["event_labels"], on="event_id")
     own = labelled["user_id"].map(dict(zip(run["staff"]["user_id"], run["staff"]["patient_id"])))
     assert set(labelled.loc[own == labelled["patient_id"], "reason"]) <= {"self"}
+
+
+# ---- covering accesses ----
+
+@pytest.fixture(scope="module")
+def covered(slim, cfg, tmp_path_factory):
+    import copy
+    with_cover = copy.deepcopy(cfg)
+    with_cover.params["covering"]["value"] = {**cfg["covering"], "enabled": True}
+    out = tmp_path_factory.mktemp("covered")
+    generate(with_cover, slim, out)
+    from ehr_triage.report import load_run
+    return load_run(out)
+
+
+def test_covering_accesses_change_nothing_else(run, covered):
+    labelled = covered["events"].merge(covered["event_labels"], on="event_id")
+    cover = labelled["part"] == "cover"
+    assert cover.any()
+    fields = ["timestamp", "user_id", "patient_id", "device_id", "action_code", "duration_s"]
+    assert labelled.loc[~cover, fields].reset_index(drop=True).equals(run["events"][fields])
+
+
+def test_each_covered_scenario_opens_new_charts_before_the_target(run, covered):
+    labelled = covered["events"].merge(covered["event_labels"], on="event_id")
+    scenarios = covered["scenarios"]
+    done = scenarios[scenarios["covered"].astype(str) == "True"]
+    assert set(done["type"]) <= {"M1", "M2a", "M2b", "M3", "M4"} and len(done)
+    before = run["events"]
+    for s in done.itertuples():
+        mine = labelled[(labelled["scenario_id"] == s.scenario_id) & (labelled["part"] == "cover")]
+        assert mine["patient_id"].nunique() >= 1 and s.target_patient_id not in set(mine["patient_id"])
+        assert (mine["user_id"] == s.actor_user_id).all()
+        known = set(before.loc[before["user_id"] == s.actor_user_id, "patient_id"])
+        assert not set(mine["patient_id"]) & known  # a covering access opens a chart the actor had no reason to open
