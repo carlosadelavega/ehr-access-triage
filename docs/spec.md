@@ -316,3 +316,32 @@ There is no "patient was seen in the user's department" template, because their 
 **Measures.** Misuse caught per scenario, false alerts per kind of legitimate access, and precision and recall when a reviewer takes the top alerts each day up to a budget. The budgets (10, 25 and 50 a day) are an assumption.
 
 **A limit to keep in mind.** M1, M2a and M3 are defined by the relationships the rules test for, so the rules catch them by construction. What the rules results show is everything else: how many legitimate accesses they flag, and which misuse they cannot see.
+
+## 10. LLM triage (build step 5, in progress)
+
+**Systems 3 and 4.** Both triage the same first accesses, chosen by the harness. System 3 is shown log lines only: the access under review, up to 30 other lines by the same user that day, and up to 30 lines by other users on the same patient that week. System 4 is shown the same lines plus facts from the identity graph: who the user is, their shifts around that date, the patient's encounters, the VIP flag, every named connection between the two, and what the devices and action codes are. Prompts average about 2,200 and 2,500 tokens.
+
+**Citable facts.** Every fact in a prompt carries an ID, L1, L2 and so on for log lines and G1, G2 for graph facts. The model must cite the IDs each claim rests on. That is what makes faithfulness measurable.
+
+**Summary template (proposed, pending Carlos's approval).** The model drafts a triage note, not a finding. A finding needs interviews and a determination that only the officer can make.
+
+| Part | Field | Filled by |
+|---|---|---|
+| Case | case ID, user, patient, dates of first and last access, number of accesses, devices, which system raised it | the pipeline, from the log |
+| Draft | what happened, in one or two sentences | the model |
+| Draft | evidence of a job-related purpose, each item with its fact IDs | the model |
+| Draft | risk indicators, each item with its fact IDs | the model |
+| Draft | missing information the officer would need | the model |
+| Draft | disposition: clear, verify or escalate | the model |
+| Draft | priority: low, medium or high | the model |
+| Draft | rationale, at most 60 words | the model |
+| Officer | interview notes, determination, breach risk assessment, sanction level, corrective action, notifications | the officer, never drafted |
+
+The three dispositions are "clear" (the facts show a job-related purpose, or nothing calls for review), "verify" (the facts neither show a purpose nor a concern that stands on its own, so ask the supervisor) and "escalate" (the facts show a concern). "Verify" is the right answer where the evidence is incomplete by design, as in M2b without an emergency contact, H2b and H4b.
+
+The fields follow what public guidance asks an incident record to hold: who, what, when, how it was found and which systems, the evidence, and the outcome. The officer's part is left blank on purpose. The four-factor breach risk assessment under 45 CFR 164.402 and the sanction level both follow a determination that an access was impermissible, which a triage note cannot make.
+
+**Faithfulness.** Level 1 is checked in code: the share of claims whose cited IDs all exist among the facts shown. A claim with no source or an invented ID counts against the summary. Level 2 asks whether each cited fact actually supports its claim, and needs a second model call per summary.
+
+**Model.** GLM 5.3 Flash through an OpenAI-compatible endpoint. The endpoint, key and model name come from environment variables, so no secret is written to the repo.
+

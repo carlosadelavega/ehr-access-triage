@@ -438,6 +438,12 @@ parameters:
     basis: assumption
     note: "How many alerts a privacy office reviews in a day. Hedda et al. describe one or two people with part of their time. No public figure for a hospital this size"
 
+  # ---- LLM triage (build step 5), not used by the generator ----
+  triage:
+    value: {context_lines: 30, encounters_shown: 5, temperature: 0, max_output_tokens: 600}
+    basis: assumption
+    note: "How many log lines of each kind and how many encounters a prompt shows, and the model settings. Temperature 0 so a rerun is as repeatable as the provider allows"
+
   # ---- injected misuse ----
   scenario_counts:
     value: {M1: 10, M2a: 10, M2b: 10, M3: 10, M4: 10, M5_events: 2, M6a: 5, M6b: 5}
