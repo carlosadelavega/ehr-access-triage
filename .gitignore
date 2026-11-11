@@ -1,0 +1,27 @@
+# Generated data never goes in git. Everything under data/ can be rebuilt
+# from config/ plus a pinned Synthea release.
+data/
+
+# Synthea jar (about 117 MB) and Synthea's default output folder
+vendor/
+output/
+*.jar
+
+# Secrets for later LLM runs
+.env
+.env.*
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
