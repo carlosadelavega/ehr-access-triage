@@ -4,7 +4,9 @@ Can an LLM triage anomalous accesses to electronic health records (EHR) and draf
 
 ## Status
 
-Early. The data model and scenario spec are written (see [docs/spec.md](docs/spec.md)). The generator is next. There are no results yet, and this README will not claim any until they exist.
+Milestone 1 is done. The repo has a spec, a generator that writes 30 days of synthetic access logs for one hospital, tests, and a report comparing the output with published calibration targets.
+
+The identity graph, the baselines and the LLM triage are not built yet. There are no triage results, and this README will not claim any until they exist.
 
 ## The idea
 
@@ -27,21 +29,50 @@ No real patient data and nothing derived from any real system is used anywhere. 
 
 ## Public sources only
 
-The schema, the misuse scenarios and the calibration targets come from published papers, the audit-log field list in the Herrera Montano et al. preprint and the ASTM E2147 audit-log standard. Each calibration parameter in the config file names the source it came from, and parameters with no published source are marked as assumptions.
+The schema, the misuse scenarios and the calibration targets come from published papers, the audit-log field list in the Herrera Montano et al. preprint and public summaries of the ASTM E2147 audit-log standard. Each parameter in [config/calibration.yaml](config/calibration.yaml) names the source it came from, and parameters with no published source are marked as assumptions.
+
+## What a run produces
+
+One run writes three folders.
+
+- `logs/` holds the audit log. Each event has a timestamp, user, patient, device, action and duration.
+- `context/` holds what a hospital would know about its people and their care, such as staff, schedule, encounters, care teams and orders.
+- `labels/` holds the ground truth, meaning why each access happened, the injected misuse scenarios and the true family ties. Nothing under evaluation reads this folder.
+
+The default run has 300 staff, 3,500 patients and about 450,000 events. The scenarios and what each system is expected to catch are in [docs/spec.md](docs/spec.md).
+
+## How close it is to real logs
+
+The [calibration report](docs/calibration-report.md) puts every published target next to the generated value. Durations, self-access and the share of first accesses with direct evidence land on target. Others miss, and the misses are reported as they are.
+
+- Access volume is 359 per staff member per week, just under the published range of 375-580.
+- The repeat-access share is 86%, against a published 92%.
+- Activity is spread far more evenly across users than in the real UK log, which has a long tail of very heavy users.
+- Staff are about 8% of the patient population here, so the organization-wide coworker rule matches about 10% of first accesses. The published figure is under 4%.
+
+## Run it
+
+```
+uv venv && uv pip install -e ".[dev]"
+scripts/run_synthea.sh           # needs Java 11 or newer, writes data/synthea/slim
+python -m ehr_triage.generate    # writes data/generated/seed42 in a few seconds
+python -m ehr_triage.report      # rewrites docs/calibration-report.md
+pytest
+```
+
+The tests use a small made-up population, so they need neither Java nor Synthea.
 
 ## Layout
 
 ```
 config/    calibration parameters, each with its source
 docs/      spec and calibration report
-src/       generator code
+src/       generator and report code
 tests/
-scripts/   Synthea download and run
-data/      generated data (not in git)
+scripts/   Synthea download, run and slim-down
+data/      Synthea output and generated runs (not in git)
 vendor/    Synthea jar (not in git)
 ```
-
-Ground-truth scenario labels are written to a separate folder from the event logs, so nothing under evaluation can read them.
 
 ## License
 
