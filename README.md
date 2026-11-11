@@ -4,9 +4,15 @@ Can an LLM triage anomalous accesses to electronic health records (EHR) and draf
 
 ## Status
 
-Milestone 1 is done. The repo has a spec, a generator that writes 30 days of synthetic access logs for one hospital, tests, and a report comparing the output with published calibration targets.
+The generator, the identity graph and the first two systems are built. The repo has a spec, a generator that writes 30 days of synthetic access logs for one hospital, a report comparing the output with published calibration targets, and [results for the rules and the explanation templates](docs/baseline-results.md).
 
-The identity graph, the baselines and the LLM triage are not built yet. There are no triage results, and this README will not claim any until they exist.
+The LLM triage is not built yet. There are no LLM results, and this README will not claim any until they exist.
+
+What the two baselines show so far, on this synthetic data.
+
+- The rules catch the scenarios that are defined by a relationship, which is by construction, and almost none of the VIP, news-event or shared-credential cases.
+- Explanation templates leave about 72% of first accesses unexplained, about 1,500 a day.
+- Rules followed by an explanation filter raise about 30 alerts a day. About 96% of them are legitimate work by someone who happens to know the patient.
 
 ## The idea
 
@@ -56,6 +62,7 @@ uv venv && uv pip install -e ".[dev]"
 scripts/run_synthea.sh           # needs Java 11 or newer, writes data/synthea/slim
 python -m ehr_triage.generate    # writes data/generated/seed42 in a few seconds
 python -m ehr_triage.report      # rewrites docs/calibration-report.md
+python -m ehr_triage.evaluate    # rewrites docs/baseline-results.md
 pytest
 ```
 
@@ -65,8 +72,8 @@ The tests use a small made-up population, so they need neither Java nor Synthea.
 
 ```
 config/    calibration parameters, each with its source
-docs/      spec and calibration report
-src/       generator and report code
+docs/      spec, calibration report and baseline results
+src/       generator, identity graph, baselines and reports
 tests/
 scripts/   Synthea download, run and slim-down
 data/      Synthea output and generated runs (not in git)

@@ -233,7 +233,8 @@ repeat_access_share:
 | Accesses per staff member per week | 375-580 | Fabbri & LeFevre 2013; Hedda et al. 2017; Laszka et al. 2017 | level |
 | Repeat share (same user, same patient, earlier in the week) | about 92% | Hedda et al. 2017 | level |
 | Self-accesses | about 0.3% | Hedda et al. 2017 | level |
-| First accesses explained by direct evidence | about 23%, 41% with diagnosis-department links | Fabbri & LeFevre 2013 | level |
+| First accesses explained by direct evidence | about 23% | Fabbri & LeFevre 2013 | level |
+| First accesses explained with departmental responsibility | about 41% | Fabbri & LeFevre 2013 | reported |
 | All accesses explained once repeats are filtered | over 94% | Fabbri & LeFevre 2011, 2013 | reported |
 | First accesses matching each rule | 3.84% organization co-worker, 0.04% department co-worker, 0.14% last name, 0.16% proximity, 0.12% same street | Hedda et al. 2017, Table 3 | reported |
 | Rule matches against random pairing | 1.0, 3.2, 1.5, 2.5 and 4.0 times chance, in the same order | Hedda et al. 2017, Table 2 | reported |
@@ -278,3 +279,40 @@ Reviewed on 10 Nov 2026.
 11. **People who know each other meet more often than chance** (3.8), with Hedda's ratios as weights. All of that excess is generated as ordinary work.
 
 Still open, and reserved for step 5. LLM provider, model and budget, and the Privacy Officer summary template.
+
+## 9. Baselines (build step 4)
+
+Results are in [baseline-results.md](baseline-results.md).
+
+**Unit.** Both baselines judge a first access, one user opening one patient for the first time in a week, with self-accesses left out. That is the unit in Hedda et al. and in Fabbri and LeFevre. A 30-day run has about 64,000.
+
+**What each system reads.** The table in section 2 is enforced in code. Each system loads its data through one function that returns the log and its permitted context tables and nothing else. A test runs both baselines with the labels folder removed.
+
+**Identity graph.** A NetworkX graph of users, patients, departments and encounters, built only from the tables a system may read.
+
+| Edge | From | To | Built from |
+|---|---|---|---|
+| is | user | their own patient record | staff |
+| works_in | user | department | staff |
+| employed_in | patient who is staff | department | staff |
+| same_surname, same_street, lives_near | user | patient | staff and patients |
+| emergency_contact | patient | patient | patients |
+| had | patient | encounter | encounters |
+| in | encounter | department | encounters |
+| care_team | user | encounter | care_team |
+| ordered | user | encounter | orders |
+| order_to | encounter | department | orders |
+
+For a user and a patient the graph returns every named connection with the nodes it passes through. The rules and the templates test for these connections, and the grounded LLM in step 5 will be shown the same ones.
+
+**System 1, rules.** The five Hedda rules, each a connection in the graph. Alerts are ranked the way their paper proposes, by how far above chance each rule fires in their data (same street 4.0, department co-worker 3.2, proximity 2.5, last name 1.5, organization co-worker 1.0). Results are shown with and without the organization-wide rule, which they found no better than chance.
+
+**System 2, explanation templates.** Two layers, as in Fabbri and LeFevre 2013. Direct evidence is a care-team row or an order placed by the user. Departmental responsibility is mined from the log with their method and thresholds (s = 1, t = 2, diagnoses seen at least 30 times). A first access with no explanation is an alert. These alerts have no ranking.
+
+There is no "patient was seen in the user's department" template, because their method has none. Section 5.2 predicted that misuse aimed at a patient in the actor's own department would be explained away by such a template. That cell is now tested against departmental responsibility.
+
+**Rules, then explanations.** Hedda et al. propose using explanations to cut down what the rules flag. This is reported as a fifth variant.
+
+**Measures.** Misuse caught per scenario, false alerts per kind of legitimate access, and precision and recall when a reviewer takes the top alerts each day up to a budget. The budgets (10, 25 and 50 a day) are an assumption.
+
+**A limit to keep in mind.** M1, M2a and M3 are defined by the relationships the rules test for, so the rules catch them by construction. What the rules results show is everything else: how many legitimate accesses they flag, and which misuse they cannot see.

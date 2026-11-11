@@ -44,13 +44,16 @@ No em dashes, no emojis, no colons before lists. Light prose, no corporate jargo
 
 ## Stack and commands
 
-Python 3.10+, pandas, NumPy, PyYAML, pytest, managed with uv. NetworkX arrives with the identity graph (build step 4), not before. Synthea v3.2.0 jar is downloaded by `scripts/fetch_synthea.sh` into `vendor/` and needs Java 11 or newer.
+Python 3.10+, pandas, NumPy, PyYAML, NetworkX, pytest, managed with uv. Synthea v3.2.0 jar is downloaded by `scripts/fetch_synthea.sh` into `vendor/` and needs Java 11 or newer.
 
 ```
 scripts/run_synthea.sh           # population into data/synthea/slim, slow, rarely needed
 python -m ehr_triage.generate    # one run into data/generated/seed<seed>
 python -m ehr_triage.report      # rewrites docs/calibration-report.md, never edit that file by hand
+python -m ehr_triage.evaluate    # rewrites docs/baseline-results.md, same rule
 pytest                           # runs on a made-up population, no Java needed
 ```
 
-After any change to the generator or the config, rerun generate and report and commit the new report with the change.
+After any change to the generator or the config, rerun generate, report and evaluate and commit the new reports with the change.
+
+Systems under test load data only through `graph.load_visible`. Only `report.py` and `evaluate.py` may read `labels/`.
