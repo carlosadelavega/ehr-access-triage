@@ -47,7 +47,7 @@ The [calibration report](docs/calibration-report.md) puts every published target
 
 - Activity is still spread more evenly across users than in the real UK log, which has a long tail of very heavy users.
 - Staff are about 11% of the patient population here, so the co-worker rules fire far more often than in the published data.
-- In real logs, the relationship rules fire 1.5 to 4 times more often than chance. Here they fire at chance, because care is handed out without regard to who knows whom.
+- In real logs, the relationship rules fire 1.5 to 4 times more often than chance. Here they fire 1.3 to 1.8 times more often.
 
 ## Run it
 

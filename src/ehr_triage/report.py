@@ -179,6 +179,7 @@ def measure(t: dict, cfg: Config) -> dict:
         "all_accesses_explained": (is_repeat.sum() + linked.sum()) / len(weekly),
         "rule_match_share": rule_share,
         "rule_observed_to_expected": rule_ratio,
+        "rule_match_explained_share": {k: float(direct[rules[k]].mean()) for k in rules.columns},
         "nurse_chart_time_share": nurse_share,
         "physician_ehr_hours_per_day": doctor_hours,
         "events_per_user": {"median": per_user.size().median(), "p95": per_user.size().quantile(0.95)},
@@ -201,6 +202,9 @@ def measure(t: dict, cfg: Config) -> dict:
 
 # ---- label-side summary ----
 
+HONEST_REASONS = ["care_team", "undocumented_team", "order", "consult", "coverage", "back_office", "hospital_wide"]
+
+
 def label_summary(t: dict, m: dict) -> dict:
     labels = t["events"].merge(t["event_labels"], on="event_id")
     first = m["_first"].merge(t["event_labels"], on="event_id")
@@ -208,7 +212,9 @@ def label_summary(t: dict, m: dict) -> dict:
     relationship = rules.drop(columns="organization co-worker").any(axis=1).to_numpy()
     # A hard negative has an undocumented cause and no direct evidence from
     # any other encounter either.
-    by_reason = first[~m["_direct"].to_numpy()].groupby(["reason", "documented"]).size()
+    unexplained = ~m["_direct"].to_numpy()
+    by_reason = first[unexplained].groupby(["reason", "documented"]).size()
+    honest = first["reason"].isin(HONEST_REASONS).to_numpy()
     get = lambda reason, documented: int(by_reason.get((reason, documented), 0))
     return {
         "events_by_reason": labels["reason"].value_counts().to_dict(),
@@ -218,7 +224,8 @@ def label_summary(t: dict, m: dict) -> dict:
             "H2a coverage, documented": get("coverage", True),
             "H2b coverage, undocumented": get("coverage", False),
             "H3 undocumented care team": get("undocumented_team", False),
-            "H4 documented care with a rule match": int(((first["reason"] == "care_team").to_numpy() & relationship).sum()),
+            "H4a documented care with a rule match": int((honest & relationship & ~unexplained).sum()),
+            "H4b undocumented work with a rule match": int((honest & relationship & unexplained).sum()),
             "H5 back office": get("back_office", False),
             "H6 hospital-wide role": get("hospital_wide", False),
         },
@@ -257,6 +264,7 @@ def gap(target, value, use: str) -> str:
         return "inside the range" if lo <= value <= hi else f"{(value - (lo if value < lo else hi)) / (lo if value < lo else hi):+.0%} from the range"
     if abs(target) < 1:
         points = (value - target) * 100
+        points = round(points, 2 if abs(points) < 0.1 else 1) + 0.0  # no negative zero
         return f"{points:+.2f} points" if abs(points) < 0.1 else f"{points:+.1f} points"
     return f"{(value - target) / target:+.0%}"
 

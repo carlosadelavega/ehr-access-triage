@@ -174,11 +174,15 @@ def inject(req: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, rel: 
 
     def borrow(kind, owner, borrower, t, evidence):
         mine = np.unique(r_p[(r_actor == borrower) & (r_t0 < t + span_len) & (r_t1 > t)])
+        mine = mine[mine != person[owner]]  # the log must not show the owner in their own chart
+        if not len(mine):
+            return False
         sid = f"S{len(scenarios) + 1:03d}"
         times = t + np.sort(rng.random(int(rng.integers(lo, hi + 1)))) * span_len
         for x in times:
             out.add(borrower, int(rng.choice(mine)), -1, x, x + 60, 1, kind, False, account=owner, scenario=sid)
         scenarios.append((sid, kind, "", owner, borrower, -1, float(times[0]), float(times[-1]), False, evidence))
+        return True
 
     def busy_with(t):
         """For each user, how many patients they are working around time t."""
@@ -197,8 +201,7 @@ def inject(req: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, rel: 
         ok = np.flatnonzero((load >= 3) & clinical & (home != home[owner]))
         if load[owner] < 3 or not len(ok):
             continue
-        borrow("M6a", owner, int(rng.choice(ok)), t, "overlapping activity on devices in two departments")
-        made += 1
+        made += borrow("M6a", owner, int(rng.choice(ok)), t, "overlapping activity on devices in two departments")
     notes["M6a"] = {"made": made}
 
     made = tries = 0
@@ -217,8 +220,7 @@ def inject(req: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, rel: 
         ]
         if not absent:
             continue
-        borrow("M6b", int(rng.choice(absent)), borrower, t, "account active while its owner is not scheduled")
-        made += 1
+        made += borrow("M6b", int(rng.choice(absent)), borrower, t, "account active while its owner is not scheduled")
     notes["M6b"] = {"made": made}
 
     # P1: staff opening their own record, sized to the published share.

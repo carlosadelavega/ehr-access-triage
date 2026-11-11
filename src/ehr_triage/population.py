@@ -155,6 +155,30 @@ def build_staff(patients: pd.DataFrame, cfg, rng) -> pd.DataFrame:
     return staff
 
 
+def relationship_pull(staff: pd.DataFrame, patients: pd.DataFrame, cfg) -> np.ndarray:
+    """For each staff member and patient, how much more likely that person is
+    to be the one who does a piece of work on that patient.
+
+    1 for strangers, more for a shared surname, street or neighborhood, and 0
+    for a person's own chart, which only self-access may open.
+    """
+    pull = cfg["relationship_pull"]
+    person = staff["pidx"].to_numpy()
+    lat, lon = patients["lat"].to_numpy(), patients["lon"].to_numpy()
+    surname = patients["last_name"].to_numpy()
+    street = pd.factorize(patients["address"].map(street_of) + "|" + patients["city"])[0]
+    miles = miles_between(lat[person][:, None], lon[person][:, None], lat[None, :], lon[None, :])
+    out = np.ones((len(staff), len(patients)))
+    for mask, kind in (
+        (surname[person][:, None] == surname[None, :], "last name"),
+        (miles <= cfg["proximity_miles"], "proximity"),
+        (street[person][:, None] == street[None, :], "same street"),
+    ):
+        out[mask] = np.maximum(out[mask], pull[kind])
+    out[np.arange(len(staff)), person] = 0.0
+    return out
+
+
 def build_devices(staff: pd.DataFrame, cfg, rng) -> tuple[pd.DataFrame, list, list, dict, dict]:
     """Devices, each user's usual devices with weights, and each department's
     workstations, all of them and the shared ones."""

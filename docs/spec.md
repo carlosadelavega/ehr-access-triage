@@ -109,6 +109,14 @@ In the UK log, activity is far from even. Over 18 months the median user has 220
 
 The last point matters for the evaluation. If honest work never happened on a device outside the user's department, that one fact would give shared credentials away.
 
+### 3.8 People who know each other
+
+In Hedda et al., staff open the charts of namesakes, neighbors and department colleagues more often than random pairing would produce. Last name matches occur 1.5 times as often as chance, proximity 2.5 times, same street 4.0 times and department co-worker 3.2 times. Their five clinical reasons explain only 16-44% of these accesses.
+
+The generator uses those ratios as weights. A staff member who shares a surname, a street or a neighborhood with a patient is that much more likely to be the one who does a given piece of work on that patient, and staff are that much more likely to be seen in their own department. Nobody is assigned to their own chart.
+
+The paper does not say how much of the excess is appropriate. Here all of it is ordinary work, documented or not at the usual rates, and injected misuse comes on top. That is an assumption, and it leans toward more hard negatives. If much of the real excess is snooping, this data overstates how often a relationship is innocent.
+
 ## 4. How legitimate accesses arise
 
 Each mechanism below produces accesses and either leaves a trace in `context/` or does not. The share that leaves a trace is what moves the explanation-rate targets.
@@ -121,7 +129,8 @@ Each mechanism below produces accesses and either leaves a trace in `context/` o
 | Specialist consults on a verbal request | none, though specialty may match the encounter reason | H1 |
 | Staff cover another unit for a shift | schedule row for some, nothing for others | H2 |
 | Coding, billing and records staff work the chart after discharge | role only | H5 |
-| Care-team member happens to be a coworker, neighbor or namesake | care_team row, plus a relationship | H4 |
+| Someone who knows the patient is on the care team | care_team row, plus a relationship | H4a |
+| Someone who knows the patient does other work on the chart | a relationship, and no care_team row | H4b |
 | Care management reviews patients across the house | role only | H6 |
 | Staff member opens their own record | name and birth date match | P1 |
 
@@ -147,7 +156,8 @@ Within a shift, a user works through patients in visits. Each visit is a short r
 | H2a | Coverage, documented | Many patients of an unfamiliar unit across one shift, on that unit's devices | Schedule row for the covered unit |
 | H2b | Coverage, undocumented | Same as H2a | Nothing direct. Devices and timing are consistent with working the unit |
 | H3 | Undocumented care team | Repeated accesses through the stay, charting actions, interleaved with the documented team | Same department as the encounter, scheduled on that unit, inside the stay |
-| H4 | Legitimate care with a relationship present | Indistinguishable from normal care | care_team row. Also a coworker, proximity or surname match |
+| H4a | Documented care with a relationship present | Indistinguishable from normal care | care_team row or an order. Also a coworker, proximity or surname match |
+| H4b | Undocumented work with a relationship present | Same as H3 or H5, by someone who shares a surname, street, neighborhood or department with the patient | Only the weak evidence of H3 or H5, against a relationship that points the other way |
 | H5 | Back-office work | View and coding actions in the days after discharge | Role and discharge date |
 | H6 | Hospital-wide role | A care manager opens many patients across units, briefly, sometimes on the unit's shared workstation | Role and department. No care-team row, order or department link |
 | P1 | Self-access | User opens their own record | First name, last name and birth date match (the Hedda et al. definition) |
@@ -183,7 +193,8 @@ These are predictions to be tested. Nothing in the generator enforces them, and 
 | H2a | clear | false alert | no basis | clear |
 | H2b | clear | false alert | no basis | should say it cannot confirm |
 | H3 | clear | false alert, unless a department template applies | no basis | clear |
-| H4 | false alert | clear | clear by default (nothing to flag) | clear |
+| H4a | false alert | clear | clear by default (nothing to flag) | clear |
+| H4b | false alert | false alert, unless a department or role template applies | no basis | clear with stated uncertainty, or say it cannot confirm |
 | H5 | clear | false alert, unless a role template applies | no basis | clear |
 | H6 | clear | false alert, unless a role template applies | no basis | clear |
 | A1 | as base scenario | as base scenario | open question | open question |
@@ -191,7 +202,7 @@ These are predictions to be tested. Nothing in the generator enforces them, and 
 Three things keep this table from being a foregone conclusion.
 
 - The graph is incomplete on purpose. In M2b without an emergency contact and in H2b, the right output from System 4 is "the evidence does not settle this", and a confident answer either way counts against it.
-- In H4 the relationship evidence points the wrong way. It tests whether System 4 over-weights a relationship when a care-team row is present.
+- In H4 the relationship evidence points the wrong way. H4a tests whether System 4 over-weights a relationship when a care-team row is present. H4b is the hardest case in the set: a relationship, no direct evidence, and nothing wrong.
 - The rules are the ones Hedda et al. evaluated (organization co-worker, department co-worker, last name, proximity within 0.25 miles, same street). Their paper found the organization-wide rule no better than chance, so it is expected to add alerts without adding catches.
 
 ### 5.3 Covering accesses
@@ -226,6 +237,7 @@ repeat_access_share:
 | All accesses explained once repeats are filtered | over 94% | Fabbri & LeFevre 2011, 2013 | reported |
 | First accesses matching each rule | 3.84% organization co-worker, 0.04% department co-worker, 0.14% last name, 0.16% proximity, 0.12% same street | Hedda et al. 2017, Table 3 | reported |
 | Rule matches against random pairing | 1.0, 3.2, 1.5, 2.5 and 4.0 times chance, in the same order | Hedda et al. 2017, Table 2 | reported |
+| Rule matches explained by direct evidence | 39%, 44%, 21%, 25% and 16%, in the same order | Hedda et al. 2017, Table 4 | reported |
 | Alerts per access | about 10% | Laszka et al. 2017 | not measurable until step 4 |
 | Inpatient nurse chart time | about 34% of a shift | JMIR Nursing 2026 nursing workload study | level |
 | Primary care physician chart time | 5.9 hours per weekday | Arndt et al. 2017 | reported |
@@ -263,5 +275,6 @@ Reviewed on 10 Nov 2026.
 8. **Action categories** come from a public summary of ASTM E2147-18 (section 6).
 9. **The log uses the US unit of an access** (3.6). Duration is derived, since US logs do not record one.
 10. **Users differ** in presence, load and device use, and care management is a new hard negative, H6 (3.7).
+11. **People who know each other meet more often than chance** (3.8), with Hedda's ratios as weights. All of that excess is generated as ordinary work.
 
 Still open, and reserved for step 5. LLM provider, model and budget, and the Privacy Officer summary template.

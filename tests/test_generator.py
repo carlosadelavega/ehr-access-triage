@@ -4,7 +4,7 @@ import re
 import pandas as pd
 
 from ehr_triage.generate import generate
-from ehr_triage.population import miles_between, street_of
+from ehr_triage.population import miles_between, relationship_pull, street_of
 
 LOG_COLUMNS = ["event_id", "timestamp", "user_id", "patient_id", "device_id", "action_code", "duration_s"]
 LABEL_ONLY_COLUMNS = {"reason", "documented", "scenario_id", "part", "covered", "evidence_in_context",
@@ -186,3 +186,30 @@ def test_care_management_reads_widely_and_is_documented_nowhere(run):
     wide = labelled[labelled["reason"] == "hospital_wide"]
     assert len(wide) and not wide["documented"].any()
     assert not wide["user_id"].isin(run["care_team"]["user_id"]).any()
+
+
+# ---- people who know each other ----
+
+def test_relationship_pull_follows_the_published_ratios_and_bars_the_own_chart(cfg):
+    patients = pd.DataFrame(
+        {
+            "last_name": ["Lee", "Lee", "Diaz", "Khan"],
+            "address": ["1 Elm Street", "900 Far Road", "7 Elm Street", "5 Other Way"],
+            "city": "Testville",
+            "lat": [42.100, 42.300, 42.1001, 42.1002],
+            "lon": [-72.500, -72.900, -72.5001, -72.5002],
+        }
+    )
+    staff = pd.DataFrame({"pidx": [0]})  # one staff member, who is patient 0
+    pull = relationship_pull(staff, patients, cfg)[0]
+    want = cfg["relationship_pull"]
+    assert pull[0] == 0  # own chart
+    assert pull[1] == want["last name"]  # namesake who lives far away
+    assert pull[2] == want["same street"]  # same street beats mere proximity
+    assert pull[3] == want["proximity"]  # close by, different street and name
+
+
+def test_nobody_works_on_their_own_chart(run):
+    labelled = run["events"].merge(run["event_labels"], on="event_id")
+    own = labelled["user_id"].map(dict(zip(run["staff"]["user_id"], run["staff"]["patient_id"])))
+    assert set(labelled.loc[own == labelled["patient_id"], "reason"]) <= {"self"}

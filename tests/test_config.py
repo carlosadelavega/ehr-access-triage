@@ -14,7 +14,7 @@ PUBLISHED_TARGETS = {
     "first_access_explained_direct", "first_access_explained_with_department_link", "all_accesses_explained",
     "events_per_user", "patients_per_user", "patient_index_in_user_day", "duration_median_s", "duration_p95_s",
     "zero_gap_same_patient_share", "action_top21_share",
-    "rule_observed_to_expected", "devices_per_user", "nurse_chart_time_share", "physician_ehr_hours_per_day",
+    "rule_observed_to_expected", "rule_match_explained_share", "devices_per_user", "nurse_chart_time_share", "physician_ehr_hours_per_day",
 }
 
 

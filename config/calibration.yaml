@@ -52,6 +52,11 @@ targets:
     use: reported
     source: "Hedda et al. 2017, Table 2 (patients permuted)"
     note: "How much more often a rule fires than it would if users and patients were paired at random"
+  rule_match_explained_share:
+    value: {organization co-worker: 0.3878, department co-worker: 0.4390, last name: 0.2143, proximity: 0.2479, same street: 0.1611}
+    use: reported
+    source: "Hedda et al. 2017, Table 4 (share of rule-matching accesses explained by five clinical reasons)"
+    note: "Measured here as the share of rule-matching first accesses with direct evidence"
   alerts_per_access:
     value: 0.10
     use: later
@@ -382,6 +387,13 @@ parameters:
     value: 7200
     basis: assumption
     note: "A user works one chart at a time and can fall this far behind. Past that, visits overlap as if on a second screen"
+  # ---- people who know each other ----
+  relationship_pull:
+    value: {department co-worker: 3.22, last name: 1.53, proximity: 2.51, same street: 4.04}
+    basis: published
+    source: "Hedda et al. 2017, Table 2 (observed over expected, patients permuted)"
+    note: "How much more likely a staff member is to be the one who works on a patient they share a surname, a street or a neighborhood with, and how much more likely staff are to be seen in their own department. Used as a weight, so the measured ratio can come out lower. Hedda et al. do not say how much of this excess is appropriate. Here all of it is ordinary work, and injected misuse comes on top"
+
   # ---- people ----
   households:
     value:
