@@ -311,6 +311,7 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
     daily = cfg["inpatient_daily_orders"]
     generic = {"medication": "Inpatient medication order", "lab": "Daily laboratory panel", "imaging": "Inpatient imaging study"}
     consult_lo, consult_hi = cfg["consult_visits"]
+    on_team = {(u, enc_p[e]) for e, u, *_ in care_team}
 
     def back_office(dept, roles, t, e, n):
         # Work that lands outside office hours is picked up some time in the
@@ -356,8 +357,12 @@ def assign_work(enc: pd.DataFrame, staff: pd.DataFrame, shifts: pd.DataFrame, sy
                 dept = str(rng.choice(cfg["consult_departments"]))
             a = t0 + rng.random() * (t1 - t0)
             b = min(a + (12 + 24 * rng.random()) * HOUR, x + 12 * HOUR, W)
-            req.add(int(rng.choice(by[(dept, "physician")])), p, e, a, b, int(rng.integers(consult_lo, consult_hi + 1)),
-                    "consult", False, mode="consult")
+            # A consultant who is already on one of the patient's care teams
+            # would be explained by that row, so pick one who is not.
+            free = [u for u in by[(dept, "physician")] if (u, p) not in on_team]
+            if free:
+                req.add(int(rng.choice(free)), p, e, a, b, int(rng.integers(consult_lo, consult_hi + 1)),
+                        "consult", False, mode="consult")
 
         if s >= 0 and (cls != "clinic" or rng.random() < cfg["registration_prob_clinic"]):
             got = roster.pick("REG", ("clerk",), s, rng)
