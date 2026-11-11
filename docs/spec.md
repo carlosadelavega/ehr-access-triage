@@ -56,9 +56,9 @@ The six fields after `event_id` mirror the Herrera Montano field list (timestamp
 | departments.csv | department_id, name, kind | Ours. Kinds are inpatient unit, emergency, clinic, ancillary and back office |
 | devices.csv | device_id, department_id, kind | Ours. Kinds are workstation, shared workstation, mobile and remote |
 | schedule.csv | user_id, date, shift_start, shift_end, department_id | Ours. The documented assignment for each shift |
-| encounters.csv | encounter_id, patient_id, class, start, stop, department_id, reason_code, reason_description, synthea_encounter_id | Synthea encounters, re-dated (3.5) |
+| encounters.csv | encounter_id, patient_id, class, start, stop, department_id, reason_description, description, synthea_encounter_id | Synthea encounters, re-dated (3.5). Class is inpatient, emergency or clinic |
 | care_team.csv | encounter_id, user_id, team_role, start, stop | Ours. Documented assignments only |
-| orders.csv | order_id, encounter_id, patient_id, kind, ordered_by, performing_department_id, timestamp, description | Synthea medications, imaging studies and laboratory observations attached to the encounter. They route to pharmacy, radiology and the lab |
+| orders.csv | order_id, encounter_id, patient_id, kind, ordered_by, performing_department_id, timestamp, description | Synthea medications, imaging studies and laboratory observations attached to the encounter, plus daily orders for inpatients. They route to pharmacy, radiology and the lab |
 | actions.csv | action_code, category, description | Ours. A long-tailed code vocabulary |
 
 Staff who are also patients come for free, since every staff member has a patient record. That is what makes the coworker scenario and self-access possible.
@@ -68,11 +68,11 @@ Staff who are also patients come for free, since every staff member has a patien
 | Table | Fields |
 |---|---|
 | event_labels.csv | event_id, reason, documented, scenario_id, part |
-| scenarios.csv | scenario_id, type, group_id, actor_user_id, target_patient_id, start, end, covered, evidence_in_context |
+| scenarios.csv | scenario_id, type, group_id, actor_user_id, borrower_user_id, target_patient_id, start, end, covered, evidence_in_context |
 | relationships.csv | patient_id_a, patient_id_b, kind, same_household |
 | public_events.csv | public_event_id, patient_id, timestamp |
 
-Every event gets a row in `event_labels.csv`. `reason` is the mechanism that produced it (care team, order, consult, coverage, back office, self, or a misuse type). `documented` says whether that reason left a trace in `context/`. `part` is `target` or `cover` for scenario events. scenarios.csv holds the injected misuse scenarios only, and `group_id` ties together the users who respond to the same news event. Hard negatives and self-access are not scenarios. They are selected from event_labels.csv by `reason` and `documented`.
+Every event gets a row in `event_labels.csv`. `reason` is the mechanism that produced it (care team, order, consult, coverage, back office, self, or a misuse type). `documented` says whether that reason left a trace in `context/`. `part` is `target` or `cover` for scenario events. scenarios.csv holds the injected misuse scenarios only, and `group_id` ties together the users who respond to the same news event. For shared credentials, `actor_user_id` is the account seen in the log and `borrower_user_id` is the person using it. Hard negatives and self-access are not scenarios. They are selected from event_labels.csv by `reason` and `documented`. A hard negative is a first access whose cause is undocumented and whose user and patient have no direct evidence from any other encounter either.
 
 True family ties live only in labels. A hospital does not know who is related to whom. It knows surnames, addresses and emergency contacts, so that is what `context/` holds.
 
@@ -86,7 +86,7 @@ Synthea alone is far too sparse to drive hospital access volumes. The probe run 
 
 US volumes need much more. At 375-580 accesses per staff member per week with 92% repeats, each staff member opens about 30-46 distinct patients a week. Vanderbilt's numbers (710K unique non-self accesses across 152K patients in one week) put about 4.7 users on each patient. For 300 staff that means roughly 1,900-2,900 of the 3,500 patients are touched every week.
 
-Proposed approach. Treat the hospital as the only provider for the population. Take each patient's Synthea encounters from the last 5 years as a pool and re-date a sample of them into the 30-day window. The clinical content stays Synthea's (reason, medications, imaging, labs). The timing, the department and the staffing are ours. The class mix is reweighted toward inpatient and emergency, since the pool is about 1% inpatient. The sampling rate and the class weights are config parameters marked as assumptions.
+Proposed approach. Treat the hospital as the only provider for the population. Take each patient's Synthea encounters from the last 10 years as a pool and re-date a sample of them into the 30-day window. Five years holds too few inpatient stays to fill the beds. The clinical content stays Synthea's (reason, medications, imaging, labs). The timing, the department and the staffing are ours. The class mix is reweighted toward inpatient and emergency, since the pool is about 1% inpatient. The sampling rate and the class weights are config parameters marked as assumptions.
 
 ## 4. How legitimate accesses arise
 
