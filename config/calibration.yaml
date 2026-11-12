@@ -440,9 +440,25 @@ parameters:
 
   # ---- LLM triage (build step 5), not used by the generator ----
   triage:
-    value: {context_lines: 30, context_hours: 12, encounters_shown: 5, temperature: 0, max_output_tokens: 600}
+    value: {context_lines: 30, context_hours: 12, encounters_shown: 5, temperature: 0, max_output_tokens: 4000, workers: 8, cost_cap_usd: 10}
     basis: assumption
-    note: "How many log lines of each kind and how many encounters a prompt shows, and the model settings. The user's other lines are the nearest ones within context_hours either side of the access. Temperature 0 so a rerun is as repeatable as the provider allows"
+    note: "How many log lines of each kind and how many encounters a prompt shows, and the run settings. The user's other lines are the nearest ones within context_hours either side of the access. Temperature 0 so a rerun is as repeatable as the provider allows. max_output_tokens leaves room for the model's reasoning, which counts against it. The summary itself is about 300 tokens. workers is how many calls run at once. cost_cap_usd stops a run or judge command once its own spend passes it"
+
+  triage_provider:
+    value:
+      request_extras: {reasoning_effort: low, response_format: {type: json_object}}
+      usd_per_million_tokens: {input: 0.15, cached_input: 0.03, output: 0.50}
+    basis: published
+    source: "Z.ai developer documentation for GLM-5.3-Flash, read 12 Nov 2026 (docs.z.ai/guides/vlm/glm-5.3-flash and docs.z.ai/guides/overview/concept-param), and the Z.ai price list"
+    note: "Specific to GLM 5.3 Flash. request_extras is added to every request body. Thinking cannot be switched off on this model, so reasoning_effort is set to its lowest level, and reasoning tokens are billed as output. Z.ai recommends temperature 1. The run uses 0, see triage. Replace this entry when the model changes"
+
+  case_set:
+    value:
+      per_stratum: 100
+      larger: {order: 200, undocumented_team: 200, back_office: 200, direct: 200, hospital_wide: 150, H4b: 300}
+      covers: 100
+    basis: assumption
+    note: "How many legitimate first accesses of each kind the LLM systems triage. Every misuse first access is included. The four kinds with about 15,000 first accesses each get 200, and H4b gets 300 because a relationship with no documented purpose is where a false alert is most likely. covers is how many covering accesses are sampled from the paired run. Results are weighted back to the full population"
 
   # ---- covering accesses (adversarial variant) ----
   covering:

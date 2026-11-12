@@ -10,6 +10,7 @@ output/
 # Secrets for later LLM runs
 .env
 .env.*
+!.env.example
 
 # Python
 .venv/
