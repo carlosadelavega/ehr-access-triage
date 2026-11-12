@@ -77,11 +77,14 @@ def inject(req: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, rel: 
         a, b = max(a, 0) + 600, min(b, W) - 600
         return float(a + rng.random() * (b - a))
 
+    visit_times: dict[str, list] = {}
+
     def add(kind, u, p, times, evidence, group=""):
         sid = f"S{len(scenarios) + 1:03d}"
         for t in times:
             out.add(u, p, -1, t, t + 60, 1, kind, False, mode="view", scenario=sid, max_events=hi_ev)
         scenarios.append((sid, kind, group, u, -1, p, min(times), max(times), False, evidence))
+        visit_times[sid] = sorted(times)
 
     def snoop(kind, pairs, n, evidence, repeat=False, variant=True):
         """Inject n scenarios from candidate (user, patient) pairs with no legitimate link."""
@@ -232,11 +235,13 @@ def inject(req: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, rel: 
         t = when(int(u))
         out.add(int(u), int(person[u]), -1, t, t + 60, 1, "self", True, mode="view", max_events=hi_ev)
 
-    # A1: covering accesses, after Xu et al. 2023. Before the target access,
+    # A1: covering accesses, after Xu et al. 2023. Around the target access,
     # the actor opens the charts that look most like the target and most
-    # like their own usual patients, judged by who else opens them. They
-    # draw from their own random stream, so everything above is identical
-    # with and without them.
+    # like their own usual patients, judged by who else opens them. Each
+    # week with a target access gets its own set, placed around the first
+    # one, since the first access of a week is what gets triaged. They draw
+    # from their own random stream, so everything above is identical with
+    # and without them.
     covers = Requests()
     table = pd.DataFrame(scenarios, columns=SCENARIO_COLUMNS)
     cover = cfg["covering"]
@@ -259,9 +264,12 @@ def inject(req: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, rel: 
             if len(usual):
                 score = score + cover["alpha"] * similarity(usual).mean(axis=1)
             score[usual] = score[target] = score[person[u]] = -1
-            for p in np.argsort(-score, kind="stable")[: cover["accesses"]]:
-                t = when(u, (max(row.start - cover["days_before"] * DAY, 0.0), row.start))
-                covers.add(u, int(p), -1, t, t + 60, 1, "cover", False, scenario=row.scenario_id)
+            ranked, k, span = np.argsort(-score, kind="stable"), cover["accesses"], cover["hours_around"] * HOUR
+            first_of_week = {int(t // (7 * DAY)): t for t in reversed(visit_times[row.scenario_id])}
+            for i, start in enumerate(sorted(first_of_week.values())):
+                for p in ranked[i * k : (i + 1) * k]:
+                    t = when(u, (max(start - span, 0.0), min(start + span, W)))
+                    covers.add(u, int(p), -1, t, t + 60, 1, "cover", False, scenario=row.scenario_id)
             table.loc[row.Index, "covered"] = True
         rng = main_rng
 

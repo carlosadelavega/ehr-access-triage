@@ -440,16 +440,16 @@ parameters:
 
   # ---- LLM triage (build step 5), not used by the generator ----
   triage:
-    value: {context_lines: 30, encounters_shown: 5, temperature: 0, max_output_tokens: 600}
+    value: {context_lines: 30, context_hours: 12, encounters_shown: 5, temperature: 0, max_output_tokens: 600}
     basis: assumption
-    note: "How many log lines of each kind and how many encounters a prompt shows, and the model settings. Temperature 0 so a rerun is as repeatable as the provider allows"
+    note: "How many log lines of each kind and how many encounters a prompt shows, and the model settings. The user's other lines are the nearest ones within context_hours either side of the access. Temperature 0 so a rerun is as repeatable as the provider allows"
 
   # ---- covering accesses (adversarial variant) ----
   covering:
-    value: {enabled: false, accesses: 10, alpha: 0.75, days_before: 7}
+    value: {enabled: false, accesses: 10, alpha: 0.75, hours_around: 1}
     basis: published
     source: "Xu et al. 2023 (heuristic attack: Jaccard similarity, alpha 0.75, and 10 covering accesses within a week)"
-    note: "Off by default. `generate --covered` writes a second run that is identical except that each M1-M4 actor first makes this many covering accesses"
+    note: "Off by default. `generate --covered` writes a second run that is identical except that each M1-M4 actor also makes this many covering accesses in each week with a target access. Their detectors work on a weekly graph, so when in the week a cover falls does not matter to them. Here the covers are placed within an hour either side of the week's first target access, an assumption, because the LLM is shown the log lines nearest the access and a cover it never sees cannot test it"
 
   # ---- injected misuse ----
   scenario_counts:

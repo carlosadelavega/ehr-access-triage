@@ -140,7 +140,7 @@ def main() -> None:
     ap.add_argument("--config", default="config/calibration.yaml")
     ap.add_argument("--synthea", default="data/synthea/slim")
     ap.add_argument("--out", default=None, help="defaults to data/generated/seed<seed>, with -covered added for --covered")
-    ap.add_argument("--covered", action="store_true", help="add covering accesses before each M1-M4 target access")
+    ap.add_argument("--covered", action="store_true", help="add covering accesses around each M1-M4 target access")
     args = ap.parse_args()
     cfg = load_config(args.config)
     if args.covered:

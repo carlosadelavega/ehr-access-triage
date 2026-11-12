@@ -237,7 +237,7 @@ def test_covering_accesses_change_nothing_else(run, covered):
     assert labelled.loc[~cover, fields].reset_index(drop=True).equals(run["events"][fields])
 
 
-def test_each_covered_scenario_opens_new_charts_before_the_target(run, covered):
+def test_each_covered_scenario_opens_new_charts_near_the_target(run, covered, cfg):
     labelled = covered["events"].merge(covered["event_labels"], on="event_id")
     scenarios = covered["scenarios"]
     done = scenarios[scenarios["covered"].astype(str) == "True"]
@@ -249,3 +249,6 @@ def test_each_covered_scenario_opens_new_charts_before_the_target(run, covered):
         assert (mine["user_id"] == s.actor_user_id).all()
         known = set(before.loc[before["user_id"] == s.actor_user_id, "patient_id"])
         assert not set(mine["patient_id"]) & known  # a covering access opens a chart the actor had no reason to open
+        target = labelled[(labelled["scenario_id"] == s.scenario_id) & (labelled["part"] == "target")]
+        week = lambda rows: (pd.to_datetime(rows["timestamp"]) - pd.Timestamp(cfg["window_start"])).dt.days // 7
+        assert set(week(target)) <= set(week(mine)) | {w + d for w in set(week(mine)) for d in (-1, 1)}  # every target week has its covers

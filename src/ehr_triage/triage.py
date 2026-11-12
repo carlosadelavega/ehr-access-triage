@@ -53,9 +53,9 @@ class Views:
         self.system, self.cfg = system, cfg
         self.t = load_visible(run_dir, system)
         ev = self.t["events"]
-        day = (pd.to_datetime(ev["timestamp"]) - pd.Timestamp(cfg["window_start"])).dt.days
-        self.events = ev.assign(day=day, week=day // 7)
-        self.by_user_day = self.events.groupby(["user_id", "day"]).indices
+        since = pd.to_datetime(ev["timestamp"]) - pd.Timestamp(cfg["window_start"])
+        self.events = ev.assign(week=since.dt.days // 7, t=since.dt.total_seconds())
+        self.by_user = self.events.groupby("user_id").indices
         self.by_patient_week = self.events.groupby(["patient_id", "week"]).indices
         if system == "llm_graph":
             t = self.t
@@ -77,21 +77,26 @@ def case_units(run_dir: str | Path, cfg: Config) -> pd.DataFrame:
     return first_access_units(t["events"], t["staff"], cfg["window_start"])
 
 
-def log_facts(v: Views, user: str, patient: str, week: int, day: int) -> list[tuple[str, str]]:
-    """The access under review, what else the user did that day, and who else opened the patient that week."""
-    cap = v.cfg["triage"]["context_lines"]
+def log_facts(v: Views, user: str, patient: str, week: int) -> list[tuple[str, str]]:
+    """The access under review, what else the user did around it, and who else opened the patient that week.
+
+    The user's other lines are the ones nearest the access in time, within
+    a fixed number of hours either side. A calendar day would cut a night
+    shift in two.
+    """
+    cap, hours = v.cfg["triage"]["context_lines"], v.cfg["triage"]["context_hours"]
     e = v.events
-    mine = e.iloc[v.by_user_day.get((user, day), [])]
     theirs = e.iloc[v.by_patient_week.get((patient, week), [])]
     case = theirs[theirs["user_id"] == user]
-    centre = case["event_id"].iloc[0]
-    around = mine[mine["patient_id"] != patient]
-    around = around.iloc[(around["event_id"] - centre).abs().argsort()[:cap]].sort_values("event_id")
+    away = (e["t"].iloc[v.by_user[user]] - case["t"].iloc[0]).abs()
+    mine = e.loc[away.index[(away <= hours * 3600).to_numpy()]]
+    mine = mine[mine["patient_id"] != patient]
+    around = mine.loc[away[mine.index].sort_values(kind="stable").index[:cap]].sort_values("event_id")
     others = theirs[theirs["user_id"] != user].head(cap)
     facts, n = [], 0
     for title, rows, more in (
         ("the access under review", case.head(cap), len(case) - cap),
-        ("the same user, same day, other patients", around, len(mine) - len(case) - len(around)),
+        (f"the same user, within {hours} hours, other patients", around, len(mine) - len(around)),
         ("the same patient, same week, other users", others, len(theirs) - len(case) - len(others)),
     ):
         facts.append(("", f"-- {title}" + (f" ({more} more lines not shown)" if more > 0 else "")))
@@ -141,7 +146,7 @@ def graph_facts(v: Views, user: str, patient: str, day: int, case_lines: list[st
 
 def build_prompt(v: Views, unit) -> tuple[str, list[str]]:
     """The prompt for one first access, and the fact IDs it contains."""
-    facts = log_facts(v, unit.user_id, unit.patient_id, unit.week, unit.day)
+    facts = log_facts(v, unit.user_id, unit.patient_id, unit.week)
     if v.system == "llm_graph":
         case_lines = []
         for ident, text in facts[1:]:
