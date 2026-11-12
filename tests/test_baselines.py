@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from ehr_triage import baselines, evaluate
-from ehr_triage.graph import VISIBLE, build_graph, evidence_paths
+from ehr_triage.graph import VISIBLE, build_graph, evidence_paths, load_visible
 
 
 @pytest.fixture(scope="module")
@@ -71,6 +71,18 @@ def test_evidence_paths_name_each_connection():
     assert set(evidence_paths(g, "U1", "P1")) == {"self"}
     assert set(evidence_paths(g, "U1", "P2")) == {"last name", "care team", "department of encounter"}
     assert set(evidence_paths(g, "U1", "P3")) == {"emergency contact"}
+
+
+def test_evidence_paths_pick_the_encounter_nearest_the_access(run_dir, cfg):
+    t = load_visible(run_dir, "llm_graph")
+    team = t["care_team"].merge(t["encounters"][["encounter_id", "patient_id", "start"]], on="encounter_id", suffixes=("_team", ""))
+    several = team.groupby(["user_id", "patient_id"]).filter(lambda g: g["encounter_id"].nunique() > 1)
+    assert len(several), "the test population should have a user on two care teams of one patient"
+    g = build_graph(t, cfg["proximity_miles"])
+    for (u, p), rows in list(several.groupby(["user_id", "patient_id"]))[:20]:
+        for r in rows.itertuples():
+            path = evidence_paths(g, u, p, pd.Timestamp(r.start))["care team"]
+            assert path[1] == ("encounter", r.encounter_id)
 
 
 def test_results_report_runs_end_to_end(run_dir, cfg, tmp_path):

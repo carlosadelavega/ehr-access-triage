@@ -67,7 +67,11 @@ def build_graph(t: dict[str, pd.DataFrame], proximity_miles: float) -> nx.MultiD
             if row.emergency_contact_id:
                 g.add_edge(P(row.patient_id), P(row.emergency_contact_id), key="emergency_contact")
     if "encounters" in t:
-        for row in t["encounters"].itertuples():
+        starts = pd.to_datetime(t["encounters"]["start"]) if "start" in t["encounters"] else None
+        stops = pd.to_datetime(t["encounters"]["stop"]) if "stop" in t["encounters"] else None
+        for i, row in enumerate(t["encounters"].itertuples()):
+            if starts is not None:
+                g.add_node(E(row.encounter_id), start=starts.iloc[i], stop=stops.iloc[i])
             g.add_edge(P(row.patient_id), E(row.encounter_id), key="had")
             g.add_edge(E(row.encounter_id), D(row.department_id), key="in")
     if "care_team" in t:
@@ -81,12 +85,14 @@ def build_graph(t: dict[str, pd.DataFrame], proximity_miles: float) -> nx.MultiD
     return g
 
 
-def evidence_paths(g: nx.MultiDiGraph, user_id: str, patient_id: str) -> dict[str, list]:
+def evidence_paths(g: nx.MultiDiGraph, user_id: str, patient_id: str, at=None) -> dict[str, list]:
     """Every known kind of connection between this user and this patient.
 
     Returns {evidence name: path}, where a path is the list of nodes walked.
     These paths are what the rules and templates test for, and what the
-    grounded LLM will be shown.
+    grounded LLM will be shown. When a connection runs through one of
+    several encounters, `at` picks the encounter nearest that moment, so
+    the path shown is the one that bears on the access under review.
     """
     u, p = U(user_id), P(patient_id)
     found: dict[str, list] = {}
@@ -112,9 +118,14 @@ def evidence_paths(g: nx.MultiDiGraph, user_id: str, patient_id: str) -> dict[st
     for me in own:
         if has(me, p, "emergency_contact") or has(p, me, "emergency_contact"):
             found["emergency contact"] = [u, me, p]
-    for e in g.successors(p):
-        if e[0] != "encounter":
-            continue
+
+    def distance(e):
+        start, stop = g.nodes[e].get("start"), g.nodes[e].get("stop")
+        if at is None or start is None:
+            return 0.0
+        return 0.0 if start <= at <= stop else min(abs((at - start).total_seconds()), abs((at - stop).total_seconds()))
+
+    for e in sorted((e for e in g.successors(p) if e[0] == "encounter"), key=distance):
         if has(u, e, "care_team"):
             found.setdefault("care team", [u, e, p])
         if has(u, e, "ordered"):

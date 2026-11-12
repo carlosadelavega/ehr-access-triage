@@ -105,6 +105,7 @@ def log_facts(v: Views, user: str, patient: str, week: int, day: int) -> list[tu
 def graph_facts(v: Views, user: str, patient: str, day: int, case_lines: list[str]) -> list[tuple[str, str]]:
     """Who the user is, where the patient was seen, and every connection between them."""
     out: list[str] = []
+    at = pd.Timestamp(case_lines[0].split(" ")[0])
     s = v.staff.loc[user]
     out.append(f"user {user} is a {s['role']} in {s['department_id']} ({v.dept[s['department_id']]}), {s['employment']}, "
                f"usual shift {s['usual_shift']}")
@@ -119,12 +120,13 @@ def graph_facts(v: Views, user: str, patient: str, day: int, case_lines: list[st
     if seen is None:
         out.append(f"patient {patient} has no encounter in the period")
     else:
-        for r in seen.sort_values("start").tail(v.cfg["triage"]["encounters_shown"]).itertuples():
+        gap = (pd.to_datetime(seen["start"]) - at).abs()  # show the encounters nearest the access
+        for r in seen.loc[gap.sort_values().index[: v.cfg["triage"]["encounters_shown"]]].sort_values("start").itertuples():
             out.append(f"encounter {r.encounter_id}: {patient} {r.kind} in {r.department_id} "
                        f"{r.start} to {r.stop}" + (f", reason {r.reason_description}" if r.reason_description else ""))
     if patient in v.vip:
         out.append(f"patient {patient} carries the VIP flag")
-    paths = evidence_paths(v.graph, user, patient)
+    paths = evidence_paths(v.graph, user, patient, at)
     for name, nodes in paths.items():
         out.append(f"connection '{name}': " + " - ".join(f"{kind} {ident}" for kind, ident in nodes))
     if not paths:
