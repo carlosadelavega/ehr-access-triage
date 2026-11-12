@@ -6,7 +6,7 @@ Can an LLM triage anomalous accesses to electronic health records (EHR) and draf
 
 The generator, the identity graph and the first two systems are built. The repo has a spec, a generator that writes 30 days of synthetic access logs for one hospital, a report comparing the output with published calibration targets, and [results for the rules and the explanation templates](docs/baseline-results.md).
 
-The LLM triage is not built yet. There are no LLM results, and this README will not claim any until they exist.
+The LLM triage is built and tested against a made-up model, but it has not been run against a real one. There are no LLM results, and this README will not claim any until they exist.
 
 What the two baselines show so far, on this synthetic data.
 
@@ -68,12 +68,27 @@ pytest
 
 The tests use a small made-up population, so they need neither Java nor Synthea.
 
+## Run the LLM systems
+
+The two LLM systems call an OpenAI-compatible chat endpoint. Copy `.env.example` to `.env` and fill in the endpoint, the key and the model name. `.env` is gitignored.
+
+```
+python -m ehr_triage.evaluate cases          # picks about 1,800 first accesses to triage
+python -m ehr_triage.triage run --limit 20   # a trial of 80 calls, prints what the full set would cost
+python -m ehr_triage.triage run              # both systems on every case, into results/
+python -m ehr_triage.triage judge            # checks each claim against the facts it cites
+python -m ehr_triage.evaluate llm            # writes docs/llm-results.md
+```
+
+A run can be stopped and started again. It skips the cases already answered and stops by itself at the cost cap set in the config. The case set, the settings and the scoring are described in section 10 of the [spec](docs/spec.md).
+
 ## Layout
 
 ```
 config/    calibration parameters, each with its source
-docs/      spec, calibration report and baseline results
-src/       generator, identity graph, baselines and reports
+docs/      spec, calibration report and results
+src/       generator, identity graph, baselines, LLM triage and reports
+results/   model answers, one JSON line per case
 tests/
 scripts/   Synthea download, run and slim-down
 data/      Synthea output and generated runs (not in git)

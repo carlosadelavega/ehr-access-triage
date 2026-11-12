@@ -13,6 +13,7 @@ data/generated/<run_id>/
   logs/access_events.csv     the audit log
   context/                   what a hospital would hold about staff and patients
   labels/                    ground truth, read only by evaluation code
+  cases.csv                  the first accesses the LLM systems triage (section 10), with no label in it
   manifest.json              config hash, seeds, Synthea version, row counts
 ```
 
@@ -71,6 +72,7 @@ Staff who are also patients come for free, since every staff member has a patien
 | scenarios.csv | scenario_id, type, group_id, actor_user_id, borrower_user_id, target_patient_id, start, end, covered, evidence_in_context |
 | relationships.csv | patient_id_a, patient_id_b, kind, same_household |
 | public_events.csv | public_event_id, patient_id, timestamp |
+| case_truth.csv | case_id, stratum, population (written with the case set, section 10) |
 
 Every event gets a row in `event_labels.csv`. `reason` is the mechanism that produced it (care team, order, consult, coverage, back office, self, or a misuse type). `documented` says whether that reason left a trace in `context/`. `part` is `target` or `cover` for scenario events. scenarios.csv holds the injected misuse scenarios only, and `group_id` ties together the users who respond to the same news event. For shared credentials, `actor_user_id` is the account seen in the log and `borrower_user_id` is the person using it. Hard negatives and self-access are not scenarios. They are selected from event_labels.csv by `reason` and `documented`. A hard negative is a first access whose cause is undocumented and whose user and patient have no direct evidence from any other encounter either.
 
@@ -280,7 +282,7 @@ Reviewed on 10 Nov 2026.
 10. **Users differ** in presence, load and device use, and care management is a new hard negative, H6 (3.7).
 11. **People who know each other meet more often than chance** (3.8), with Hedda's ratios as weights. All of that excess is generated as ordinary work.
 
-Still open, and reserved for step 5. LLM provider, model and budget, and the Privacy Officer summary template.
+Decided since, and recorded in section 10. The model is GLM 5.3 Flash and the Privacy Officer summary template is approved.
 
 ## 9. Baselines (build step 4)
 
@@ -319,13 +321,15 @@ There is no "patient was seen in the user's department" template, because their 
 
 **A limit to keep in mind.** M1, M2a and M3 are defined by the relationships the rules test for, so the rules catch them by construction. What the rules results show is everything else: how many legitimate accesses they flag, and which misuse they cannot see.
 
-## 10. LLM triage (build step 5, in progress)
+## 10. LLM triage (build step 5)
 
-**Systems 3 and 4.** Both triage the same first accesses, chosen by the harness. System 3 is shown log lines only: the access under review, up to 30 other lines by the same user that day, and up to 30 lines by other users on the same patient that week. System 4 is shown the same lines plus facts from the identity graph: who the user is, their shifts around that date, the patient's encounters, the VIP flag, every named connection between the two, and what the devices and action codes are. Prompts average about 2,200 and 2,500 tokens.
+Status on 12 Nov 2026: built and tested against a made-up model. No real model has been run yet, so there are no LLM results.
+
+**Systems 3 and 4.** Both triage the same first accesses, chosen by the harness. System 3 is shown log lines only. These are the access under review, up to 30 other lines by the same user, taken nearest the access and within 12 hours either side, and up to 30 lines by other users on the same patient that week. System 4 is shown the same lines plus facts from the identity graph, which are who the user is, their shifts around that date, the patient's encounters nearest the access, the VIP flag, every named connection between the two, and what the devices and action codes are. Prompts average about 2,200 and 2,500 tokens.
 
 **Citable facts.** Every fact in a prompt carries an ID, L1, L2 and so on for log lines and G1, G2 for graph facts. The model must cite the IDs each claim rests on. That is what makes faithfulness measurable.
 
-**Summary template (proposed, pending Carlos's approval).** The model drafts a triage note, not a finding. A finding needs interviews and a determination that only the officer can make.
+**Summary template (approved by Carlos on 12 Nov 2026).** The model drafts a triage note, not a finding. A finding needs interviews and a determination that only the officer can make.
 
 | Part | Field | Filled by |
 |---|---|---|
@@ -343,7 +347,26 @@ The three dispositions are "clear" (the facts show a job-related purpose, or not
 
 The fields follow what public guidance asks an incident record to hold: who, what, when, how it was found and which systems, the evidence, and the outcome. The officer's part is left blank on purpose. The four-factor breach risk assessment under 45 CFR 164.402 and the sanction level both follow a determination that an access was impermissible, which a triage note cannot make.
 
-**Faithfulness.** Level 1 is checked in code: the share of claims whose cited IDs all exist among the facts shown. A claim with no source or an invented ID counts against the summary. Level 2 asks whether each cited fact actually supports its claim, and needs a second model call per summary.
+**The case set.** Sending all 63,872 first accesses to a model costs more than the question needs. `evaluate cases` takes every misuse first access, 123 of them, and a fixed number of each legitimate kind, 1,673 cases in all. The kinds are the hard negatives of section 5, arranged so that each first access falls in exactly one. A legitimate access is H4a or H4b when a relationship rule matches it, otherwise "direct" when direct evidence explains it, otherwise the mechanism that produced it.
 
-**Model.** GLM 5.3 Flash through an OpenAI-compatible endpoint. The endpoint, key and model name come from environment variables, so no secret is written to the repo.
+| Kind | First accesses on seed 42 | Sampled |
+|---|---|---|
+| Explained by direct evidence | 14,097 | 200 |
+| H4a documented, relationship present | 307 | 100 |
+| H4b undocumented, relationship present | 870 | 300 |
+| H1 consult | 380 | 100 |
+| H2 coverage | 317 | 100 |
+| H3 undocumented care team | 15,576 | 200 |
+| H5 back office | 14,166 | 200 |
+| H6 hospital-wide role | 1,900 | 150 |
+| Order handled by a department | 16,136 | 200 |
 
+H4b gets the most because a relationship with no documented purpose is where a false alert is most likely. Figures for the whole population are weighted back by kind, and the sample sizes are assumptions in the config. `cases.csv` sits beside the logs and holds only the user, the patient, the week and the day, in shuffled order. What each case was goes in `labels/case_truth.csv`. The paired run gets the same 58 M1-M4 cases under the same IDs, plus 100 of its 580 covering accesses.
+
+**Running it.** `triage run` sends each case to both systems and appends one line per answer to `results/<run>/<system>.pass<n>.jsonl`. A rerun skips what is already answered, so an interrupted run carries on where it stopped and failed calls are sent again. A call that times out, is rate-limited or hits a server error is retried up to five times. A refused request, such as a bad key, stops the run. So does the cost cap, 10 USD per command unless the config says otherwise. Cost is counted from the token usage each call reports, at list prices.
+
+**Model.** GLM 5.3 Flash through an OpenAI-compatible endpoint. The endpoint, key and model name come from environment variables or a gitignored `.env` file, so no secret is written to the repo. The settings that only make sense for this model are in `triage_provider` in the config. Thinking cannot be switched off on GLM 5.3 Flash, so `reasoning_effort` is set to low, and the output limit is 4,000 tokens so that reasoning does not crowd out the summary. Temperature is 0 for repeatability. Z.ai recommends 1 for this model, so if a trial shows poor or malformed output, temperature is the first setting to revisit, as a config change with its own commit.
+
+**Faithfulness.** Level 1 is checked in code. It is the share of claims that cite at least one fact and cite only facts that were shown. Level 2 is `triage judge`. For every claim that passed level 1, it shows a model the claim and the facts it cites, alone, and asks whether they support it. The judge is the same model that wrote the summary unless `EHR_TRIAGE_JUDGE_MODEL` names another, and a model may share its own blind spots. A sample of verdicts has to be read by hand before the level 2 figure is quoted anywhere.
+
+**Scoring.** `evaluate llm` writes `docs/llm-results.md`. Each system is scored at two thresholds, escalate alone and verify or escalate. An answer that does not fit the template counts as verify, since someone still has to look at it. Population figures carry a 95% margin that reflects the sampling only. The daily budget table ranks alerts by disposition and then by the model's priority, and scores every system on an average day because the sample is too thin to rank day by day. The covering-access table compares the same target cases across the paired runs.

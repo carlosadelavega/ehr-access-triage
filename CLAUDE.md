@@ -29,14 +29,15 @@ Research repo testing LLM triage of EHR access anomalies on synthetic data. The 
 - Changes to the spec get reviewed by Carlos before code that depends on them.
 - Commit in small steps. Messages explain why, not only what. No session links in commit messages.
 - If a paper or standard needed for a design choice is not available in full, tell Carlos straight away.
-- Generated data, the Synthea jar and `.env` stay out of git.
+- Generated data, the Synthea jar and `.env` stay out of git. The API key lives only in `.env` or the environment.
+- Never run `triage run` or `triage judge` against a real endpoint without Carlos asking for it. They spend his money.
 
 ## Decisions reserved for Carlos
 
 Flag these when they come up. Do not decide them.
 
-- LLM provider, model and budget
-- Privacy Officer summary template (fields, length, disposition options)
+- LLM provider, model and budget. Decided for now: GLM 5.3 Flash, key and endpoint supplied by Carlos on his own machine.
+- Privacy Officer summary template (fields, length, disposition options). Approved on 12 Nov 2026 as written in spec section 10.
 
 ## Writing voice (README, docs, article)
 
@@ -50,10 +51,14 @@ Python 3.10+, pandas, NumPy, PyYAML, NetworkX, pytest, managed with uv. Synthea 
 scripts/run_synthea.sh           # population into data/synthea/slim, slow, rarely needed
 python -m ehr_triage.generate    # one run into data/generated/seed<seed>
 python -m ehr_triage.generate --covered   # the paired run with covering accesses, into seed<seed>-covered
-python -m ehr_triage.triage      # prompt sizes for the two LLM systems, no model call
 python -m ehr_triage.report      # rewrites docs/calibration-report.md, never edit that file by hand
 python -m ehr_triage.evaluate    # rewrites docs/baseline-results.md, same rule
-pytest                           # runs on a made-up population, no Java needed
+python -m ehr_triage.evaluate cases       # the case set for the LLM systems, cases.csv in each run folder
+python -m ehr_triage.triage      # prompt sizes for the two LLM systems, no model call
+python -m ehr_triage.triage run --limit 20   # needs .env, calls the model, costs money
+python -m ehr_triage.triage judge         # second faithfulness check, also calls the model
+python -m ehr_triage.evaluate llm         # rewrites docs/llm-results.md from results/, same rule
+pytest                           # runs on a made-up population and a made-up model, no Java or key needed
 ```
 
 After any change to the generator or the config, rerun generate, report and evaluate and commit the new reports with the change.
