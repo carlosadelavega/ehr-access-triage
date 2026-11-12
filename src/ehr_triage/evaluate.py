@@ -1,12 +1,14 @@
-"""Score systems 1 and 2 against the ground truth.
+"""Score the systems against the ground truth.
 
 This is the only module besides the calibration report that reads labels/.
 The systems themselves run first, on what they are allowed to see, and
-their output is joined to the truth afterwards.
+their output is joined to the truth afterwards. It also picks the cases
+the LLM systems triage, since a stratified sample needs the truth.
 """
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +16,7 @@ import pandas as pd
 
 from .baselines import expected_top_k, run_rules, run_templates
 from .config import Config, load_config
+from .triage import DISPOSITIONS, PRIORITIES, SYSTEMS
 
 HARD_NEGATIVES = {
     "consult": "H1 consult",
@@ -24,6 +27,14 @@ HARD_NEGATIVES = {
     "order": "order handled by a department",
     "care_team": "care team, on another encounter",
 }
+LEGITIMATE = {
+    "direct": "explained by direct evidence",
+    "H4a": "H4a documented, relationship present",
+    "H4b": "H4b undocumented, relationship present",
+    **HARD_NEGATIVES,
+}
+TARGETS = ["M1", "M2a", "M2b", "M3", "M4"]  # the scenarios that get covering accesses
+LLM_NAMES = {"llm_raw": "LLM on log lines", "llm_graph": "LLM with identity graph"}
 
 
 def truth(run_dir: str | Path, units: pd.DataFrame, cfg: Config) -> pd.DataFrame:
@@ -134,8 +145,7 @@ def write_results(run_dir: str | Path, cfg: Config, out_path: str | Path, covere
     if covered_dir is not None and Path(covered_dir).exists():
         c = score_run(covered_dir, cfg)
         covered = variants(c)
-        targets = ["M1", "M2a", "M2b", "M3", "M4"]
-        before, after, cover = u["misuse"].isin(targets), c["misuse"].isin(targets), c["misuse"] == "cover"
+        before, after, cover = u["misuse"].isin(TARGETS), c["misuse"].isin(TARGETS), c["misuse"] == "cover"
         lines += ["## With covering accesses", "",
                   f"A second run is identical except that each M1-M4 actor first makes {cfg['covering']['accesses']} "
                   "covering accesses, chosen by the heuristic attack of Xu et al. 2023. Target accesses flagged without "
@@ -148,16 +158,294 @@ def write_results(run_dir: str | Path, cfg: Config, out_path: str | Path, covere
     return {"units": len(u), "misuse_units": int(is_misuse.sum())}
 
 
+# ---- the case set for the LLM systems ----
+
+def strata(u: pd.DataFrame) -> pd.Series:
+    """One kind per first access, used to sample cases and to report by.
+
+    Misuse keeps its scenario type. A legitimate access is H4a or H4b when
+    a relationship rule matches it, otherwise `direct` when direct evidence
+    explains it, otherwise the mechanism that produced it.
+    """
+    relationship = u["rules"].map(lambda m: any(r != "organization co-worker" for r in m))
+    kind = np.where(relationship, np.where(u["direct"], "H4a", "H4b"), np.where(u["direct"], "direct", u["reason"]))
+    return pd.Series(np.where(u["misuse"] != "", u["misuse"], kind), index=u.index)
+
+
+def build_cases(run_dir: str | Path, cfg: Config, covered_dir: str | Path | None = None) -> dict:
+    """Choose the first accesses the LLM systems will triage.
+
+    Triaging all of them costs more than the question needs, so this takes
+    every misuse first access and a fixed number of each legitimate kind.
+    `cases.csv` goes beside the logs with nothing in it but who opened whom
+    and when, in shuffled order. What each case really was, and how many
+    first accesses of its kind exist, goes under labels/ for scoring.
+
+    The paired run gets the same M1-M4 cases under the same IDs, plus a
+    sample of the covering accesses themselves.
+    """
+    plan = cfg["case_set"]
+    rng = np.random.default_rng([cfg["seed"], 3])
+    key = ["user_id", "patient_id", "week"]
+
+    def draw(u, quota):
+        picked = []
+        for kind, rows in u.groupby("stratum", sort=True):
+            n = min(len(rows), quota(kind))
+            keep = np.sort(rng.choice(rows.index.to_numpy(), n, replace=False))
+            picked.append(rows.loc[keep].assign(population=len(rows)))
+        out = pd.concat(picked)
+        return out.iloc[rng.permutation(len(out))].reset_index(drop=True)
+
+    def save(folder, cases):
+        cases[["case_id", "user_id", "patient_id", "week", "day"]].to_csv(Path(folder) / "cases.csv", index=False)
+        cases[["case_id", "stratum", "population"]].to_csv(Path(folder) / "labels" / "case_truth.csv", index=False)
+        return {"cases": len(cases), **cases["stratum"].value_counts().sort_index().to_dict()}
+
+    u = score_run(run_dir, cfg)
+    u["stratum"] = strata(u)
+    misuse = set(u.loc[u["misuse"] != "", "stratum"])
+    base = draw(u, lambda kind: len(u) if kind in misuse else plan["larger"].get(kind, plan["per_stratum"]))
+    base["case_id"] = [f"C{i + 1:04d}" for i in range(len(base))]
+    out = {str(run_dir): save(run_dir, base)}
+    if covered_dir is not None and Path(covered_dir).exists():
+        c = score_run(covered_dir, cfg)
+        c["stratum"] = strata(c)
+        cov = draw(c[c["misuse"].isin(TARGETS + ["cover"])], lambda kind: plan["covers"] if kind == "cover" else len(c))
+        ids = base.set_index(key)["case_id"]
+        cov["case_id"] = [f"K{i + 1:04d}" if r.stratum == "cover" else ids.loc[(r.user_id, r.patient_id, r.week)]
+                          for i, r in enumerate(cov.itertuples())]
+        out[str(covered_dir)] = save(covered_dir, cov)
+    return out
+
+
+# ---- scoring systems 3 and 4 ----
+
+def answers(results_dir: str | Path, name: str) -> pd.DataFrame | None:
+    """One row per case from a results file, or None when the file is not there.
+
+    An answer outside the template still has to be dealt with by someone,
+    so it counts as `verify` at medium priority.
+    """
+    path = Path(results_dir) / f"{name}.jsonl"
+    if not path.exists():
+        return None
+    rows = []
+    for line in path.read_text().splitlines():
+        r = json.loads(line)
+        s = r.get("summary", {})
+        rows.append({
+            "case_id": r["case_id"], "model": r["model"], "valid": bool(s.get("valid")),
+            "disposition": s["disposition"] if s.get("disposition") in DISPOSITIONS else "verify",
+            "priority": s["priority"] if s.get("priority") in PRIORITIES else "medium",
+            "n_claims": s.get("n_claims", 0), "cited": round(s.get("cited_ok", 0) * s.get("n_claims", 0)),
+            "truncated": r["finish"] == "length", "supported": r.get("supported"),
+            "prompt_tokens": r["prompt_tokens"], "completion_tokens": r["completion_tokens"],
+            "reasoning_tokens": r["reasoning_tokens"], "usd": r["usd"]})
+    return pd.DataFrame(rows).drop_duplicates("case_id")
+
+
+def scored_answers(run_dir: str | Path, results_dir: str | Path, system: str, pass_no: int = 1) -> pd.DataFrame | None:
+    """A system's answers joined to the truth, each with the number of first accesses it stands for."""
+    a = answers(results_dir, f"{system}.pass{pass_no}")
+    if a is None or a.empty:
+        return None
+    run = Path(run_dir)
+    truth = pd.read_csv(run / "labels" / "case_truth.csv", keep_default_na=False).merge(pd.read_csv(run / "cases.csv"), on="case_id")
+    f = truth.merge(a, on="case_id")
+    f["weight"] = f["population"] / f.groupby("stratum")["case_id"].transform("size")
+    f["score"] = f["disposition"].map({"clear": 0, "verify": 1, "escalate": 2}) * 3 + f["priority"].map({"low": 0, "medium": 1, "high": 2})
+    f["is_misuse"] = ~f["stratum"].isin(list(LEGITIMATE) + ["cover"])
+    return f
+
+
+def weighted_alerts(f: pd.DataFrame, alert: pd.Series) -> tuple[float, float]:
+    """Alerts over the whole population, estimated from the sample, and the 95% margin on that estimate."""
+    total = float((f["weight"] * alert).sum())
+    variance = 0.0
+    for _, rows in f.assign(alert=alert).groupby("stratum"):
+        n, size, p = len(rows), rows["population"].iloc[0], rows["alert"].mean()
+        if 1 < n < size:
+            variance += size ** 2 * (1 - n / size) * p * (1 - p) / (n - 1)
+    return total, 1.96 * variance ** 0.5
+
+
+def average_day_top_k(score, hit, weight, k: int, days: int) -> tuple[float, float]:
+    """Misuse found and alerts reviewed over the window when a reviewer takes
+    the k highest-priority alerts a day and every day brings the average
+    number of alerts at each priority. Ties are broken at random."""
+    frame = pd.DataFrame({"score": np.asarray(score, dtype=float), "weight": np.asarray(weight, dtype=float)})
+    frame["hits"] = np.asarray(hit, dtype=float) * frame["weight"]
+    found = shown = 0.0
+    left = float(k)
+    for _, tie in sorted(frame.groupby("score"), key=lambda x: -x[0]):
+        take = min(left, tie["weight"].sum() / days)
+        found += take * tie["hits"].sum() / tie["weight"].sum()
+        shown += take
+        left -= take
+        if left <= 0:
+            break
+    return found * days, shown * days
+
+
+def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, results_dir: str | Path,
+                      covered_dir: str | Path | None = None, covered_results: str | Path | None = None) -> dict:
+    frames = {s: scored_answers(run_dir, results_dir, s) for s in SYSTEMS}
+    frames = {s: f for s, f in frames.items() if f is not None}
+    if not frames:
+        raise SystemExit(f"No answers under {results_dir}. Run the model first with: python -m ehr_triage.triage run")
+    days = cfg["window_days"]
+    sampled = pd.read_csv(Path(run_dir) / "labels" / "case_truth.csv", keep_default_na=False)
+    u = score_run(run_dir, cfg)
+    is_misuse = u["misuse"] != ""
+
+    def llm_variants(fs):
+        out = {}
+        for s, f in fs.items():
+            out[f"{LLM_NAMES[s]}, escalate"] = (f, f["disposition"] == "escalate")
+            out[f"{LLM_NAMES[s]}, verify or escalate"] = (f, f["disposition"] != "clear")
+        return out
+
+    llm = llm_variants(frames)
+    models = sorted({m for f in frames.values() for m in f["model"] if m})
+    lines = [
+        "# LLM triage results",
+        "",
+        "Generated by `python -m ehr_triage.evaluate llm`. Do not edit by hand.",
+        "",
+        f"Model {', '.join(models) or 'not recorded'}. The systems triaged a sample of {len(sampled):,} first accesses out of "
+        f"{len(u):,}, made of every misuse first access ({int(is_misuse.sum())}) and a fixed number of each legitimate kind. "
+        "Figures for the whole population are estimates weighted back from that sample, and the margin given is a 95% "
+        "interval from the sampling alone. It says nothing about how the model would do on a second run. "
+        "An answer outside the template counts as verify, since someone still has to look at it.",
+        "",
+        "The rules and templates rows are computed on every first access, as in `baseline-results.md`.",
+        "",
+        "## Alerts raised",
+        "",
+    ]
+    rows = []
+    for name, (alert, _) in variants(u).items():
+        caught = int((alert & is_misuse).sum())
+        rows.append([name, f"{alert.sum() / days:,.0f}", f"{alert.mean():.1%}", f"{caught} of {int(is_misuse.sum())}",
+                     f"{caught / max(alert.sum(), 1):.2%}"])
+    for name, (f, alert) in llm.items():
+        total, margin = weighted_alerts(f, alert)
+        caught = int((alert & f["is_misuse"]).sum())
+        rows.append([name, f"{total / days:,.0f} ± {margin / days:,.0f}", f"{total / f['weight'].sum():.1%}",
+                     f"{caught} of {int(f['is_misuse'].sum())}", f"{caught / max(total, 1):.2%}"])
+    lines += table(["System", "Alerts per day", "Share of first accesses", "Misuse caught", "Precision"], rows)
+
+    lines += ["## Dispositions, by kind of access", "",
+              "Cases sent to clear, verify and escalate, in that order. These are counts in the sample, not weighted.", ""]
+    kinds = sorted(set(sampled["stratum"]) - set(LEGITIMATE)) + [k for k in LEGITIMATE if k in set(sampled["stratum"])]
+    rows = []
+    for kind in kinds:
+        row = [LEGITIMATE.get(kind, kind), int((sampled["stratum"] == kind).sum())]
+        for f in frames.values():
+            d = f.loc[f["stratum"] == kind, "disposition"].value_counts()
+            row.append(" / ".join(str(int(d.get(x, 0))) for x in DISPOSITIONS))
+        rows.append(row)
+    lines += table(["Kind of access", "Cases"] + [LLM_NAMES[s] for s in frames], rows)
+
+    lines += ["## Within a daily review budget", "",
+              "A reviewer takes the highest-priority alerts each day, up to the budget. LLM alerts are ranked by disposition, "
+              "then by the priority the model gave. The sample is too thin to rank day by day, so every system here is scored "
+              "on an average day, which is why the rules and templates figures differ a little from `baseline-results.md`. "
+              "Recall is over all misuse first accesses.", ""]
+    rows = []
+    for k in cfg["review_budget_per_day"]:
+        for name, (alert, score) in variants(u).items():
+            hits, shown = average_day_top_k(score[alert], is_misuse[alert], np.ones(int(alert.sum())), k, days)
+            rows.append([k, name, f"{shown:,.0f}", f"{hits:.1f}", f"{hits / max(shown, 1):.2%}", f"{hits / is_misuse.sum():.0%}"])
+        for name, (f, alert) in llm.items():
+            a = f[alert]
+            hits, shown = average_day_top_k(a["score"], a["is_misuse"], a["weight"], k, days)
+            rows.append([k, name, f"{shown:,.0f}", f"{hits:.1f}", f"{hits / max(shown, 1):.2%}", f"{hits / max(f['is_misuse'].sum(), 1):.0%}"])
+    lines += table(["Budget per day", "System", "Reviewed", "Misuse found", "Precision", "Recall"], rows)
+
+    lines += ["## Faithfulness of the summaries", "",
+              "The first check is mechanical. A claim passes when it cites at least one fact and every fact it cites was in the "
+              "prompt. The second check asks a model whether each claim that passed follows from the facts it cites, shown "
+              "alone. Counts are over the sample, not weighted.", ""]
+    rows = []
+    for s, f in frames.items():
+        judged = answers(results_dir, f"judge.{s}.pass1")
+        verdicts = [v for item in judged["supported"] for v in item] if judged is not None else []
+        ruled = [v for v in verdicts if v is not None]
+        claims = int(f["n_claims"].sum())
+        rows.append([LLM_NAMES[s], f"{len(f):,}", f"{f['valid'].mean():.1%}", int(f["truncated"].sum()), f"{claims:,}",
+                     f"{f['cited'].sum() / max(claims, 1):.1%}",
+                     f"{sum(ruled) / len(ruled):.1%} of {len(ruled):,}" if ruled else "not run"])
+    lines += table(["System", "Summaries", "Fit the template", "Cut off by the token limit", "Claims",
+                    "Citations exist", "Claims supported by their citations"], rows)
+
+    covered = {}
+    if covered_dir is not None and covered_results is not None and Path(covered_dir, "cases.csv").exists():
+        covered = {s: scored_answers(covered_dir, covered_results, s) for s in frames}
+        covered = {s: f for s, f in covered.items() if f is not None}
+    if covered:
+        lines += ["## With covering accesses", "",
+                  f"The paired run is identical except that each M1-M4 actor also makes {cfg['covering']['accesses']} covering "
+                  "accesses around the target, chosen by the heuristic attack of Xu et al. 2023. The same target cases are "
+                  "triaged in both runs. The last column is a sample of the covering accesses themselves.", ""]
+        rows = []
+        for (name, (f, alert)), (_, (c, c_alert)) in zip(llm_variants({s: frames[s] for s in covered}).items(), llm_variants(covered).items()):
+            target = c["stratum"] != "cover"
+            both = set(c.loc[target, "case_id"]) & set(f["case_id"])
+            rows.append([name, f"{int((alert & f['case_id'].isin(both)).sum())} of {len(both)}",
+                         f"{int((c_alert & c['case_id'].isin(both)).sum())} of {len(both)}",
+                         f"{int((c_alert & ~target).sum())} of {int((~target).sum())}"])
+        lines += table(["System", "Targets flagged, no cover", "Targets flagged, with cover", "Covering accesses flagged"], rows)
+
+    repeats = {s: sorted(int(p.stem.split("pass")[1]) for p in Path(results_dir).glob(f"{s}.pass*.jsonl")) for s in frames}
+    if any(len(p) > 1 for p in repeats.values()):
+        lines += ["## Repeat passes", "",
+                  "The same cases sent again with the same settings. Agreement is the share of cases given the same "
+                  "disposition in every pass.", ""]
+        rows = []
+        for s, passes in repeats.items():
+            runs = [scored_answers(run_dir, results_dir, s, p) for p in passes]
+            together = pd.concat([r.set_index("case_id")["disposition"] for r in runs], axis=1, join="inner")
+            for p, r in zip(passes, runs):
+                rows.append([LLM_NAMES[s], p, f"{int(((r['disposition'] == 'escalate') & r['is_misuse']).sum())} of {int(r['is_misuse'].sum())}",
+                             f"{weighted_alerts(r, r['disposition'] == 'escalate')[0] / days:,.0f}",
+                             f"{together.nunique(axis=1).eq(1).mean():.1%}"])
+        lines += table(["System", "Pass", "Misuse escalated", "Escalations per day", "Agreement across passes"], rows)
+
+    lines += ["## Tokens and cost", "", "Summed from the usage each call reported, at the list prices in the config.", ""]
+    rows = []
+    for folder in [results_dir] + ([covered_results] if covered else []):
+        for path in sorted(Path(folder).glob("*.jsonl")):
+            a = answers(folder, path.stem)
+            rows.append([f"{Path(folder).name}/{path.name}", f"{len(a):,}", f"{a['prompt_tokens'].sum():,}", f"{a['completion_tokens'].sum():,}",
+                         f"{a['reasoning_tokens'].sum():,}", f"${a['usd'].sum():.2f}"])
+    lines += table(["File", "Answers", "Prompt tokens", "Completion tokens", "Of which reasoning", "Cost"], rows)
+    Path(out_path).write_text("\n".join(lines))
+    return {"sampled": len(sampled), **{s: len(f) for s, f in frames.items()}}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("what", nargs="?", default="baselines", choices=["baselines", "cases", "llm"],
+                    help="baselines: score rules and templates. cases: write the case set for the LLM systems. "
+                         "llm: score the LLM answers under results/")
     ap.add_argument("--run", default=None, help="defaults to data/generated/seed<seed>")
     ap.add_argument("--config", default="config/calibration.yaml")
-    ap.add_argument("--out", default="docs/baseline-results.md")
+    ap.add_argument("--out", default=None, help="defaults to docs/baseline-results.md or docs/llm-results.md")
     ap.add_argument("--covered-run", default=None, help="defaults to the run folder with -covered added, if it exists")
+    ap.add_argument("--results", default="results", help="folder holding one folder of LLM answers per run")
     args = ap.parse_args()
     cfg = load_config(args.config)
     run = args.run or f"data/generated/seed{cfg['seed']}"
-    print(write_results(run, cfg, args.out, args.covered_run or f"{run}-covered"))
+    covered = args.covered_run or f"{run}-covered"
+    if args.what == "cases":
+        print(json.dumps(build_cases(run, cfg, covered), indent=2))
+    elif args.what == "llm":
+        results = Path(args.results)
+        print(write_llm_results(run, cfg, args.out or "docs/llm-results.md", results / Path(run).name, covered, results / Path(covered).name))
+    else:
+        print(write_results(run, cfg, args.out or "docs/baseline-results.md", covered))
 
 
 if __name__ == "__main__":

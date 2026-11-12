@@ -1,0 +1,163 @@
+"""The case set, the runner and the scoring of systems 3 and 4, with a made-up model."""
+import copy
+import json
+import shutil
+
+import pandas as pd
+import pytest
+
+from ehr_triage import evaluate, triage
+from ehr_triage.generate import generate
+
+USAGE = {"prompt_tokens": 2000, "completion_tokens": 500, "completion_tokens_details": {"reasoning_tokens": 200}}
+
+
+def fake_model(prompt, cfg):
+    """Escalates when the graph shows no connection, clears otherwise, and cites the first fact shown."""
+    if prompt.startswith(triage.JUDGE):
+        n = prompt.count("\nClaim ")
+        return {"content": json.dumps({"claims": [{"n": i + 1, "supported": i == 0} for i in range(n)]}), "finish": "stop", "usage": USAGE}
+    escalate = "holds no connection" in prompt
+    summary = {"what_happened": "One access.", "rationale": "As cited.", "missing_information": [],
+               "disposition": "escalate" if escalate else "clear", "priority": "high" if escalate else "low",
+               "purpose_evidence": [{"claim": "The access is in the log", "sources": ["L1"]}],
+               "risk_indicators": [{"claim": "Made up", "sources": ["G999"]}] if escalate else []}
+    return {"content": json.dumps(summary), "finish": "stop", "usage": USAGE}
+
+
+def new_spend():
+    return {"usd": 0.0, "calls": 0, "failed": 0, "last_error": "", "stop": ""}
+
+
+@pytest.fixture(scope="module")
+def runs(slim, cfg, run_dir, tmp_path_factory):
+    """A copy of the test run and its paired run with covering accesses, each with a case set."""
+    base = tmp_path_factory.mktemp("llm") / "base"
+    shutil.copytree(run_dir, base)
+    with_cover = copy.deepcopy(cfg)
+    with_cover.params["covering"]["value"] = {**cfg["covering"], "enabled": True}
+    covered = base.with_name("base-covered")
+    generate(with_cover, slim, covered)
+    evaluate.build_cases(base, cfg, covered)
+    return base, covered
+
+
+@pytest.fixture(scope="module")
+def answered(runs, cfg, tmp_path_factory):
+    results = tmp_path_factory.mktemp("results")
+    for run in runs:
+        triage.triage_cases(run, cfg, results / run.name, fake_model, new_spend())
+        triage.judge_cases(run, cfg, results / run.name, fake_model, new_spend())
+    return results
+
+
+def test_case_set_holds_every_misuse_access_and_no_label(runs, cfg):
+    base, covered = runs
+    cases = pd.read_csv(base / "cases.csv")
+    assert list(cases.columns) == ["case_id", "user_id", "patient_id", "week", "day"]
+    truth = pd.read_csv(base / "labels" / "case_truth.csv")
+    scored = evaluate.score_run(base, cfg)
+    misuse = scored[scored["misuse"] != ""]
+    picked = cases.merge(misuse, on=["user_id", "patient_id", "week"])
+    assert len(picked) == len(misuse) > 0
+    assert cases["case_id"].is_unique and set(cases["case_id"]) == set(truth["case_id"])
+    assert (truth.groupby("stratum").size() <= truth.groupby("stratum")["population"].first()).all()
+
+
+def test_paired_run_reuses_the_case_ids_of_its_targets(runs):
+    base, covered = runs
+    key = ["case_id", "user_id", "patient_id", "week"]
+    pair = pd.read_csv(covered / "cases.csv").merge(pd.read_csv(covered / "labels" / "case_truth.csv"), on="case_id")
+    targets = pair[pair["stratum"] != "cover"]
+    assert len(targets) and len(targets.merge(pd.read_csv(base / "cases.csv"), on=key)) == len(targets)
+    assert (pair["stratum"] == "cover").any()
+
+
+def test_runner_needs_no_labels_folder(runs, cfg, tmp_path):
+    base, _ = runs
+    for name in ("logs", "context"):
+        shutil.copytree(base / name, tmp_path / "run" / name)
+    shutil.copy(base / "cases.csv", tmp_path / "run" / "cases.csv")
+    spend = new_spend()
+    triage.triage_cases(tmp_path / "run", cfg, tmp_path / "out", fake_model, spend, limit=5)
+    rows = [json.loads(line) for line in (tmp_path / "out" / "llm_graph.pass1.jsonl").read_text().splitlines()]
+    assert len(rows) == 5 and spend["calls"] == 10
+    assert all(r["summary"]["valid"] and r["reasoning_tokens"] == 200 for r in rows)
+    assert spend["usd"] == pytest.approx(10 * (2000 * 0.15 + 500 * 0.50) / 1e6)
+
+
+def test_a_rerun_sends_only_what_is_missing(runs, cfg, tmp_path, monkeypatch):
+    base, _ = runs
+    monkeypatch.setattr(triage, "WAITS", (0, 0))
+    sent = []
+
+    def flaky(prompt, cfg):
+        sent.append(prompt)
+        if "L7 |" in prompt and len(sent) <= 40:  # fails on the first run for prompts with seven or more log lines
+            raise OSError("HTTP 429: slow down")
+        return fake_model(prompt, cfg)
+
+    first = new_spend()
+    triage.triage_cases(base, cfg, tmp_path, flaky, first, systems=["llm_raw"], limit=8)
+    assert first["failed"] > 0 and first["last_error"] == "HTTP 429: slow down"
+    sent.extend([""] * 40)
+    before = len(sent)
+    second = new_spend()
+    triage.triage_cases(base, cfg, tmp_path, flaky, second, systems=["llm_raw"], limit=8)
+    assert len(sent) - before == first["failed"] == second["calls"]
+    assert len((tmp_path / "llm_raw.pass1.jsonl").read_text().splitlines()) == 8
+    triage.triage_cases(base, cfg, tmp_path, flaky, new_spend(), systems=["llm_raw"], limit=8)
+    assert len(sent) - before == first["failed"]  # nothing left to send
+
+
+def test_cost_cap_stops_the_run(runs, cfg, tmp_path):
+    base, _ = runs
+    tight = copy.deepcopy(cfg)
+    tight.params["triage"]["value"] = {**cfg["triage"], "cost_cap_usd": 0.002, "workers": 1}
+    spend = new_spend()
+    triage.triage_cases(base, tight, tmp_path, fake_model, spend, limit=50)
+    assert "cost cap" in spend["stop"] and spend["calls"] < 10
+    assert not (tmp_path / "llm_graph.pass1.jsonl").exists()  # the second system never started
+
+
+def test_a_refused_request_stops_the_run(runs, cfg, tmp_path):
+    base, _ = runs
+
+    def refused(prompt, cfg):
+        raise triage.ModelError("HTTP 401: bad key")
+
+    spend = new_spend()
+    triage.triage_cases(base, cfg, tmp_path, refused, spend, limit=20)
+    assert "HTTP 401" in spend["stop"] and spend["calls"] == 0
+
+
+def test_judge_asks_only_about_claims_whose_citations_exist(answered, runs):
+    base, _ = runs
+    rows = [json.loads(line) for line in (answered / base.name / "judge.llm_graph.pass1.jsonl").read_text().splitlines()]
+    assert rows and all(r["n_claims"] == 1 and r["supported"] == [True] for r in rows)  # the claim citing G999 was left out
+    assert triage.parse_judgement('{"claims": [{"n": 2, "supported": "yes"}, {"n": 1, "supported": false}]}', 3) == [False, None, None]
+    assert triage.parse_judgement("no idea", 2) == [None, None]
+
+
+def test_average_day_budget_splits_a_tie_by_weight():
+    # one misuse alert and one legitimate alert standing for 9, all at the same priority, over 2 days
+    found, shown = evaluate.average_day_top_k([1, 1], [True, False], [1, 9], k=1, days=2)
+    assert shown == pytest.approx(2) and found == pytest.approx(0.2)
+    found, shown = evaluate.average_day_top_k([2, 1], [True, False], [1, 9], k=1, days=2)
+    assert found == pytest.approx(1.0)  # ranked first, the misuse alert is always reviewed
+
+
+def test_llm_results_report_runs_end_to_end(answered, runs, cfg, tmp_path):
+    base, covered = runs
+    out = tmp_path / "llm.md"
+    done = evaluate.write_llm_results(base, cfg, out, answered / base.name, covered, answered / covered.name)
+    text = out.read_text()
+    assert done["llm_raw"] == done["llm_graph"] == done["sampled"]
+    for heading in ("## Alerts raised", "## Dispositions, by kind of access", "## Within a daily review budget",
+                    "## Faithfulness of the summaries", "## With covering accesses", "## Tokens and cost"):
+        assert heading in text
+    assert "## Repeat passes" not in text
+    raw = evaluate.scored_answers(base, answered / base.name, "llm_raw")
+    assert (raw["disposition"] == "clear").all()  # the made-up model only escalates on a graph fact
+    by_kind = raw.groupby("stratum")
+    assert by_kind["weight"].sum().to_numpy() == pytest.approx(by_kind["population"].first().to_numpy())
