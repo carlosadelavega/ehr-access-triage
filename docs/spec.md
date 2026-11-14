@@ -341,11 +341,32 @@ Status on 12 Nov 2026: built and tested against a made-up model. No real model h
 | Draft | disposition: clear, verify or escalate | the model |
 | Draft | priority: low, medium or high | the model |
 | Draft | rationale, at most 60 words | the model |
-| Officer | interview notes, determination, breach risk assessment, sanction level, corrective action, notifications | the officer, never drafted |
+| Officer | interview notes, determination, breach risk assessment, violation category and sanction, corrective action, notifications | the officer, never drafted |
 
 The three dispositions are "clear" (the facts show a job-related purpose, or nothing calls for review), "verify" (the facts neither show a purpose nor a concern that stands on its own, so ask the supervisor) and "escalate" (the facts show a concern). "Verify" is the right answer where the evidence is incomplete by design, as in M2b without an emergency contact, H2b and H4b.
 
-The fields follow what public guidance asks an incident record to hold: who, what, when, how it was found and which systems, the evidence, and the outcome. The officer's part is left blank on purpose. The four-factor breach risk assessment under 45 CFR 164.402 and the sanction level both follow a determination that an access was impermissible, which a triage note cannot make.
+**Where the template comes from.** Each part follows a public source. All were read or reread on 13 Nov 2026.
+
+| Part of the template | Source | What the template takes from it |
+|---|---|---|
+| Case header, what happened, the evidence items | Accountable HQ, [Privacy Officer Incident Reports: Templates, Steps, and Compliance Requirements](https://www.accountablehq.com/post/privacy-officer-incident-reports-templates-steps-and-compliance-requirements) and [How to Triage and Document an Alleged HIPAA Privacy Violation](https://www.accountablehq.com/post/how-to-triage-and-document-an-alleged-hipaa-privacy-violation) | An incident record has an identifier, a narrative of the event, the workforce members, systems and locations involved, and the evidence and logs it rests on, with EHR access reports named as evidence |
+| Disposition and priority | The first of those guides | The record classifies the incident and gives it a priority level before the investigation goes further |
+| Missing information | Accountable HQ, [Employee Write-Up for HIPAA Violation: Step-by-Step Guide with Templates](https://www.accountablehq.com/post/employee-write-up-for-hipaa-violation-step-by-step-guide-with-templates) | Its initial incident report ends with next steps, which are the investigation plan, the risk assessment and the interviews |
+| Breach risk assessment and notifications, left to the officer | HIPAA Breach Notification Rule, [45 CFR 164.400-414](https://www.law.cornell.edu/cfr/text/45/164.400), with the [ChartRequest summary](https://www.chartrequest.com/articles/hipaa-breach-notification-rule) of the rule | An impermissible access is presumed to be a breach unless a risk assessment on four factors shows a low probability that the information was compromised (164.402). Notification of the patient and of the Secretary follows from that |
+| Violation category and sanction, left to the officer | Columbia University, [Privacy and Information Security Sanction Policy](https://universitypolicies.columbia.edu/node/510) | The four categories of violation, used as written |
+
+The officer's part is left blank on purpose. The risk assessment and the sanction both follow a determination that an access was impermissible, which a triage note cannot make.
+
+**Violation categories.** When the officer finds a violation, it is placed in one of the four categories of the Columbia policy, taken as they are and not adapted.
+
+| Category | The policy's definition, in short | Sanction in the policy | Scenarios here that would fall under it if substantiated |
+|---|---|---|---|
+| 1 | Unintentional, from carelessness, lack of training or human error | Remedial education, or a verbal or written warning | none injected |
+| 2 | Poor job performance, or failure to understand or follow policy. Sharing user IDs or passwords is one of its examples | Written warning with policy review and remedial education | M6a and M6b, for the owner of the shared login |
+| 3 | Intentional, from curiosity, with no intent to harm. Its examples include access without a business need, access to VIP records and snooping | Final written warning, up to suspension or termination | M1 to M5 |
+| 4 | Intentional, with malicious or harmful intent, such as fraud, personal gain or retaliation | Termination, and referral to the Risk Committee | none injected, since the data says nothing about intent to harm |
+
+The last column is this project's reading, not Columbia's. Self-access (P1) is not among the policy's examples and is left unmapped. The policy weighs intent, whether the person acted in good faith, how many people were affected and whether it is a repeat. None of that can be read off an access log, so the model never names a category. A second occurrence moves a violation up a category under the policy, which is one more reason the call belongs to the officer, who can see the personnel record.
 
 **The case set.** Sending all 63,872 first accesses to a model costs more than the question needs. `evaluate cases` takes every misuse first access, 123 of them, and a fixed number of each legitimate kind, 1,673 cases in all. The kinds are the hard negatives of section 5, arranged so that each first access falls in exactly one. A legitimate access is H4a or H4b when a relationship rule matches it, otherwise "direct" when direct evidence explains it, otherwise the mechanism that produced it.
 

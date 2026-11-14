@@ -27,7 +27,7 @@ Research repo testing LLM triage of EHR access anomalies on synthetic data. The 
 - Keep abstractions to what the current milestone needs. A working pipeline and an honest README beat a platform.
 - If a session drifts into re-planning instead of shipping, say so.
 - Changes to the spec get reviewed by Carlos before code that depends on them.
-- Commit in small steps. Messages explain why, not only what. No session links in commit messages.
+- Commit in small steps. Messages explain why, not only what. No session links and no AI co-author trailers in commit messages.
 - If a paper or standard needed for a design choice is not available in full, tell Carlos straight away.
 - Generated data, the Synthea jar and `.env` stay out of git. The API key lives only in `.env` or the environment.
 - Never run `triage run` or `triage judge` against a real endpoint without Carlos asking for it. They spend his money.
@@ -37,7 +37,7 @@ Research repo testing LLM triage of EHR access anomalies on synthetic data. The 
 Flag these when they come up. Do not decide them.
 
 - LLM provider, model and budget. Decided for now: GLM 5.3 Flash, key and endpoint supplied by Carlos on his own machine.
-- Privacy Officer summary template (fields, length, disposition options). Approved on 12 Nov 2026 as written in spec section 10.
+- Privacy Officer summary template (fields, length, disposition options). Approved on 12 Nov 2026 as written in spec section 10. Violation categories follow the Columbia University sanction policy directly. Every part of the template names its public source.
 
 ## Writing voice (README, docs, article)
 
