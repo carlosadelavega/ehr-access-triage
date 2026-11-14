@@ -16,7 +16,7 @@ import pandas as pd
 
 from .baselines import expected_top_k, run_rules, run_templates
 from .config import Config, load_config
-from .triage import DISPOSITIONS, PRIORITIES, SYSTEMS, VERDICTS, Views, case_facts, cited, claims_of, read_answers, read_cases
+from .triage import DISPOSITIONS, PRIORITIES, SYSTEM_NAMES as LLM_NAMES, SYSTEMS, VERDICTS, Views, case_facts, cited, claims_of, read_answers, read_cases
 
 HARD_NEGATIVES = {
     "consult": "H1 consult",
@@ -34,7 +34,6 @@ LEGITIMATE = {
     **HARD_NEGATIVES,
 }
 TARGETS = ["M1", "M2a", "M2b", "M3", "M4"]  # the scenarios that get covering accesses
-LLM_NAMES = {"llm_raw": "LLM on log lines", "llm_graph": "LLM with identity graph"}
 
 
 def truth(run_dir: str | Path, units: pd.DataFrame, cfg: Config) -> pd.DataFrame:

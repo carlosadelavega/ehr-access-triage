@@ -11,6 +11,8 @@ faithfulness checkable.
 `run` triages the case set written by `python -m ehr_triage.evaluate cases`
 and `judge` checks the claims of the summaries. Both append to JSON lines
 files under results/, skip what is already there, and stop at a cost cap.
+`render` prints one stored answer as the case summary a Privacy Officer
+would read, and calls no model.
 """
 from __future__ import annotations
 
@@ -33,6 +35,7 @@ from .config import Config, load_config
 from .graph import build_graph, evidence_paths, load_visible
 
 SYSTEMS = ("llm_raw", "llm_graph")
+SYSTEM_NAMES = {"llm_raw": "LLM on log lines", "llm_graph": "LLM with identity graph"}
 RETRY_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 529}
 WAITS = (2, 5, 15, 30, 60)  # seconds to wait before each new try of a failed call
 DISPOSITIONS = ["clear", "verify", "escalate"]
@@ -111,6 +114,12 @@ def case_units(run_dir: str | Path, cfg: Config) -> pd.DataFrame:
     return first_access_units(t["events"], t["staff"], cfg["window_start"])
 
 
+def case_events(v: Views, user: str, patient: str, week: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The user's accesses to the patient that week, and everyone's accesses to the patient that week."""
+    theirs = v.events.iloc[v.by_patient_week.get((patient, week), [])]
+    return theirs[theirs["user_id"] == user], theirs
+
+
 def log_facts(v: Views, user: str, patient: str, week: int) -> list[tuple[str, str]]:
     """The access under review, what else the user did around it, and who else opened the patient that week.
 
@@ -120,8 +129,7 @@ def log_facts(v: Views, user: str, patient: str, week: int) -> list[tuple[str, s
     """
     cap, hours = v.cfg["triage"]["context_lines"], v.cfg["triage"]["context_hours"]
     e = v.events
-    theirs = e.iloc[v.by_patient_week.get((patient, week), [])]
-    case = theirs[theirs["user_id"] == user]
+    case, theirs = case_events(v, user, patient, week)
     away = (e["t"].iloc[v.by_user[user]] - case["t"].iloc[0]).abs()
     mine = e.loc[away.index[(away <= hours * 3600).to_numpy()]]
     mine = mine[mine["patient_id"] != patient]
@@ -306,6 +314,66 @@ def parse_judgement(text: str, n: int) -> dict:
         given = {}
     verdicts = [given[k].get("verdict") if k in given and given[k].get("verdict") in VERDICTS else None for k in range(1, n + 1)]
     return {"verdicts": verdicts, "absence": [k in given and given[k].get("absence") is True for k in range(1, n + 1)]}
+
+
+# ---- the case summary, as the officer would read it ----
+
+OFFICER_PART = ["Interview notes", "Determination", "Breach risk assessment", "Violation category and sanction",
+                "Corrective action", "Notifications"]
+
+
+def render_case(v: Views, unit, row: dict | None) -> str:
+    """One case as the summary a Privacy Officer would read, in Markdown (spec section 10).
+
+    The header is filled from the log, never by the model. The draft is the
+    model's answer as stored, with nothing added or reworded. Under it, every
+    fact the draft cites is written out as the model was shown it, so a
+    reader can check a claim without opening the prompt. A range is written
+    out fact by fact, and a cited ID that was never shown is listed as such.
+    The officer's part is left blank on purpose. `row` is the stored answer,
+    or None when the case has none.
+    """
+    case, _ = case_events(v, unit.user_id, unit.patient_id, unit.week)
+    raised = SYSTEM_NAMES[v.system] + (f" ({row['model']}, pass {row['pass']})" if row else "")
+    out = [f"# Case {unit.case_id}", "", "| | |", "|---|---|",
+           f"| User | {unit.user_id} |", f"| Patient | {unit.patient_id} |",
+           f"| First access | {case['timestamp'].min()} |", f"| Last access | {case['timestamp'].max()} |",
+           f"| Accesses | {len(case)} |", f"| Devices | {', '.join(sorted(set(case['device_id'])))} |",
+           f"| Raised by | {raised} |", "",
+           "The header is filled from the access log for the week of the first access.", "",
+           "## Draft triage note", ""]
+    s = row["summary"] if row else {}
+    if not row:
+        out += ["No answer is on file for this case.", ""]
+    elif not s.get("valid"):
+        out += [f"The model's answer did not fit the template ({', '.join(s.get('problems', []))}). It is shown as it came.", "",
+                "```", row.get("content", ""), "```", ""]
+    else:
+        out += ["Written by the model. It is a note for triage, not a finding.", "",
+                f"**What happened.** {s['what_happened']}", ""]
+        for title, field in (("Evidence of a job-related purpose", "purpose_evidence"), ("Risk indicators", "risk_indicators")):
+            claims = [c for c in s[field] if isinstance(c, dict)]
+            out += [f"**{title}**", ""]
+            for n, c in enumerate(claims, 1):
+                sources = c.get("sources") if isinstance(c.get("sources"), list) else []
+                out.append(f"{n}. {c.get('claim', '')} [{', '.join(map(str, sources)) or 'no source given'}]")
+            out += ["" if claims else "None given.\n"]
+        missing = s.get("missing_information") if isinstance(s.get("missing_information"), list) else []
+        out += ["**Missing information**", ""] + ([f"- {m}" for m in missing] or ["None given."]) + [""]
+        out += [f"**Disposition.** {s['disposition']}, priority {s['priority']}", "", f"**Rationale.** {s['rationale']}", ""]
+        shown = case_facts(v, unit)
+        known = {ident for ident, _ in shown if ident}
+        wanted = [x for c in claims_of(s) if isinstance(c.get("sources"), list) for x in expand(c["sources"])]
+        cited_ids = {x for x in wanted if isinstance(x, str)}
+        out += ["## Facts cited", "", "Each fact the note cites, as it was shown to the model.", "", "```"]
+        out += [f"{ident} | {text}" for ident, text in shown if ident in cited_ids] + ["```", ""]
+        unknown = sorted({str(x) for x in wanted if x not in known})
+        if unknown:
+            out += [f"Cited but never shown to the model, so not checkable. {', '.join(unknown)}", ""]
+    out += ["## For the Privacy Officer", "",
+            "Left blank on purpose. Each of these follows a determination that only the officer can make.", ""]
+    out += [f"- {item}" for item in OFFICER_PART]
+    return "\n".join(out) + "\n"
 
 
 # ---- talking to the model ----
@@ -539,9 +607,11 @@ def dry_run(run_dir: str | Path, cfg: Config, sample: int = 400) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("command", nargs="?", default="sizes", choices=["sizes", "show", "run", "judge"],
+    ap.add_argument("command", nargs="?", default="sizes", choices=["sizes", "show", "run", "judge", "render"],
                     help="sizes: prompt sizes, no model call. show: print one prompt. run: triage the case set. "
-                         "judge: check the claims of the summaries already written")
+                         "judge: check the claims of the summaries already written. render: print the case summary "
+                         "of one stored answer, no model call")
+    ap.add_argument("--case", default=None, help="for render, the case ID as in cases.csv, such as C0100")
     ap.add_argument("--run", default=None, help="defaults to data/generated/seed<seed>")
     ap.add_argument("--config", default="config/calibration.yaml")
     ap.add_argument("--results", default=None, help="defaults to results/<run folder name>")
@@ -558,6 +628,15 @@ def main() -> None:
     if args.command == "show":
         v = Views(run, systems[0], cfg)
         print(build_prompt(v, next(case_units(run, cfg).sample(1, random_state=1).itertuples()))[0])
+        return
+
+    if args.command == "render":
+        units = {u.case_id: u for u in read_cases(run).itertuples()}
+        if args.case not in units:
+            raise SystemExit(f"Give a case with --case. {args.case!r} is not in {run / 'cases.csv'}")
+        for system in systems:
+            answers = {r["case_id"]: r for r in read_answers(Path(args.results or "results") / run.name / f"{system}.pass{args.pass_no}.jsonl")}
+            print(render_case(Views(run, system, cfg), units[args.case], answers.get(args.case)))
         return
 
     load_env()

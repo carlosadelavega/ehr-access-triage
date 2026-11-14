@@ -219,6 +219,34 @@ def test_a_judged_case_is_sent_again_when_its_number_of_claims_changes(runs, cfg
     assert spend["calls"] == 1 and len(triage.read_answers(path)) == 3
 
 
+def test_render_fills_the_header_from_the_log_and_writes_out_the_cited_facts(runs, cfg, tmp_path):
+    base, _ = runs
+    for name in ("logs", "context"):  # rendering needs no labels folder
+        shutil.copytree(base / name, tmp_path / name)
+    shutil.copy(base / "cases.csv", tmp_path / "cases.csv")
+    v = triage.Views(tmp_path, "llm_graph", cfg)
+    unit = next(triage.read_cases(tmp_path).itertuples())
+    shown = triage.case_facts(v, unit)
+    ids = [ident for ident, _ in shown if ident]
+    reply = json.dumps({"what_happened": "One access.", "rationale": "As cited.", "disposition": "verify", "priority": "low",
+                        "missing_information": ["Who assigned the work"],
+                        "purpose_evidence": [{"claim": "On shift", "sources": ["G1-G2"]}],
+                        "risk_indicators": [{"claim": "Made up", "sources": ["G999"]}]})
+    row = {"summary": triage.parse_summary(reply, ids), "content": reply, "model": "some-model", "pass": 1}
+    text = triage.render_case(v, unit, row)
+    mine = v.events[(v.events["user_id"] == unit.user_id) & (v.events["patient_id"] == unit.patient_id) & (v.events["week"] == unit.week)]
+    assert f"# Case {unit.case_id}" in text and f"| Accesses | {len(mine)} |" in text
+    assert f"| First access | {mine['timestamp'].min()} |" in text and "| Raised by | LLM with identity graph (some-model, pass 1) |" in text
+    facts = dict(shown)
+    assert f"G1 | {facts['G1']}\nG2 | {facts['G2']}\n```" in text  # the range, fact by fact, and nothing uncited
+    assert "1. On shift [G1-G2]" in text and "never shown to the model, so not checkable. G999" in text
+    assert "**Disposition.** verify, priority low" in text and "- Who assigned the work" in text
+    assert all(f"- {item}" in text for item in triage.OFFICER_PART)
+    assert "No answer is on file" in triage.render_case(v, unit, None)
+    broken = {"summary": triage.parse_summary("no idea", ids), "content": "no idea", "model": "some-model", "pass": 1}
+    assert "did not fit the template (not JSON)" in triage.render_case(v, unit, broken)
+
+
 def test_average_day_budget_splits_a_tie_by_weight():
     # one misuse alert and one legitimate alert standing for 9, all at the same priority, over 2 days
     found, shown = evaluate.average_day_top_k([1, 1], [True, False], [1, 9], k=1, days=2)

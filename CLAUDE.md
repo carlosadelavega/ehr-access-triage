@@ -58,6 +58,7 @@ python -m ehr_triage.triage      # prompt sizes for the two LLM systems, no mode
 python -m ehr_triage.triage run --limit 20   # needs .env, calls the model, costs money
 python -m ehr_triage.triage judge         # second faithfulness check, also calls the model
 python -m ehr_triage.evaluate llm         # rewrites docs/llm-results.md from results/, same rule
+python -m ehr_triage.triage render --case C0100   # prints one stored answer as the case summary, no model call
 pytest                           # runs on a made-up population and a made-up model, no Java or key needed
 ```
 
