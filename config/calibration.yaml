@@ -440,9 +440,9 @@ parameters:
 
   # ---- LLM triage (build step 5), not used by the generator ----
   triage:
-    value: {context_lines: 30, context_hours: 12, encounters_shown: 5, temperature: 0, max_output_tokens: 4000, workers: 8, cost_cap_usd: 5}
+    value: {context_lines: 30, context_hours: 12, encounters_shown: 5, temperature: 0, max_output_tokens: 16000, timeout_s: 600, workers: 16, cost_cap_usd: 5}
     basis: assumption
-    note: "How many log lines of each kind and how many encounters a prompt shows, and the run settings. The user's other lines are the nearest ones within context_hours either side of the access. Temperature 0 so a rerun is as repeatable as the provider allows. max_output_tokens leaves room for the model's reasoning, which counts against it. The summary itself is about 300 tokens. workers is how many calls run at once. cost_cap_usd stops a run or judge command once its own spend passes it"
+    note: "How many log lines of each kind and how many encounters a prompt shows, and the run settings. The user's other lines are the nearest ones within context_hours either side of the access. Temperature 0 so a rerun is as repeatable as the provider allows. max_output_tokens has to hold the model's reasoning as well as the summary. A trial of 80 calls on 13 Nov 2026 with a limit of 4,000 had 75 answers cut off before the summary began. Reasoning ran to about 3,800 tokens at the median and the five complete summaries took 500 to 850 more, so the limit is set well clear of both. timeout_s is how long one call may take. workers is how many calls run at once. cost_cap_usd stops a run or judge command once its own spend passes it"
 
   triage_provider:
     value:

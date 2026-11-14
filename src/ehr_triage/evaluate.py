@@ -242,7 +242,7 @@ def answers(results_dir: str | Path, name: str) -> pd.DataFrame | None:
             "truncated": r["finish"] == "length", "supported": r.get("supported"),
             "prompt_tokens": r["prompt_tokens"], "completion_tokens": r["completion_tokens"],
             "reasoning_tokens": r["reasoning_tokens"], "usd": r["usd"]})
-    return pd.DataFrame(rows).drop_duplicates("case_id")
+    return pd.DataFrame(rows).drop_duplicates("case_id", keep="last")  # a case sent again keeps its later answer
 
 
 def scored_answers(run_dir: str | Path, results_dir: str | Path, system: str, pass_no: int = 1) -> pd.DataFrame | None:

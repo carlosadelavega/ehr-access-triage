@@ -111,6 +111,21 @@ def test_a_rerun_sends_only_what_is_missing(runs, cfg, tmp_path, monkeypatch):
     assert len(sent) - before == first["failed"]  # nothing left to send
 
 
+def test_an_answer_cut_off_by_the_token_limit_is_sent_again(runs, cfg, tmp_path):
+    base, _ = runs
+
+    def cut_off(prompt, cfg):
+        return {"content": "", "finish": "length", "usage": USAGE}
+
+    triage.triage_cases(base, cfg, tmp_path, cut_off, new_spend(), systems=["llm_raw"], limit=4)
+    spend = new_spend()
+    triage.triage_cases(base, cfg, tmp_path, fake_model, spend, systems=["llm_raw"], limit=4)
+    assert spend["calls"] == 4
+    rows = triage.read_answers(tmp_path / "llm_raw.pass1.jsonl")
+    assert len(rows) == 4 and all(r["finish"] == "stop" and r["summary"]["valid"] for r in rows)
+    assert len(evaluate.answers(tmp_path, "llm_raw.pass1")) == 4
+
+
 def test_cost_cap_stops_the_run(runs, cfg, tmp_path):
     base, _ = runs
     tight = copy.deepcopy(cfg)

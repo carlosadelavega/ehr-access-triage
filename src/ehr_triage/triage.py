@@ -287,7 +287,7 @@ def call_model(prompt: str, cfg: Config, model: str | None = None, extras: dict 
         os.environ["EHR_TRIAGE_BASE_URL"].rstrip("/") + "/chat/completions", data=json.dumps(body).encode(),
         headers={"Authorization": "Bearer " + os.environ["EHR_TRIAGE_API_KEY"], "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(request, timeout=180) as response:
+        with urllib.request.urlopen(request, timeout=cfg["triage"]["timeout_s"]) as response:
             reply = json.load(response)
     except urllib.error.HTTPError as e:
         detail = f"HTTP {e.code}: {e.read().decode(errors='replace')[:400]}"
@@ -331,18 +331,33 @@ def cost(usage: dict, cfg: Config) -> float:
     return (fresh * price["input"] + cached * price["cached_input"] + (usage.get("completion_tokens") or 0) * price["output"]) / 1e6
 
 
+def read_answers(path: str | Path) -> list[dict]:
+    """The answers in a results file, one per case. Where a case was sent
+    again, the later answer replaces the earlier one."""
+    if not Path(path).exists():
+        return []
+    latest = {}
+    for line in Path(path).read_text().splitlines():
+        if line.strip():
+            row = json.loads(line)
+            latest[row["case_id"]] = row
+    return list(latest.values())
+
+
 def run_jobs(jobs: list, out_path: Path, call, cfg: Config, spend: dict, label: str) -> None:
     """Send each job's prompt to the model and append one JSON line per answer.
 
     A job is (key, prompt, finish). `key` identifies the answer and `finish`
     turns the reply text into the fields to store. A case already in the
     file is skipped, so an interrupted run picks up where it stopped and a
-    rerun retries only what failed. `spend` is shared across calls of this
+    rerun retries only what failed. An answer cut off by the token limit
+    counts as failed and is sent again, since the usual remedy is a higher
+    limit in the config. `spend` is shared across calls of this
     function. Once it passes the cost cap, or the endpoint refuses a
     request outright, nothing more is sent.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    done = {json.loads(line)["case_id"] for line in out_path.read_text().splitlines() if line.strip()} if out_path.exists() else set()
+    done = {row["case_id"] for row in read_answers(out_path) if row["finish"] != "length"}
     todo = [job for job in jobs if job[0]["case_id"] not in done]
     cap = cfg["triage"]["cost_cap_usd"]
     print(f"{label}: {len(todo)} to send, {len(jobs) - len(todo)} already answered")
@@ -432,8 +447,7 @@ def judge_cases(run_dir: str | Path, cfg: Config, results_dir: str | Path, call,
             continue
         v = Views(run_dir, system, cfg)
         jobs = []
-        for line in answers.read_text().splitlines():
-            row = json.loads(line)
+        for row in read_answers(answers):
             if row["case_id"] not in units:
                 continue
             prompt, n = judge_prompt(row["summary"], dict(f for f in case_facts(v, units[row["case_id"]]) if f[0]))
@@ -510,14 +524,14 @@ def main() -> None:
     if spend["failed"]:
         print(f"Last error: {spend['last_error']}\nRun the same command again to retry them.")
     files = [f / f"{s}.pass{args.pass_no}.jsonl" for f in folders for s in systems]
-    rows = [json.loads(line) for path in files if path.exists() for line in path.read_text().splitlines()]
+    rows = [row for path in files for row in read_answers(path)]
     if args.command == "run" and rows:
         print(f"{sum(r['summary']['valid'] for r in rows)} of {len(rows)} answers on file fit the template, "
               f"{sum(r['finish'] == 'length' for r in rows)} were cut off by the token limit")
     if args.command == "run" and args.limit and spend["calls"]:
         total = sum(len(read_cases(r)) for r in runs) * len(systems)
         print(f"At this rate the full case set, {total:,} calls, would cost about ${spend['usd'] / spend['calls'] * total:.2f}")
-        print("One answer, as the model wrote it:\n" + rows[-1]["content"])
+        print("One answer, as the model wrote it:\n" + next((r["content"] for r in reversed(rows) if r["summary"]["valid"]), "none fit the template"))
     if spend["stop"]:
         raise SystemExit(f"Stopped early: {spend['stop']}\nAnswers so far are kept. The same command carries on from here.")
 
