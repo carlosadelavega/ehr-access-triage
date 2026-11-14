@@ -16,7 +16,7 @@ import pandas as pd
 
 from .baselines import expected_top_k, run_rules, run_templates
 from .config import Config, load_config
-from .triage import DISPOSITIONS, PRIORITIES, SYSTEMS, VERDICTS
+from .triage import DISPOSITIONS, PRIORITIES, SYSTEMS, VERDICTS, Views, case_facts, cited, claims_of, read_answers, read_cases
 
 HARD_NEGATIVES = {
     "consult": "H1 consult",
@@ -238,7 +238,6 @@ def answers(results_dir: str | Path, name: str) -> pd.DataFrame | None:
             "case_id": r["case_id"], "model": r["model"], "provider": r.get("provider", ""), "valid": bool(s.get("valid")),
             "disposition": s["disposition"] if s.get("disposition") in DISPOSITIONS else "verify",
             "priority": s["priority"] if s.get("priority") in PRIORITIES else "medium",
-            "n_claims": s.get("n_claims", 0), "cited": round(s.get("cited_ok", 0) * s.get("n_claims", 0)),
             "truncated": r["finish"] == "length", "verdicts": r.get("verdicts"), "absence": r.get("absence"),
             "prompt_tokens": r["prompt_tokens"], "completion_tokens": r["completion_tokens"],
             "reasoning_tokens": r["reasoning_tokens"], "usd": r["usd"]})
@@ -252,6 +251,26 @@ def calls(path: str | Path) -> pd.DataFrame:
     and tokens were spent on every call, so cost is summed over these.
     """
     return pd.DataFrame([json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()])
+
+
+def citation_counts(run_dir: str | Path, results_dir: str | Path, system: str, cfg: Config, pass_no: int = 1) -> dict:
+    """The first faithfulness check, recounted from the stored claims and the facts each case was shown.
+
+    A results file keeps the check as it stood when the answer was parsed,
+    and pass 1 was parsed before a range of IDs counted as a citation.
+    Recounting here puts every pass under the same rule and lets the
+    report show both readings: `exist` counts ranges, `listed` does not.
+    """
+    units = {u.case_id: u for u in read_cases(run_dir).itertuples()}
+    v = Views(run_dir, system, cfg)
+    n = {"claims": 0, "exist": 0, "listed": 0}
+    for row in read_answers(Path(results_dir) / f"{system}.pass{pass_no}.jsonl"):
+        known = {ident for ident, _ in case_facts(v, units[row["case_id"]]) if ident}
+        for claim in claims_of(row["summary"]):
+            n["claims"] += 1
+            n["exist"] += cited(claim, known)
+            n["listed"] += cited(claim, known, ranges=False)
+    return n
 
 
 def scored_answers(run_dir: str | Path, results_dir: str | Path, system: str, pass_no: int = 1) -> pd.DataFrame | None:
@@ -377,23 +396,29 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
 
     lines += ["## Faithfulness of the summaries", "",
               "The first check is mechanical. A claim passes when it cites at least one fact and every fact it cites was in the "
-              "prompt. The second check gives each claim that passed to a judge model, with the facts it cites and the full "
+              "prompt. A range such as L2-L31 counts as citing every fact from L2 to L31. The prompt asks for a list of IDs, "
+              "so the number that pass when a range is not counted is shown beside it. The second check gives each claim "
+              "that passed to a judge model, with the facts it cites and the full "
               "list the author saw. Supported means the cited facts confirm all of it. Partly means nothing contradicts it "
               "but it adds an interpretation or leans on a fact it did not cite. Unsupported means a fact contradicts it or "
-              "the cited facts do not bear on it. A claim that something is absent is checked against the full list. Counts "
-              "are over the sample, not weighted.", ""]
+              "the cited facts do not bear on it. A claim that something is absent is checked against the full list. A claim "
+              "is not yet judged when it passes the first check and has no verdict, because the judge's answer was cut off "
+              "or the case has not been sent to the judge since ranges began to count. Counts are over the sample, not "
+              "weighted.", ""]
     rows = []
     for s, f in frames.items():
         judged = answers(results_dir, f"judge.{s}.pass1")
         verdicts = [v for item in judged["verdicts"] for v in item] if judged is not None else []
         ruled = [v for v in verdicts if v is not None]
         absent = sum(a for item in judged["absence"] for a in item) if judged is not None else 0
-        claims = int(f["n_claims"].sum())
+        n = citation_counts(run_dir, results_dir, s, cfg)
         share = [f"{ruled.count(v) / len(ruled):.1%}" if ruled else "not run" for v in VERDICTS]
-        rows.append([LLM_NAMES[s], f"{len(f):,}", f"{f['valid'].mean():.1%}", int(f["truncated"].sum()), f"{claims:,}",
-                     f"{f['cited'].sum() / max(claims, 1):.1%}", f"{len(ruled):,}", *share, f"{absent:,}"])
+        rows.append([LLM_NAMES[s], f"{len(f):,}", f"{f['valid'].mean():.1%}", int(f["truncated"].sum()), f"{n['claims']:,}",
+                     f"{n['exist']:,}", f"{n['listed']:,}", f"{len(ruled):,}",
+                     f"{n['exist'] - len(ruled):,}", *share, f"{absent:,}"])
     lines += table(["System", "Summaries", "Fit the template", "Cut off by the token limit", "Claims", "Citations exist",
-                    "Claims judged", "Supported", "Partly", "Unsupported", "Of which absence claims"], rows)
+                    "Without counting ranges", "Claims judged", "Not yet judged", "Supported", "Partly", "Unsupported",
+                    "Of which absence claims"], rows)
 
     covered = {}
     if covered_dir is not None and covered_results is not None and Path(covered_dir, "cases.csv").exists():

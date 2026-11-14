@@ -48,6 +48,19 @@ def test_a_well_formed_summary_passes_and_its_citations_are_checked():
     assert s["cited_ok"] == pytest.approx(1 / 3)  # G9 was never shown, and one claim cites nothing
 
 
+def test_a_range_of_ids_counts_as_citing_every_fact_in_it():
+    shown = {"L1", "L2", "L3", "L4", "G1", "G2"}
+    assert triage.expand(["L2-L4", "G1"]) == ["L2", "L3", "L4", "G1"]
+    assert triage.cited({"sources": ["L2-L4", "G1"]}, shown)
+    assert not triage.cited({"sources": ["L2-L4"]}, shown, ranges=False)  # the stricter reading, one ID per source
+    assert not triage.cited({"sources": ["L3-L5"]}, shown)  # L5 was never shown
+    for not_a_range in ("L4-L2", "L2-G2", "L2-4", "L1-L99999"):
+        assert not triage.cited({"sources": [not_a_range]}, shown)
+    reply = json.dumps({"what_happened": "x", "rationale": "y", "disposition": "verify", "priority": "low",
+                        "purpose_evidence": [{"claim": "Routine work around the access", "sources": ["L1-L4"]}], "risk_indicators": []})
+    assert triage.parse_summary(reply, sorted(shown))["cited_ok"] == 1.0
+
+
 def test_a_summary_outside_the_template_is_rejected():
     assert not triage.parse_summary("I think this is fine.", ["L1"])["valid"]
     bad = triage.parse_summary(json.dumps({"disposition": "ignore", "priority": "low", "what_happened": "x",

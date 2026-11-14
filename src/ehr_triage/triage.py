@@ -19,6 +19,7 @@ import concurrent.futures as cf
 import functools
 import json
 import os
+import re
 import threading
 import time
 import urllib.error
@@ -204,10 +205,39 @@ def claims_of(summary: dict) -> list[dict]:
             for c in (summary.get(field) if isinstance(summary.get(field), list) else []) if isinstance(c, dict)]
 
 
-def cited(claim: dict, known) -> bool:
-    """True when the claim names at least one source and every source it names was shown."""
+RANGE = re.compile(r"([A-Z])(\d+)-\1(\d+)")
+
+
+def expand(sources: list) -> list:
+    """The sources of a claim with every range written out, so "L2-L4" becomes L2, L3, L4.
+
+    The instruction asks for a list of IDs and the model often writes a
+    range instead. A reader can follow a range as well as a list, so it
+    counts as citing every fact in it (decided on 14 Nov 2026, after pass 1).
+    Both ends must carry the same letter. Anything else is left as it is,
+    and so is a range too long to be a citation.
+    """
+    out = []
+    for x in sources:
+        m = RANGE.fullmatch(x) if isinstance(x, str) else None
+        if m and 0 <= int(m[3]) - int(m[2]) < 1000:
+            out += [f"{m[1]}{k}" for k in range(int(m[2]), int(m[3]) + 1)]
+        else:
+            out.append(x)
+    return out
+
+
+def cited(claim: dict, known, ranges: bool = True) -> bool:
+    """True when the claim names at least one source and every source it names was shown.
+
+    A range passes when every fact in it was shown. `ranges=False` is the
+    stricter reading that takes each source as a single ID, kept so the
+    results can show both.
+    """
     sources = claim.get("sources")
-    return isinstance(sources, list) and bool(sources) and all(isinstance(x, str) and x in known for x in sources)
+    if not isinstance(sources, list) or not sources:
+        return False
+    return all(isinstance(x, str) and x in known for x in (expand(sources) if ranges else sources))
 
 
 def parse_summary(text: str, fact_ids: list[str]) -> dict:
@@ -215,7 +245,8 @@ def parse_summary(text: str, fact_ids: list[str]) -> dict:
 
     Returns the summary with `valid`, `problems`, and `cited_ok`, the share
     of claims whose cited IDs all exist among the facts shown. A claim with
-    no source, or with a made-up ID, counts against it.
+    no source, or with a made-up ID, counts against it. A range of IDs
+    counts as each fact in it (see `expand`).
     """
     start, end = text.find("{"), text.rfind("}")
     try:
@@ -247,7 +278,8 @@ def judge_prompt(summary: dict, shown: list[tuple[str, str]]) -> tuple[str, int]
     there so the judge can tell a claim that leans on an uncited fact from
     one with no basis at all, and can check claims that something is
     absent. Claims that cite nothing, or cite an ID that was never shown,
-    already failed the first check and are left out. `shown` is everything
+    already failed the first check and are left out. A claim that cites a
+    range is given every fact in the range. `shown` is everything
     the author saw, section titles included, since a title carries how
     many lines were left out and summaries quote that. Returns the prompt
     and the number of claims in it.
@@ -256,7 +288,7 @@ def judge_prompt(summary: dict, shown: list[tuple[str, str]]) -> tuple[str, int]
     claims = [c for c in claims_of(summary) if cited(c, facts)]
     parts = []
     for n, c in enumerate(claims, 1):
-        parts.append(f"Claim {n}: {c.get('claim', '')}\n" + "\n".join(f"  {x} | {facts[x]}" for x in c["sources"]))
+        parts.append(f"Claim {n}: {c.get('claim', '')}\n" + "\n".join(f"  {x} | {facts[x]}" for x in expand(c["sources"])))
     everything = "\n".join(f"{ident} | {text}" if ident else text for ident, text in shown)
     return JUDGE + "\n\n" + "\n\n".join(parts) + "\n\nFull list of facts:\n" + everything, len(claims)
 
@@ -377,13 +409,15 @@ def run_jobs(jobs: list, out_path: Path, call, cfg: Config, spend: dict, label: 
     file is skipped, so an interrupted run picks up where it stopped and a
     rerun retries only what failed. An answer cut off by the token limit
     counts as failed and is sent again, since the usual remedy is a higher
-    limit in the config. `spend` is shared across calls of this
-    function. Once it passes the cost cap, or the endpoint refuses a
+    limit in the config. A judged case whose number of claims has since
+    changed is sent again too, which is what happens to the cases with
+    range citations once ranges count. `spend` is shared across calls of
+    this function. Once it passes the cost cap, or the endpoint refuses a
     request outright, nothing more is sent.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    done = {row["case_id"] for row in read_answers(out_path) if row["finish"] != "length"}
-    todo = [job for job in jobs if job[0]["case_id"] not in done]
+    done = {row["case_id"]: row.get("n_claims") for row in read_answers(out_path) if row["finish"] != "length"}
+    todo = [job for job in jobs if job[0]["case_id"] not in done or done[job[0]["case_id"]] != job[0].get("n_claims")]
     cap = cfg["triage"]["cost_cap_usd"]
     print(f"{label}: {len(todo)} to send, {len(jobs) - len(todo)} already answered")
 

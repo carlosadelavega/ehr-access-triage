@@ -80,12 +80,12 @@ A reviewer takes the highest-priority alerts each day, up to the budget. LLM ale
 
 ## Faithfulness of the summaries
 
-The first check is mechanical. A claim passes when it cites at least one fact and every fact it cites was in the prompt. The second check gives each claim that passed to a judge model, with the facts it cites and the full list the author saw. Supported means the cited facts confirm all of it. Partly means nothing contradicts it but it adds an interpretation or leans on a fact it did not cite. Unsupported means a fact contradicts it or the cited facts do not bear on it. A claim that something is absent is checked against the full list. Counts are over the sample, not weighted.
+The first check is mechanical. A claim passes when it cites at least one fact and every fact it cites was in the prompt. A range such as L2-L31 counts as citing every fact from L2 to L31. The prompt asks for a list of IDs, so the number that pass when a range is not counted is shown beside it. The second check gives each claim that passed to a judge model, with the facts it cites and the full list the author saw. Supported means the cited facts confirm all of it. Partly means nothing contradicts it but it adds an interpretation or leans on a fact it did not cite. Unsupported means a fact contradicts it or the cited facts do not bear on it. A claim that something is absent is checked against the full list. A claim is not yet judged when it passes the first check and has no verdict, because the judge's answer was cut off or the case has not been sent to the judge since ranges began to count. Counts are over the sample, not weighted.
 
-| System | Summaries | Fit the template | Cut off by the token limit | Claims | Citations exist | Claims judged | Supported | Partly | Unsupported | Of which absence claims |
-|---|---|---|---|---|---|---|---|---|---|---|
-| LLM on log lines | 1,673 | 100.0% | 0 | 6,697 | 90.4% | 6,029 | 64.3% | 33.0% | 2.7% | 1,343 |
-| LLM with identity graph | 1,673 | 100.0% | 0 | 11,024 | 96.4% | 10,623 | 69.4% | 29.5% | 1.2% | 1,216 |
+| System | Summaries | Fit the template | Cut off by the token limit | Claims | Citations exist | Without counting ranges | Claims judged | Not yet judged | Supported | Partly | Unsupported | Of which absence claims |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| LLM on log lines | 1,673 | 100.0% | 0 | 6,697 | 6,691 | 6,053 | 6,029 | 662 | 64.3% | 33.0% | 2.7% | 1,343 |
+| LLM with identity graph | 1,673 | 100.0% | 0 | 11,024 | 11,023 | 10,627 | 10,623 | 400 | 69.4% | 29.5% | 1.2% | 1,216 |
 
 ## With covering accesses
 

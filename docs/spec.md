@@ -390,7 +390,7 @@ H4b gets the most because a relationship with no documented purpose is where a f
 
 `fp4` is one of OpenRouter's quantization labels and stands for 4-bit weights. Results therefore describe GLM 5.3 Flash as that endpoint serves it, and may not carry over to the model at full precision.
 
-**Faithfulness.** Level 1 is checked in code. It is the share of claims that cite at least one fact and cite only facts that were shown. Level 2 is `triage judge`. Every claim that passed level 1 goes to a judge model with the facts it cites and, after them, the full list of facts the author saw. The judge gives one of three verdicts.
+**Faithfulness.** Level 1 is checked in code. It is the share of claims that cite at least one fact and cite only facts that were shown. A range such as L2-L31 counts as citing every fact from L2 to L31 (decided by Carlos on 14 Nov 2026). The prompt asks for a list of IDs, and in pass 1 the model often wrote a range instead. Of the 1,041 claims that failed the check as first written, 1,034 failed only for that. A Privacy Officer can follow a range as well as a list, so the measure now accepts one. The prompt is unchanged, and the results show the count without ranges beside the count with them. Level 2 is `triage judge`. Every claim that passed level 1 goes to a judge model with the facts it cites and, after them, the full list of facts the author saw. The judge gives one of three verdicts.
 
 | Verdict | Meaning |
 |---|---|

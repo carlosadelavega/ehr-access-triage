@@ -197,6 +197,28 @@ def test_judge_sees_each_claim_with_its_citations_and_then_the_full_list():
     assert prompt.endswith("Full list of facts:\n-- the access under review (4 more lines not shown)\nL1 | a log line\nG2 | a schedule row")
 
 
+def test_judge_is_given_every_fact_of_a_cited_range():
+    summary = {"purpose_evidence": [{"claim": "Two lines in a row", "sources": ["L1-L2"]}], "risk_indicators": []}
+    prompt, n = triage.judge_prompt(summary, [("L1", "first line"), ("L2", "second line"), ("L3", "third line")])
+    assert n == 1 and "Claim 1: Two lines in a row\n  L1 | first line\n  L2 | second line\n\nFull list" in prompt
+
+
+def test_a_judged_case_is_sent_again_when_its_number_of_claims_changes(runs, cfg, tmp_path):
+    base, _ = runs
+    triage.triage_cases(base, cfg, tmp_path, fake_model, new_spend(), systems=["llm_raw"], limit=3)
+    first, again = new_spend(), new_spend()
+    triage.judge_cases(base, cfg, tmp_path, fake_model, first, systems=["llm_raw"], limit=3)
+    triage.judge_cases(base, cfg, tmp_path, fake_model, again, systems=["llm_raw"], limit=3)
+    assert first["calls"] == 3 and again["calls"] == 0
+    path = tmp_path / "judge.llm_raw.pass1.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    rows[0]["n_claims"] = 0  # as if it had been judged when fewer of its claims passed the first check
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    spend = new_spend()
+    triage.judge_cases(base, cfg, tmp_path, fake_model, spend, systems=["llm_raw"], limit=3)
+    assert spend["calls"] == 1 and len(triage.read_answers(path)) == 3
+
+
 def test_average_day_budget_splits_a_tie_by_weight():
     # one misuse alert and one legitimate alert standing for 9, all at the same priority, over 2 days
     found, shown = evaluate.average_day_top_k([1, 1], [True, False], [1, 9], k=1, days=2)
@@ -215,6 +237,7 @@ def test_llm_results_report_runs_end_to_end(answered, runs, cfg, tmp_path):
                     "## Faithfulness of the summaries", "## With covering accesses", "## Tokens and cost"):
         assert heading in text
     assert "## Repeat passes" not in text
+    assert "Without counting ranges" in text and "Not yet judged" in text
     raw = evaluate.scored_answers(base, answered / base.name, "llm_raw")
     assert (raw["disposition"] == "clear").all()  # the made-up model only escalates on a graph fact
     by_kind = raw.groupby("stratum")
