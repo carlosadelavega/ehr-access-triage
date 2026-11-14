@@ -6,7 +6,7 @@ Can an LLM triage anomalous accesses to electronic health records (EHR) and draf
 
 The generator, the identity graph and the first two systems are built. The repo has a spec, a generator that writes 30 days of synthetic access logs for one hospital, a report comparing the output with published calibration targets, and [results for the rules and the explanation templates](docs/baseline-results.md).
 
-The two LLM systems have had a first pass on 14 Nov 2026, on a stratified sample of 1,673 first accesses. The numbers are in [docs/llm-results.md](docs/llm-results.md). They come from one pass of one model on a 4-bit endpoint, the second faithfulness check has not been run, and they are not interpreted here yet.
+The two LLM systems have had a first pass on 14 Nov 2026, on a stratified sample of 1,673 first accesses. The numbers are in [docs/llm-results.md](docs/llm-results.md). They come from one pass of one model on a 4-bit endpoint and are not interpreted here yet. The second faithfulness check has been run, and [docs/judge-review.md](docs/judge-review.md) records a hand-read of its verdicts.
 
 What the two baselines show so far, on this synthetic data.
 
