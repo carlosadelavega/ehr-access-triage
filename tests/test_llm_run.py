@@ -16,7 +16,7 @@ def fake_model(prompt, cfg):
     """Escalates when the graph shows no connection, clears otherwise, and cites the first fact shown."""
     if prompt.startswith(triage.JUDGE):
         n = prompt.count("\nClaim ")
-        return {"content": json.dumps({"claims": [{"n": i + 1, "supported": i == 0} for i in range(n)]}), "finish": "stop", "usage": USAGE}
+        return {"content": json.dumps({"claims": [{"n": i + 1, "verdict": "supported" if i == 0 else "partly"} for i in range(n)]}), "finish": "stop", "usage": USAGE}
     escalate = "holds no connection" in prompt
     summary = {"what_happened": "One access.", "rationale": "As cited.", "missing_information": [],
                "disposition": "escalate" if escalate else "clear", "priority": "high" if escalate else "low",
@@ -175,15 +175,24 @@ def test_request_pins_the_provider_and_the_charge_reported_is_what_counts(cfg, m
     assert sent["body"]["provider"] == {"only": ["relace/fp4"], "allow_fallbacks": False}
     assert reply["provider"] == "Relace" and triage.cost(reply["usage"], cfg) == pytest.approx(0.00042)
     triage.call_model("hello", cfg, model="deepseek/deepseek-v4.1-flash-1017", extras=provider["judge_extras"])
-    assert sent["body"]["model"] == "deepseek/deepseek-v4.1-flash-1017" and sent["body"]["provider"]["only"] == ["wafer/us"]
+    assert sent["body"]["model"] == "deepseek/deepseek-v4.1-flash-1017" and sent["body"]["provider"]["only"] == ["sail-research/fp4/us"]
+    assert sent["body"]["reasoning"] == {"effort": "low"}
 
 
 def test_judge_asks_only_about_claims_whose_citations_exist(answered, runs):
     base, _ = runs
     rows = [json.loads(line) for line in (answered / base.name / "judge.llm_graph.pass1.jsonl").read_text().splitlines()]
-    assert rows and all(r["n_claims"] == 1 and r["supported"] == [True] for r in rows)  # the claim citing G999 was left out
-    assert triage.parse_judgement('{"claims": [{"n": 2, "supported": "yes"}, {"n": 1, "supported": false}]}', 3) == [False, None, None]
-    assert triage.parse_judgement("no idea", 2) == [None, None]
+    assert rows and all(r["n_claims"] == 1 and r["verdicts"] == ["supported"] for r in rows)  # the claim citing G999 was left out
+    reply = '{"claims": [{"n": 2, "verdict": "maybe"}, {"n": 1, "verdict": "unsupported", "absence": true}, {"n": 4, "verdict": "partly"}]}'
+    assert triage.parse_judgement(reply, 4) == {"verdicts": ["unsupported", None, None, "partly"], "absence": [True, False, False, False]}
+    assert triage.parse_judgement("no idea", 2) == {"verdicts": [None, None], "absence": [False, False]}
+
+
+def test_judge_sees_each_claim_with_its_citations_and_then_the_full_list():
+    summary = {"purpose_evidence": [{"claim": "On shift", "sources": ["G2"]}], "risk_indicators": [{"claim": "Made up", "sources": ["G9"]}]}
+    prompt, n = triage.judge_prompt(summary, {"L1": "a log line", "G2": "a schedule row"})
+    assert n == 1 and "Claim 1: On shift\n  G2 | a schedule row" in prompt and "Made up" not in prompt
+    assert prompt.endswith("Full list of facts:\nL1 | a log line\nG2 | a schedule row")
 
 
 def test_average_day_budget_splits_a_tie_by_weight():

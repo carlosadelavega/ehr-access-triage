@@ -58,12 +58,25 @@ Answer with one JSON object and nothing else:
  "rationale": "at most 60 words"}"""
 
 
-JUDGE = """You are checking a draft case summary against its sources. Each claim below is followed by the facts it cites. \
-For each claim, say whether the cited facts alone support it. A claim is supported when a careful reader could confirm it \
-from those facts and nothing else. A claim that goes beyond them, or that needs a fact it does not cite, is not supported.
+VERDICTS = ["supported", "partly", "unsupported"]
+
+JUDGE = """You are checking a draft case summary against its sources. The author was shown a numbered list of facts and \
+had to cite, for each claim, the facts it rests on. Below, each claim is followed by the facts it cites. The full list \
+of facts comes last.
+
+Give each claim one verdict.
+- supported: everything the claim says can be confirmed from the facts it cites. Reading a time, a name or a code off \
+a fact, counting, and simple arithmetic all count as confirming.
+- partly: no fact in the full list contradicts the claim, but the facts it cites do not confirm all of it. Either it \
+adds an interpretation that the facts do not establish, or part of it rests on a fact it did not cite.
+- unsupported: a fact in the full list contradicts the claim, or the facts it cites do not bear on it at all.
+
+A claim that something is missing, such as "no fact shows a care team role", is an absence claim. Check it against the \
+full list. It is supported if the full list really lacks the thing and unsupported if the full list contains it. Mark \
+it with "absence": true.
 
 Answer with one JSON object and nothing else:
-{"claims": [{"n": 1, "supported": true}, {"n": 2, "supported": false}]}"""
+{"claims": [{"n": 1, "verdict": "supported"}, {"n": 2, "verdict": "partly"}, {"n": 3, "verdict": "unsupported", "absence": true}]}"""
 
 
 class Views:
@@ -228,27 +241,36 @@ def parse_summary(text: str, fact_ids: list[str]) -> dict:
 
 
 def judge_prompt(summary: dict, facts: dict[str, str]) -> tuple[str, int]:
-    """Ask whether each claim follows from the facts it cites, shown alone.
+    """Ask for a verdict on each claim, given the facts it cites and the full list the author saw.
 
-    Claims that cite nothing, or cite an ID that was never shown, already
-    failed the first check and are left out. Returns the prompt and the
-    number of claims in it.
+    The cited facts decide whether a claim is supported. The full list is
+    there so the judge can tell a claim that leans on an uncited fact from
+    one with no basis at all, and can check claims that something is
+    absent. Claims that cite nothing, or cite an ID that was never shown,
+    already failed the first check and are left out. Returns the prompt
+    and the number of claims in it.
     """
     claims = [c for c in claims_of(summary) if cited(c, facts)]
     parts = []
     for n, c in enumerate(claims, 1):
         parts.append(f"Claim {n}: {c.get('claim', '')}\n" + "\n".join(f"  {x} | {facts[x]}" for x in c["sources"]))
-    return JUDGE + "\n\n" + "\n\n".join(parts), len(claims)
+    everything = "\n".join(f"{ident} | {text}" for ident, text in facts.items())
+    return JUDGE + "\n\n" + "\n\n".join(parts) + "\n\nFull list of facts:\n" + everything, len(claims)
 
 
-def parse_judgement(text: str, n: int) -> list:
-    """One verdict per claim, in order: True, False, or None where the judge gave none."""
+def parse_judgement(text: str, n: int) -> dict:
+    """One verdict per claim, in order, and whether the judge took it for an absence claim.
+
+    A verdict is one of VERDICTS, or None where the judge gave none or
+    gave something else.
+    """
     try:
         items = json.loads(text[text.find("{") : text.rfind("}") + 1])["claims"]
-        verdict = {int(i["n"]): i["supported"] for i in items}
+        given = {int(i["n"]): i for i in items}
     except (ValueError, TypeError, KeyError):
-        return [None] * n
-    return [verdict[k] if isinstance(verdict.get(k), bool) else None for k in range(1, n + 1)]
+        given = {}
+    verdicts = [given[k].get("verdict") if k in given and given[k].get("verdict") in VERDICTS else None for k in range(1, n + 1)]
+    return {"verdicts": verdicts, "absence": [k in given and given[k].get("absence") is True for k in range(1, n + 1)]}
 
 
 # ---- talking to the model ----
@@ -434,7 +456,7 @@ def triage_cases(run_dir: str | Path, cfg: Config, results_dir: str | Path, call
 
 def judge_cases(run_dir: str | Path, cfg: Config, results_dir: str | Path, call, spend: dict, systems=SYSTEMS,
                 limit: int | None = None, pass_no: int = 1, model: str = "") -> None:
-    """Second faithfulness check: does each claim follow from the facts it cites?
+    """Second faithfulness check: is each claim supported, partly supported or unsupported by the facts?
 
     Reads the summaries already written, rebuilds the facts each case was
     shown, and asks a model about every claim whose citations exist. A
@@ -453,7 +475,7 @@ def judge_cases(run_dir: str | Path, cfg: Config, results_dir: str | Path, call,
             prompt, n = judge_prompt(row["summary"], dict(f for f in case_facts(v, units[row["case_id"]]) if f[0]))
             if n:
                 key = {"case_id": row["case_id"], "system": system, "pass": pass_no, "model": model, "n_claims": n}
-                jobs.append((key, prompt, lambda text, n=n: {"supported": parse_judgement(text, n)}))
+                jobs.append((key, prompt, lambda text, n=n: parse_judgement(text, n)))
         run_jobs(jobs, Path(results_dir) / f"judge.{system}.pass{pass_no}.jsonl", call, cfg, spend, f"{Path(run_dir).name} judge {system}")
         if spend["stop"]:
             return

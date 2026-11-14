@@ -451,13 +451,13 @@ parameters:
         response_format: {type: json_object}
         provider: {only: [relace/fp4], allow_fallbacks: false}
       judge_extras:
-        reasoning: {enabled: true}
+        reasoning: {effort: low}
         response_format: {type: json_object}
-        provider: {only: [wafer/us], allow_fallbacks: false}
+        provider: {only: [sail-research/fp4/us], allow_fallbacks: false}
       usd_per_million_tokens: {input: 0.0399, cached_input: 0.03, output: 0.0784}
     basis: published
     source: "OpenRouter page for z-ai/glm-5.3-flash, Relace endpoint prices read 13 Nov 2026 (openrouter.ai/z-ai/glm-5.3-flash). OpenRouter documentation on reasoning tokens, provider routing and usage accounting"
-    note: "Specific to OpenRouter. triage_extras is added to every request of systems 3 and 4 and judge_extras to every request of the faithfulness judge. The provider block pins one endpoint and forbids fallbacks, so every answer comes from the same serving of the model. The triage model is z-ai/glm-5.3-flash on Relace's fp4 endpoint and the judge is deepseek/deepseek-v4.1-flash-1017 on Wafer's US endpoint. The model IDs are set in .env. reasoning enabled with no effort named means OpenRouter's default level. OpenRouter reports what each call cost and that figure is what the run records. The prices here are only used when a reply carries no cost, and the same prices are assumed for the judge. Replace this entry when the model or the endpoint changes"
+    note: "Specific to OpenRouter. triage_extras is added to every request of systems 3 and 4 and judge_extras to every request of the faithfulness judge. The provider block pins one endpoint and forbids fallbacks, so every answer comes from the same serving of the model. The triage model is z-ai/glm-5.3-flash on Relace's fp4 endpoint and the judge is deepseek/deepseek-v4.1-flash-1017 on Sail Research's US fp4 endpoint with reasoning effort low. A trial of 79 judge calls on Wafer with default reasoning, on 14 Nov 2026, spent about 6,500 reasoning tokens per call on a verdict of about 50 tokens, and 5 calls ran out of tokens before answering. Sail Research lists output at about a fifth of Wafer's price. The model IDs are set in .env. reasoning enabled with no effort named means OpenRouter's default level. OpenRouter reports what each call cost and that figure is what the run records. The prices here are only used when a reply carries no cost, and the same prices are assumed for the judge. Replace this entry when the model or the endpoint changes"
 
   case_set:
     value:

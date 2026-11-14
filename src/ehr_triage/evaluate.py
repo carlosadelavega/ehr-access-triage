@@ -16,7 +16,7 @@ import pandas as pd
 
 from .baselines import expected_top_k, run_rules, run_templates
 from .config import Config, load_config
-from .triage import DISPOSITIONS, PRIORITIES, SYSTEMS
+from .triage import DISPOSITIONS, PRIORITIES, SYSTEMS, VERDICTS
 
 HARD_NEGATIVES = {
     "consult": "H1 consult",
@@ -239,7 +239,7 @@ def answers(results_dir: str | Path, name: str) -> pd.DataFrame | None:
             "disposition": s["disposition"] if s.get("disposition") in DISPOSITIONS else "verify",
             "priority": s["priority"] if s.get("priority") in PRIORITIES else "medium",
             "n_claims": s.get("n_claims", 0), "cited": round(s.get("cited_ok", 0) * s.get("n_claims", 0)),
-            "truncated": r["finish"] == "length", "supported": r.get("supported"),
+            "truncated": r["finish"] == "length", "verdicts": r.get("verdicts"), "absence": r.get("absence"),
             "prompt_tokens": r["prompt_tokens"], "completion_tokens": r["completion_tokens"],
             "reasoning_tokens": r["reasoning_tokens"], "usd": r["usd"]})
     return pd.DataFrame(rows).drop_duplicates("case_id", keep="last")  # a case sent again keeps its later answer
@@ -368,19 +368,23 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
 
     lines += ["## Faithfulness of the summaries", "",
               "The first check is mechanical. A claim passes when it cites at least one fact and every fact it cites was in the "
-              "prompt. The second check asks a model whether each claim that passed follows from the facts it cites, shown "
-              "alone. Counts are over the sample, not weighted.", ""]
+              "prompt. The second check gives each claim that passed to a judge model, with the facts it cites and the full "
+              "list the author saw. Supported means the cited facts confirm all of it. Partly means nothing contradicts it "
+              "but it adds an interpretation or leans on a fact it did not cite. Unsupported means a fact contradicts it or "
+              "the cited facts do not bear on it. A claim that something is absent is checked against the full list. Counts "
+              "are over the sample, not weighted.", ""]
     rows = []
     for s, f in frames.items():
         judged = answers(results_dir, f"judge.{s}.pass1")
-        verdicts = [v for item in judged["supported"] for v in item] if judged is not None else []
+        verdicts = [v for item in judged["verdicts"] for v in item] if judged is not None else []
         ruled = [v for v in verdicts if v is not None]
+        absent = sum(a for item in judged["absence"] for a in item) if judged is not None else 0
         claims = int(f["n_claims"].sum())
+        share = [f"{ruled.count(v) / len(ruled):.1%}" if ruled else "not run" for v in VERDICTS]
         rows.append([LLM_NAMES[s], f"{len(f):,}", f"{f['valid'].mean():.1%}", int(f["truncated"].sum()), f"{claims:,}",
-                     f"{f['cited'].sum() / max(claims, 1):.1%}",
-                     f"{sum(ruled) / len(ruled):.1%} of {len(ruled):,}" if ruled else "not run"])
-    lines += table(["System", "Summaries", "Fit the template", "Cut off by the token limit", "Claims",
-                    "Citations exist", "Claims supported by their citations"], rows)
+                     f"{f['cited'].sum() / max(claims, 1):.1%}", f"{len(ruled):,}", *share, f"{absent:,}"])
+    lines += table(["System", "Summaries", "Fit the template", "Cut off by the token limit", "Claims", "Citations exist",
+                    "Claims judged", "Supported", "Partly", "Unsupported", "Of which absence claims"], rows)
 
     covered = {}
     if covered_dir is not None and covered_results is not None and Path(covered_dir, "cases.csv").exists():

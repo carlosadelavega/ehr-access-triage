@@ -36,7 +36,7 @@ Research repo testing LLM triage of EHR access anomalies on synthetic data. The 
 
 Flag these when they come up. Do not decide them.
 
-- LLM provider, model and budget. Decided for now: GLM 5.3 Flash through OpenRouter on the `relace/fp4` endpoint, judged by DeepSeek V4.1 Flash 1017 on `wafer/us`. Carlos supplies the key on his own machine.
+- LLM provider, model and budget. Decided for now: GLM 5.3 Flash through OpenRouter on the `relace/fp4` endpoint, judged by DeepSeek V4.1 Flash 1017 on `sail-research/fp4/us` with reasoning effort low. Carlos supplies the key on his own machine.
 - Privacy Officer summary template (fields, length, disposition options). Approved on 12 Nov 2026 as written in spec section 10. Violation categories follow the Columbia University sanction policy directly. Every part of the template names its public source.
 
 ## Writing voice (README, docs, article)

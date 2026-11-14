@@ -390,6 +390,18 @@ H4b gets the most because a relationship with no documented purpose is where a f
 
 `fp4` is one of OpenRouter's quantization labels and stands for 4-bit weights. Results therefore describe GLM 5.3 Flash as that endpoint serves it, and may not carry over to the model at full precision.
 
-**Faithfulness.** Level 1 is checked in code. It is the share of claims that cite at least one fact and cite only facts that were shown. Level 2 is `triage judge`. For every claim that passed level 1, it shows a model the claim and the facts it cites, alone, and asks whether they support it. The judge is a different model from the one that wrote the summary, DeepSeek V4.1 Flash 1017 (`deepseek/deepseek-v4.1-flash-1017`) on Wafer's `wafer/us` endpoint, so the two do not share the same blind spots. It is still a model, and a sample of its verdicts has to be read by hand before the level 2 figure is quoted anywhere.
+**Faithfulness.** Level 1 is checked in code. It is the share of claims that cite at least one fact and cite only facts that were shown. Level 2 is `triage judge`. Every claim that passed level 1 goes to a judge model with the facts it cites and, after them, the full list of facts the author saw. The judge gives one of three verdicts.
+
+| Verdict | Meaning |
+|---|---|
+| supported | The cited facts confirm everything the claim says. Reading a value off a fact, counting and simple arithmetic count as confirming |
+| partly | No fact contradicts the claim, but the cited facts do not confirm all of it. It adds an interpretation, or part of it rests on a fact it did not cite |
+| unsupported | A fact contradicts the claim, or the cited facts do not bear on it |
+
+A claim that something is missing, such as "no fact shows a care team role", cannot be checked against the facts it cites. The judge checks it against the full list and flags it as an absence claim, so these can be counted apart.
+
+The first version of this check had two verdicts and showed the judge only the cited facts. A trial on 14 Nov 2026 marked 205 of 378 claims as not supported. Reading a sample showed why. A claim with an interpretive tail, such as "consistent with routine work", failed. So did a claim that leaned on one fact it had not cited, and every absence claim had nothing to be checked against. Three verdicts and the full list separate these cases from a claim with no basis.
+
+The judge is a different model from the one that wrote the summary, DeepSeek V4.1 Flash 1017 (`deepseek/deepseek-v4.1-flash-1017`) on Sail Research's `sail-research/fp4/us` endpoint with reasoning effort low, so the two do not share the same blind spots. In the same trial the judge, then on another endpoint with default reasoning, spent about 6,500 reasoning tokens per call on a verdict of about 50, and at least one of its verdicts was plainly wrong. It is still a model, and a sample of its verdicts has to be read by hand before any level 2 figure is quoted.
 
 **Scoring.** `evaluate llm` writes `docs/llm-results.md`. Each system is scored at two thresholds, escalate alone and verify or escalate. An answer that does not fit the template counts as verify, since someone still has to look at it. Population figures carry a 95% margin that reflects the sampling only. The daily budget table ranks alerts by disposition and then by the model's priority, and scores every system on an average day because the sample is too thin to rank day by day. The covering-access table compares the same target cases across the paired runs.
