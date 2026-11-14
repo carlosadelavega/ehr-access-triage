@@ -84,7 +84,7 @@ The first check is mechanical. A claim passes when it cites at least one fact an
 
 | System | Summaries | Fit the template | Cut off by the token limit | Claims | Citations exist | Without counting ranges | Claims judged | Not yet judged | Supported | Partly | Unsupported | Of which absence claims |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| LLM on log lines | 1,673 | 100.0% | 0 | 6,697 | 6,691 | 6,053 | 6,029 | 662 | 64.3% | 33.0% | 2.7% | 1,343 |
+| LLM on log lines | 1,673 | 100.0% | 0 | 6,697 | 6,691 | 6,053 | 6,052 | 639 | 64.4% | 33.0% | 2.6% | 1,350 |
 | LLM with identity graph | 1,673 | 100.0% | 0 | 11,024 | 11,023 | 10,627 | 10,623 | 400 | 69.4% | 29.5% | 1.2% | 1,216 |
 
 ## With covering accesses
@@ -105,7 +105,7 @@ Summed from the usage and the cost each call reported. A case that was sent agai
 | File | Answers | Calls | Prompt tokens | Completion tokens | Of which reasoning | Cost |
 |---|---|---|---|---|---|---|
 | seed42/judge.llm_graph.pass1.jsonl | 1,673 | 1,687 | 6,905,988 | 4,399,019 | 4,242,657 | $0.95 |
-| seed42/judge.llm_raw.pass1.jsonl | 1,590 | 1,617 | 6,014,594 | 4,706,447 | 4,610,335 | $0.92 |
+| seed42/judge.llm_raw.pass1.jsonl | 1,592 | 1,625 | 6,077,245 | 4,716,178 | 4,619,536 | $0.92 |
 | seed42/llm_graph.pass1.jsonl | 1,673 | 1,700 | 5,571,934 | 10,108,980 | 8,377,506 | $1.01 |
 | seed42/llm_raw.pass1.jsonl | 1,673 | 1,678 | 4,854,583 | 11,003,773 | 9,073,263 | $1.05 |
 | seed42-covered/judge.llm_graph.pass1.jsonl | 158 | 160 | 554,790 | 393,881 | 379,619 | $0.08 |
