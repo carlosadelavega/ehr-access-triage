@@ -190,9 +190,10 @@ def test_judge_asks_only_about_claims_whose_citations_exist(answered, runs):
 
 def test_judge_sees_each_claim_with_its_citations_and_then_the_full_list():
     summary = {"purpose_evidence": [{"claim": "On shift", "sources": ["G2"]}], "risk_indicators": [{"claim": "Made up", "sources": ["G9"]}]}
-    prompt, n = triage.judge_prompt(summary, {"L1": "a log line", "G2": "a schedule row"})
+    shown = [("", "-- the access under review (4 more lines not shown)"), ("L1", "a log line"), ("G2", "a schedule row")]
+    prompt, n = triage.judge_prompt(summary, shown)
     assert n == 1 and "Claim 1: On shift\n  G2 | a schedule row" in prompt and "Made up" not in prompt
-    assert prompt.endswith("Full list of facts:\nL1 | a log line\nG2 | a schedule row")
+    assert prompt.endswith("Full list of facts:\n-- the access under review (4 more lines not shown)\nL1 | a log line\nG2 | a schedule row")
 
 
 def test_average_day_budget_splits_a_tie_by_weight():

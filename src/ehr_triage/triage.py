@@ -240,21 +240,24 @@ def parse_summary(text: str, fact_ids: list[str]) -> dict:
     return s
 
 
-def judge_prompt(summary: dict, facts: dict[str, str]) -> tuple[str, int]:
+def judge_prompt(summary: dict, shown: list[tuple[str, str]]) -> tuple[str, int]:
     """Ask for a verdict on each claim, given the facts it cites and the full list the author saw.
 
     The cited facts decide whether a claim is supported. The full list is
     there so the judge can tell a claim that leans on an uncited fact from
     one with no basis at all, and can check claims that something is
     absent. Claims that cite nothing, or cite an ID that was never shown,
-    already failed the first check and are left out. Returns the prompt
+    already failed the first check and are left out. `shown` is everything
+    the author saw, section titles included, since a title carries how
+    many lines were left out and summaries quote that. Returns the prompt
     and the number of claims in it.
     """
+    facts = {ident: text for ident, text in shown if ident}
     claims = [c for c in claims_of(summary) if cited(c, facts)]
     parts = []
     for n, c in enumerate(claims, 1):
         parts.append(f"Claim {n}: {c.get('claim', '')}\n" + "\n".join(f"  {x} | {facts[x]}" for x in c["sources"]))
-    everything = "\n".join(f"{ident} | {text}" for ident, text in facts.items())
+    everything = "\n".join(f"{ident} | {text}" if ident else text for ident, text in shown)
     return JUDGE + "\n\n" + "\n\n".join(parts) + "\n\nFull list of facts:\n" + everything, len(claims)
 
 
@@ -472,7 +475,7 @@ def judge_cases(run_dir: str | Path, cfg: Config, results_dir: str | Path, call,
         for row in read_answers(answers):
             if row["case_id"] not in units:
                 continue
-            prompt, n = judge_prompt(row["summary"], dict(f for f in case_facts(v, units[row["case_id"]]) if f[0]))
+            prompt, n = judge_prompt(row["summary"], case_facts(v, units[row["case_id"]]))
             if n:
                 key = {"case_id": row["case_id"], "system": system, "pass": pass_no, "model": model, "n_claims": n}
                 jobs.append((key, prompt, lambda text, n=n: parse_judgement(text, n)))
