@@ -440,17 +440,24 @@ parameters:
 
   # ---- LLM triage (build step 5), not used by the generator ----
   triage:
-    value: {context_lines: 30, context_hours: 12, encounters_shown: 5, temperature: 0, max_output_tokens: 4000, workers: 8, cost_cap_usd: 10}
+    value: {context_lines: 30, context_hours: 12, encounters_shown: 5, temperature: 0, max_output_tokens: 4000, workers: 8, cost_cap_usd: 5}
     basis: assumption
     note: "How many log lines of each kind and how many encounters a prompt shows, and the run settings. The user's other lines are the nearest ones within context_hours either side of the access. Temperature 0 so a rerun is as repeatable as the provider allows. max_output_tokens leaves room for the model's reasoning, which counts against it. The summary itself is about 300 tokens. workers is how many calls run at once. cost_cap_usd stops a run or judge command once its own spend passes it"
 
   triage_provider:
     value:
-      request_extras: {reasoning_effort: low, response_format: {type: json_object}}
-      usd_per_million_tokens: {input: 0.15, cached_input: 0.03, output: 0.50}
+      triage_extras:
+        reasoning: {enabled: true}
+        response_format: {type: json_object}
+        provider: {only: [relace/fp4], allow_fallbacks: false}
+      judge_extras:
+        reasoning: {enabled: true}
+        response_format: {type: json_object}
+        provider: {only: [wafer/us], allow_fallbacks: false}
+      usd_per_million_tokens: {input: 0.0399, cached_input: 0.03, output: 0.0784}
     basis: published
-    source: "Z.ai developer documentation for GLM-5.3-Flash, read 12 Nov 2026 (docs.z.ai/guides/vlm/glm-5.3-flash and docs.z.ai/guides/overview/concept-param), and the Z.ai price list"
-    note: "Specific to GLM 5.3 Flash. request_extras is added to every request body. Thinking cannot be switched off on this model, so reasoning_effort is set to its lowest level, and reasoning tokens are billed as output. Z.ai recommends temperature 1. The run uses 0, see triage. Replace this entry when the model changes"
+    source: "OpenRouter page for z-ai/glm-5.3-flash, Relace endpoint prices read 13 Nov 2026 (openrouter.ai/z-ai/glm-5.3-flash). OpenRouter documentation on reasoning tokens, provider routing and usage accounting"
+    note: "Specific to OpenRouter. triage_extras is added to every request of systems 3 and 4 and judge_extras to every request of the faithfulness judge. The provider block pins one endpoint and forbids fallbacks, so every answer comes from the same serving of the model. The triage model is z-ai/glm-5.3-flash on Relace's fp4 endpoint and the judge is deepseek/deepseek-v4.1-flash-1017 on Wafer's US endpoint. The model IDs are set in .env. reasoning enabled with no effort named means OpenRouter's default level. OpenRouter reports what each call cost and that figure is what the run records. The prices here are only used when a reply carries no cost, and the same prices are assumed for the judge. Replace this entry when the model or the endpoint changes"
 
   case_set:
     value:

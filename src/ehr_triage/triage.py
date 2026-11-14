@@ -268,18 +268,21 @@ def load_env(path: str | Path = ".env") -> None:
             os.environ.setdefault(key.replace("export ", "").strip(), value.strip().strip("'\""))
 
 
-def call_model(prompt: str, cfg: Config, model: str | None = None) -> dict:
-    """One chat completion against an OpenAI-compatible endpoint.
+def call_model(prompt: str, cfg: Config, model: str | None = None, extras: dict | None = None) -> dict:
+    """One chat completion against an OpenAI-compatible endpoint, OpenRouter by default.
 
     The endpoint, key and model come from the environment, so no secret is
     ever written to the repo: EHR_TRIAGE_BASE_URL, EHR_TRIAGE_API_KEY and
-    EHR_TRIAGE_MODEL. Returns the text, why the model stopped, and the
-    token usage. Raises OSError for failures worth retrying and ModelError
-    for the rest.
+    EHR_TRIAGE_MODEL. `extras` is merged into the request body. It carries
+    what is specific to the router and the model, such as the reasoning
+    setting and which provider endpoint may serve the call. Returns the
+    text, why the model stopped, the token usage and the provider that
+    answered. Raises OSError for failures worth retrying and ModelError for
+    the rest.
     """
     body = {"model": model or os.environ["EHR_TRIAGE_MODEL"], "temperature": cfg["triage"]["temperature"],
             "max_tokens": cfg["triage"]["max_output_tokens"], "messages": [{"role": "user", "content": prompt}],
-            **cfg["triage_provider"]["request_extras"]}
+            **(extras or {})}
     request = urllib.request.Request(
         os.environ["EHR_TRIAGE_BASE_URL"].rstrip("/") + "/chat/completions", data=json.dumps(body).encode(),
         headers={"Authorization": "Bearer " + os.environ["EHR_TRIAGE_API_KEY"], "Content-Type": "application/json"})
@@ -297,7 +300,7 @@ def call_model(prompt: str, cfg: Config, model: str | None = None) -> dict:
         raise OSError(f"reply had no choices: {json.dumps(reply)[:400]}")
     choice = reply["choices"][0]
     return {"content": choice["message"].get("content") or "", "finish": choice.get("finish_reason") or "",
-            "usage": reply.get("usage") or {}}
+            "usage": reply.get("usage") or {}, "provider": reply.get("provider") or ""}
 
 
 def attempt(call, prompt: str, cfg: Config) -> dict:
@@ -312,7 +315,16 @@ def attempt(call, prompt: str, cfg: Config) -> dict:
 
 
 def cost(usage: dict, cfg: Config) -> float:
-    """What one call cost in USD at the configured list prices. Reasoning tokens are part of completion_tokens."""
+    """What one call cost in USD.
+
+    OpenRouter reports the amount charged in `usage.cost`, and that is used
+    when it is there. Otherwise the cost is worked out from the token
+    counts at the configured list prices. Reasoning tokens are part of
+    completion_tokens.
+    """
+    charged = usage.get("cost")
+    if isinstance(charged, (int, float)) and not isinstance(charged, bool):
+        return float(charged)
     price = cfg["triage_provider"]["usd_per_million_tokens"]
     cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
     fresh = (usage.get("prompt_tokens") or 0) - cached
@@ -371,10 +383,11 @@ def run_jobs(jobs: list, out_path: Path, call, cfg: Config, spend: dict, label: 
                     **key, "finish": reply["finish"], "prompt_tokens": usage.get("prompt_tokens") or 0,
                     "completion_tokens": usage.get("completion_tokens") or 0,
                     "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0,
-                    "usd": round(reply["usd"], 6), "content": reply["content"], **finish(reply["content"])}) + "\n")
+                    "usd": round(reply["usd"], 6), "provider": reply.get("provider", ""),
+                    "content": reply["content"], **finish(reply["content"])}) + "\n")
                 f.flush()
                 if n % 100 == 0:
-                    print(f"{label}: {n} of {len(todo)}, ${spend['usd']:.2f} spent by this command")
+                    print(f"{label}: {n} of {len(todo)}, ${spend['usd']:.3f} spent by this command")
         except BaseException:  # Ctrl-C or a bug: let the calls still queued return at once, then pass it on
             spend["stop"] = spend["stop"] or "interrupted"
             raise
@@ -478,11 +491,11 @@ def main() -> None:
     missing = [name for name in ("EHR_TRIAGE_BASE_URL", "EHR_TRIAGE_API_KEY", "EHR_TRIAGE_MODEL") if not os.environ.get(name)]
     if missing:
         raise SystemExit(f"Set {', '.join(missing)} in the environment or in a .env file. See .env.example")
-    model = os.environ["EHR_TRIAGE_MODEL"]
+    model, extras = os.environ["EHR_TRIAGE_MODEL"], cfg["triage_provider"]["triage_extras"]
     if args.command == "judge":
-        model = os.environ.get("EHR_TRIAGE_JUDGE_MODEL") or model
+        model, extras = os.environ.get("EHR_TRIAGE_JUDGE_MODEL") or model, cfg["triage_provider"]["judge_extras"]
     try:  # one small call first, so a bad key, address or setting shows in seconds and not after a round of retries
-        call_model('Reply with this JSON object and nothing else: {"ok": true}', cfg, model)
+        call_model('Reply with this JSON object and nothing else: {"ok": true}', cfg, model, extras)
     except (OSError, ModelError) as e:
         raise SystemExit(f"The endpoint did not answer a test call, so nothing was sent. {e}") from None
     step = triage_cases if args.command == "run" else judge_cases
@@ -490,10 +503,10 @@ def main() -> None:
     runs = [run] + [r for r in [run.with_name(run.name + "-covered")] if (r / "cases.csv").exists()]
     folders = [Path(args.results or "results") / r.name for r in runs]
     for r, results in zip(runs, folders):
-        step(r, cfg, results, functools.partial(call_model, model=model), spend, systems, args.limit, args.pass_no, model)
+        step(r, cfg, results, functools.partial(call_model, model=model, extras=extras), spend, systems, args.limit, args.pass_no, model)
         if spend["stop"]:
             break
-    print(f"{spend['calls']} calls answered, ${spend['usd']:.2f} at list prices, {spend['failed']} gave up after retries")
+    print(f"{spend['calls']} calls answered, ${spend['usd']:.3f} charged, {spend['failed']} gave up after retries")
     if spend["failed"]:
         print(f"Last error: {spend['last_error']}\nRun the same command again to retry them.")
     files = [f / f"{s}.pass{args.pass_no}.jsonl" for f in folders for s in systems]

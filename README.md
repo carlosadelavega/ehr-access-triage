@@ -70,7 +70,7 @@ The tests use a small made-up population, so they need neither Java nor Synthea.
 
 ## Run the LLM systems
 
-The two LLM systems call an OpenAI-compatible chat endpoint. Copy `.env.example` to `.env` and fill in the endpoint, the key and the model name. `.env` is gitignored.
+The two LLM systems call OpenRouter's chat completions endpoint. Copy `.env.example` to `.env` and fill in the key. The address and the two model names are already there, and the provider endpoints are pinned in the config. `.env` is gitignored.
 
 ```
 python -m ehr_triage.evaluate cases          # picks about 1,800 first accesses to triage

@@ -83,7 +83,8 @@ def test_runner_needs_no_labels_folder(runs, cfg, tmp_path):
     rows = [json.loads(line) for line in (tmp_path / "out" / "llm_graph.pass1.jsonl").read_text().splitlines()]
     assert len(rows) == 5 and spend["calls"] == 10
     assert all(r["summary"]["valid"] and r["reasoning_tokens"] == 200 for r in rows)
-    assert spend["usd"] == pytest.approx(10 * (2000 * 0.15 + 500 * 0.50) / 1e6)
+    price = cfg["triage_provider"]["usd_per_million_tokens"]
+    assert spend["usd"] == pytest.approx(10 * (2000 * price["input"] + 500 * price["output"]) / 1e6)  # no cost in the reply
 
 
 def test_a_rerun_sends_only_what_is_missing(runs, cfg, tmp_path, monkeypatch):
@@ -113,7 +114,7 @@ def test_a_rerun_sends_only_what_is_missing(runs, cfg, tmp_path, monkeypatch):
 def test_cost_cap_stops_the_run(runs, cfg, tmp_path):
     base, _ = runs
     tight = copy.deepcopy(cfg)
-    tight.params["triage"]["value"] = {**cfg["triage"], "cost_cap_usd": 0.002, "workers": 1}
+    tight.params["triage"]["value"] = {**cfg["triage"], "cost_cap_usd": 0.0004, "workers": 1}
     spend = new_spend()
     triage.triage_cases(base, tight, tmp_path, fake_model, spend, limit=50)
     assert "cost cap" in spend["stop"] and spend["calls"] < 10
@@ -129,6 +130,37 @@ def test_a_refused_request_stops_the_run(runs, cfg, tmp_path):
     spend = new_spend()
     triage.triage_cases(base, cfg, tmp_path, refused, spend, limit=20)
     assert "HTTP 401" in spend["stop"] and spend["calls"] == 0
+
+
+def test_request_pins_the_provider_and_the_charge_reported_is_what_counts(cfg, monkeypatch):
+    sent = {}
+
+    class Reply:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps({"provider": "Relace", "choices": [{"message": {"content": "{}"}, "finish_reason": "stop"}],
+                               "usage": {"prompt_tokens": 2000, "completion_tokens": 500, "cost": 0.00042}}).encode()
+
+    def urlopen(request, timeout):
+        sent["url"], sent["body"], sent["auth"] = request.full_url, json.loads(request.data), request.get_header("Authorization")
+        return Reply()
+
+    monkeypatch.setattr(triage.urllib.request, "urlopen", urlopen)
+    for name, value in (("BASE_URL", "https://openrouter.ai/api/v1/"), ("API_KEY", "k"), ("MODEL", "z-ai/glm-5.3-flash")):
+        monkeypatch.setenv("EHR_TRIAGE_" + name, value)
+    provider = cfg["triage_provider"]
+    reply = triage.call_model("hello", cfg, extras=provider["triage_extras"])
+    assert sent["url"] == "https://openrouter.ai/api/v1/chat/completions" and sent["auth"] == "Bearer k"
+    assert sent["body"]["model"] == "z-ai/glm-5.3-flash" and sent["body"]["reasoning"] == {"enabled": True}
+    assert sent["body"]["provider"] == {"only": ["relace/fp4"], "allow_fallbacks": False}
+    assert reply["provider"] == "Relace" and triage.cost(reply["usage"], cfg) == pytest.approx(0.00042)
+    triage.call_model("hello", cfg, model="deepseek/deepseek-v4.1-flash-1017", extras=provider["judge_extras"])
+    assert sent["body"]["model"] == "deepseek/deepseek-v4.1-flash-1017" and sent["body"]["provider"]["only"] == ["wafer/us"]
 
 
 def test_judge_asks_only_about_claims_whose_citations_exist(answered, runs):
