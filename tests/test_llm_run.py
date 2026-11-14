@@ -124,6 +124,7 @@ def test_an_answer_cut_off_by_the_token_limit_is_sent_again(runs, cfg, tmp_path)
     rows = triage.read_answers(tmp_path / "llm_raw.pass1.jsonl")
     assert len(rows) == 4 and all(r["finish"] == "stop" and r["summary"]["valid"] for r in rows)
     assert len(evaluate.answers(tmp_path, "llm_raw.pass1")) == 4
+    assert len(evaluate.calls(tmp_path / "llm_raw.pass1.jsonl")) == 8  # the cut-off calls were paid for too
 
 
 def test_cost_cap_stops_the_run(runs, cfg, tmp_path):

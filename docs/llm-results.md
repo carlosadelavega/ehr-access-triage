@@ -100,15 +100,15 @@ The paired run is identical except that each M1-M4 actor also makes 10 covering 
 
 ## Tokens and cost
 
-Summed from the usage and the cost each call reported.
+Summed from the usage and the cost each call reported. A case that was sent again is one answer and more than one call, and every call is counted.
 
-| File | Answers | Prompt tokens | Completion tokens | Of which reasoning | Cost |
-|---|---|---|---|---|---|
-| seed42/judge.llm_graph.pass1.jsonl | 1,673 | 6,839,740 | 4,175,019 | 4,018,657 | $0.92 |
-| seed42/judge.llm_raw.pass1.jsonl | 1,590 | 5,906,012 | 4,274,447 | 4,178,335 | $0.86 |
-| seed42/llm_graph.pass1.jsonl | 1,673 | 5,480,472 | 9,676,980 | 8,015,940 | $0.97 |
-| seed42/llm_raw.pass1.jsonl | 1,673 | 4,840,446 | 10,923,773 | 9,002,183 | $1.04 |
-| seed42-covered/judge.llm_graph.pass1.jsonl | 158 | 549,486 | 361,881 | 347,619 | $0.08 |
-| seed42-covered/judge.llm_raw.pass1.jsonl | 157 | 498,243 | 349,227 | 340,349 | $0.07 |
-| seed42-covered/llm_graph.pass1.jsonl | 158 | 423,099 | 873,422 | 734,543 | $0.08 |
-| seed42-covered/llm_raw.pass1.jsonl | 158 | 374,705 | 956,774 | 795,395 | $0.09 |
+| File | Answers | Calls | Prompt tokens | Completion tokens | Of which reasoning | Cost |
+|---|---|---|---|---|---|---|
+| seed42/judge.llm_graph.pass1.jsonl | 1,673 | 1,687 | 6,905,988 | 4,399,019 | 4,242,657 | $0.95 |
+| seed42/judge.llm_raw.pass1.jsonl | 1,590 | 1,617 | 6,014,594 | 4,706,447 | 4,610,335 | $0.92 |
+| seed42/llm_graph.pass1.jsonl | 1,673 | 1,700 | 5,571,934 | 10,108,980 | 8,377,506 | $1.01 |
+| seed42/llm_raw.pass1.jsonl | 1,673 | 1,678 | 4,854,583 | 11,003,773 | 9,073,263 | $1.05 |
+| seed42-covered/judge.llm_graph.pass1.jsonl | 158 | 160 | 554,790 | 393,881 | 379,619 | $0.08 |
+| seed42-covered/judge.llm_raw.pass1.jsonl | 157 | 158 | 501,682 | 365,227 | 356,349 | $0.07 |
+| seed42-covered/llm_graph.pass1.jsonl | 158 | 158 | 423,099 | 873,422 | 734,543 | $0.08 |
+| seed42-covered/llm_raw.pass1.jsonl | 158 | 159 | 376,321 | 972,774 | 808,589 | $0.09 |

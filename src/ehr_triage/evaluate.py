@@ -245,6 +245,15 @@ def answers(results_dir: str | Path, name: str) -> pd.DataFrame | None:
     return pd.DataFrame(rows).drop_duplicates("case_id", keep="last")  # a case sent again keeps its later answer
 
 
+def calls(path: str | Path) -> pd.DataFrame:
+    """Every call recorded in a results file, including the earlier tries of a case that was sent again.
+
+    `answers` keeps one row per case, which is right for scoring. Money
+    and tokens were spent on every call, so cost is summed over these.
+    """
+    return pd.DataFrame([json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()])
+
+
 def scored_answers(run_dir: str | Path, results_dir: str | Path, system: str, pass_no: int = 1) -> pd.DataFrame | None:
     """A system's answers joined to the truth, each with the number of first accesses it stands for."""
     a = answers(results_dir, f"{system}.pass{pass_no}")
@@ -419,14 +428,16 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
                              f"{together.nunique(axis=1).eq(1).mean():.1%}"])
         lines += table(["System", "Pass", "Misuse escalated", "Escalations per day", "Agreement across passes"], rows)
 
-    lines += ["## Tokens and cost", "", "Summed from the usage and the cost each call reported.", ""]
+    lines += ["## Tokens and cost", "",
+              "Summed from the usage and the cost each call reported. A case that was sent again is one answer and more "
+              "than one call, and every call is counted.", ""]
     rows = []
     for folder in [results_dir] + ([covered_results] if covered else []):
         for path in sorted(Path(folder).glob("*.jsonl")):
-            a = answers(folder, path.stem)
-            rows.append([f"{Path(folder).name}/{path.name}", f"{len(a):,}", f"{a['prompt_tokens'].sum():,}", f"{a['completion_tokens'].sum():,}",
-                         f"{a['reasoning_tokens'].sum():,}", f"${a['usd'].sum():.2f}"])
-    lines += table(["File", "Answers", "Prompt tokens", "Completion tokens", "Of which reasoning", "Cost"], rows)
+            c = calls(path)
+            rows.append([f"{Path(folder).name}/{path.name}", f"{c['case_id'].nunique():,}", f"{len(c):,}", f"{c['prompt_tokens'].sum():,}",
+                         f"{c['completion_tokens'].sum():,}", f"{c['reasoning_tokens'].sum():,}", f"${c['usd'].sum():.2f}"])
+    lines += table(["File", "Answers", "Calls", "Prompt tokens", "Completion tokens", "Of which reasoning", "Cost"], rows)
     Path(out_path).write_text("\n".join(lines))
     return {"sampled": len(sampled), **{s: len(f) for s, f in frames.items()}}
 
