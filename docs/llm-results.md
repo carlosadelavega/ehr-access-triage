@@ -44,6 +44,44 @@ Cases sent to clear, verify and escalate, in that order. These are counts in the
 | H6 hospital-wide role | 150 | 14 / 136 / 0 | 39 / 97 / 14 |
 | order handled by a department | 200 | 9 / 191 / 0 | 190 / 8 / 2 |
 
+## When the patient is also staff
+
+396 of the 3,500 patients in this run are staff, and 12.7% of first accesses open the chart of a staff member. In Hedda et al. the organization co-worker rule matches 3.84% of first accesses and fires no more often than chance. So this run opens staff charts about three times as often as their data, a calibration gap that is reported and not tuned, and any alert count that rests on staff charts is inflated with it. The tables split every system's alerts by whether the patient is staff. The split was added after pass 1 showed that most of the grounded LLM's escalations fall on staff charts. A system that sees context can tell that a patient is staff. The LLM on log lines cannot. Margins are 95% intervals from the sampling alone.
+
+| System | Staff charts, alerts per day | Misuse caught | Precision | Other charts, alerts per day | Misuse caught | Precision |
+|---|---|---|---|---|---|---|
+| Rules, all five | 269 | 20 of 20 | 0.25% | 12 | 22 of 103 | 5.93% |
+| Rules, without organization co-worker | 28 | 11 of 20 | 1.31% | 12 | 22 of 103 | 5.93% |
+| Templates, direct evidence | 209 | 20 of 20 | 0.32% | 1,440 | 102 of 103 | 0.24% |
+| Templates, direct and responsibility | 196 | 20 of 20 | 0.34% | 1,334 | 98 of 103 | 0.24% |
+| Rules, then direct evidence | 20 | 11 of 20 | 1.80% | 10 | 22 of 103 | 7.51% |
+| LLM on log lines, escalate | 0 ± 0 | 0 of 20 | 0.00% | 0 ± 0 | 0 of 103 | 0.00% |
+| LLM on log lines, verify or escalate | 296 ± 47 | 18 of 20 | 0.20% | 1,735 ± 53 | 103 of 103 | 0.20% |
+| LLM with identity graph, escalate | 47 ± 18 | 13 of 20 | 0.93% | 6 ± 5 | 20 of 103 | 10.49% |
+| LLM with identity graph, verify or escalate | 96 ± 26 | 17 of 20 | 0.59% | 266 ± 36 | 72 of 103 | 0.90% |
+
+Dispositions by kind of access, split the same way. Cases sent to clear, verify and escalate, in that order, as counts in the sample.
+
+| Kind of access | Staff charts | LLM on log lines | LLM with identity graph | Other charts | LLM on log lines | LLM with identity graph |
+|---|---|---|---|---|---|---|
+| M1 | 10 | 1 / 9 / 0 | 1 / 0 / 9 | 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| M2a | 0 | 0 / 0 / 0 | 0 / 0 / 0 | 12 | 0 / 12 / 0 | 0 / 0 / 12 |
+| M2b | 1 | 0 / 1 / 0 | 0 / 0 / 1 | 9 | 0 / 9 / 0 | 1 / 5 / 3 |
+| M3 | 0 | 0 / 0 / 0 | 0 / 0 / 0 | 10 | 0 / 10 / 0 | 0 / 5 / 5 |
+| M4 | 3 | 0 / 3 / 0 | 0 / 0 / 3 | 13 | 0 / 13 / 0 | 4 / 9 / 0 |
+| M5 | 0 | 0 / 0 / 0 | 0 / 0 / 0 | 21 | 0 / 21 / 0 | 7 / 14 / 0 |
+| M6a | 1 | 1 / 0 / 0 | 0 / 1 / 0 | 22 | 0 / 22 / 0 | 6 / 16 / 0 |
+| M6b | 5 | 0 / 5 / 0 | 2 / 3 / 0 | 16 | 0 / 16 / 0 | 13 / 3 / 0 |
+| explained by direct evidence | 26 | 1 / 25 / 0 | 26 / 0 / 0 | 174 | 8 / 166 / 0 | 172 / 2 / 0 |
+| H4a documented, relationship present | 73 | 2 / 71 / 0 | 73 / 0 / 0 | 27 | 0 / 27 / 0 | 27 / 0 / 0 |
+| H4b undocumented, relationship present | 211 | 18 / 193 / 0 | 128 / 56 / 27 | 89 | 3 / 86 / 0 | 54 / 28 / 7 |
+| H1 consult | 14 | 0 / 14 / 0 | 0 / 2 / 12 | 86 | 1 / 85 / 0 | 2 / 69 / 15 |
+| H2 coverage | 12 | 0 / 12 / 0 | 3 / 3 / 6 | 88 | 2 / 86 / 0 | 51 / 37 / 0 |
+| H3 undocumented care team | 31 | 0 / 31 / 0 | 27 / 3 / 1 | 169 | 9 / 160 / 0 | 167 / 2 / 0 |
+| H5 back office | 22 | 1 / 21 / 0 | 0 / 9 / 13 | 178 | 8 / 170 / 0 | 100 / 78 / 0 |
+| H6 hospital-wide role | 20 | 2 / 18 / 0 | 0 / 7 / 13 | 130 | 12 / 118 / 0 | 39 / 90 / 1 |
+| order handled by a department | 29 | 3 / 26 / 0 | 24 / 4 / 1 | 171 | 6 / 165 / 0 | 166 / 4 / 1 |
+
 ## Within a daily review budget
 
 A reviewer takes the highest-priority alerts each day, up to the budget. LLM alerts are ranked by disposition, then by the priority the model gave. The sample is too thin to rank day by day, so every system here is scored on an average day, which is why the rules and templates figures differ a little from `baseline-results.md`. Recall is over all misuse first accesses.

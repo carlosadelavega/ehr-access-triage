@@ -261,7 +261,7 @@ def test_llm_results_report_runs_end_to_end(answered, runs, cfg, tmp_path):
     done = evaluate.write_llm_results(base, cfg, out, answered / base.name, covered, answered / covered.name)
     text = out.read_text()
     assert done["llm_raw"] == done["llm_graph"] == done["sampled"]
-    for heading in ("## Alerts raised", "## Dispositions, by kind of access", "## Within a daily review budget",
+    for heading in ("## Alerts raised", "## Dispositions, by kind of access", "## When the patient is also staff", "## Within a daily review budget",
                     "## Faithfulness of the summaries", "## With covering accesses", "## Tokens and cost"):
         assert heading in text
     assert "## Repeat passes" not in text

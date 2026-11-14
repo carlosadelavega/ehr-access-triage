@@ -377,6 +377,51 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
         rows.append(row)
     lines += table(["Kind of access", "Cases"] + [LLM_NAMES[s] for s in frames], rows)
 
+    staff = set(pd.read_csv(Path(run_dir) / "context" / "staff.csv", keep_default_na=False)["patient_id"])
+    n_patients = len(pd.read_csv(Path(run_dir) / "context" / "patients.csv", usecols=["patient_id"]))
+    on_staff = u["patient_id"].isin(staff)
+    lines += ["## When the patient is also staff", "",
+              f"{len(staff):,} of the {n_patients:,} patients in this run are staff, and {on_staff.mean():.1%} of first accesses "
+              "open the chart of a staff member. In Hedda et al. the organization co-worker rule matches "
+              f"{cfg.targets['rule_match_share']['value']['organization co-worker']:.2%} of first accesses and fires no more often than chance. "
+              "So this run opens staff charts about three times as often as their data, a calibration gap that is reported "
+              "and not tuned, and any alert count that rests on staff charts is inflated with it. The tables split every "
+              "system's alerts by whether the patient is staff. The split was added after pass 1 showed that most of the "
+              "grounded LLM's escalations fall on staff charts. A system that sees context can tell that a patient is "
+              "staff. The LLM on log lines cannot. Margins are 95% intervals from the sampling alone.", ""]
+    rows = []
+    for name, (alert, _) in variants(u).items():
+        row = [name]
+        for part in (on_staff, ~on_staff):
+            caught = int((alert & part & is_misuse).sum())
+            row += [f"{(alert & part).sum() / days:,.0f}", f"{caught} of {int((part & is_misuse).sum())}",
+                    f"{caught / max((alert & part).sum(), 1):.2%}"]
+        rows.append(row)
+    for name, (f, alert) in llm.items():
+        row = [name]
+        for part in (f["patient_id"].isin(staff), ~f["patient_id"].isin(staff)):
+            total, margin = weighted_alerts(f, alert & part)
+            caught = int((alert & part & f["is_misuse"]).sum())
+            row += [f"{total / days:,.0f} ± {margin / days:,.0f}", f"{caught} of {int((part & f['is_misuse']).sum())}",
+                    f"{caught / max(total, 1):.2%}"]
+        rows.append(row)
+    lines += table(["System", "Staff charts, alerts per day", "Misuse caught", "Precision",
+                    "Other charts, alerts per day", "Misuse caught", "Precision"], rows)
+    lines += ["Dispositions by kind of access, split the same way. Cases sent to clear, verify and escalate, in that order, "
+              "as counts in the sample.", ""]
+    rows = []
+    for kind in kinds:
+        row = [LEGITIMATE.get(kind, kind)]
+        for is_staff in (True, False):
+            cells = []
+            for f in frames.values():
+                d = f.loc[(f["stratum"] == kind) & (f["patient_id"].isin(staff) == is_staff), "disposition"].value_counts()
+                cells.append(" / ".join(str(int(d.get(x, 0))) for x in DISPOSITIONS))
+            row += [int(d.sum())] + cells
+        rows.append(row)
+    names = [LLM_NAMES[s] for s in frames]
+    lines += table(["Kind of access", "Staff charts"] + names + ["Other charts"] + names, rows)
+
     lines += ["## Within a daily review budget", "",
               "A reviewer takes the highest-priority alerts each day, up to the budget. LLM alerts are ranked by disposition, "
               "then by the priority the model gave. The sample is too thin to rank day by day, so every system here is scored "
