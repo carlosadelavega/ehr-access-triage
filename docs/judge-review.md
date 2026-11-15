@@ -4,18 +4,18 @@ Written by hand on 14 Nov 2026. This is the record the spec asks for before any 
 
 ## What the judge reported
 
-The judge is DeepSeek V4.1 Flash 1017 on Sail Research's fp4 endpoint with reasoning effort low. It rated 16,479 claims from 3,263 summaries of the main run. `llm-results.md` has the shares.
+The judge is DeepSeek V4.1 Flash 1017 on Sail Research's fp4 endpoint with reasoning effort low. It rated 17,646 claims from 3,341 summaries of the main run. These are the figures in `llm-results.md`.
 
 | System | Claims judged | Supported | Partly | Unsupported |
 |---|---|---|---|---|
-| LLM on log lines | 5,943 | 64.4% | 33.0% | 2.6% |
-| LLM with identity graph | 10,536 | 69.6% | 29.3% | 1.1% |
+| LLM on log lines | 6,653 | 65.8% | 31.6% | 2.6% |
+| LLM with identity graph | 10,993 | 69.6% | 29.3% | 1.1% |
 
-Across the main run and the paired run, 44 of 3,578 judge calls ran out of tokens before giving a verdict. Their claims are not in the shares.
+13 judge calls ran out of tokens on their latest try, which leaves 68 claims with no verdict. Those claims are not in the shares.
 
 ## What a hand-read found
 
-24 verdicts were drawn at random from cases outside the 20 used to try the judge out, and each claim was checked against the facts the author was shown.
+24 verdicts were drawn at random from cases outside the 20 used to try the judge out, and each claim was checked against the facts the author was shown.[^1]
 
 | Verdict | Read | Agreed |
 |---|---|---|
@@ -46,13 +46,4 @@ The six that were wrong were of three kinds. Three were claims that the facts la
 
 Two earlier versions of the check were tried on 79 summaries each and dropped. The first had two verdicts and showed the judge only the cited facts. It rejected 205 of 378 claims, mostly for an interpretive tail, one uncited fact, or a claim about absence that it had nothing to check against. The second had the three verdicts used now but left the section titles out of the fact list, so a claim quoting "341 more lines not shown" looked invented. Of its 13 unsupported verdicts at least 8 were wrong. The outputs of both are kept under `data/trials/`.
 
-## Addendum, 14 Nov 2026: later judge runs
-
-The figures above describe the first judge run. Two things happened after this review was written.
-
-- The 44 calls that ran out of tokens were sent again. 37 came back complete.
-- A range of fact IDs such as L2-L31 began to count as a citation, so 1,034 more claims passed the first check. The judge was run again on the 391 cases this touched. Each of those cases was judged again as a whole, so a verdict read by hand above may since have been replaced by a newer one.
-
-The shares now in `llm-results.md` are 65.8% supported, 31.6% partly and 2.6% unsupported on log lines (6,653 claims), and 69.6%, 29.3% and 1.1% with the graph (10,993 claims). 68 claims still have no verdict, because 13 calls were cut off by the token limit again.
-
-No verdict from the later runs has been read by hand. The advice above on how to read the numbers stands, and the unsupported share is still an upper bound resting on twelve verdicts.
+[^1]: The 24 were read after the first judge run, when the shares were 64.4%, 33.0% and 2.6% on log lines and 69.6%, 29.3% and 1.1% with the graph. Since then 391 cases have been judged again, to cover claims that cite a range of facts such as L2-L31. None of the newer verdicts has been read by hand.
