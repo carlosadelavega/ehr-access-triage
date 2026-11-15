@@ -82,6 +82,87 @@ Dispositions by kind of access, split the same way. Cases sent to clear, verify 
 | H6 hospital-wide role | 20 | 2 / 18 / 0 | 0 / 7 / 13 | 130 | 12 / 118 / 0 | 39 / 90 / 1 |
 | order handled by a department | 29 | 3 / 26 / 0 | 24 / 4 / 1 | 171 | 6 / 165 / 0 | 166 / 4 / 1 |
 
+## Every row of the expected-outcome matrix
+
+Section 5.2 of the spec predicts an outcome for each system on each kind of access. This table counts what happened, so each prediction can be checked against a number. Left alone means that no rule fired, that an explanation was found, or that the model answered clear. Alerted means that a rule fired, that no explanation was found, or that the model answered escalate. Only the two LLM systems can answer verify. The rules and the templates are counted on every first access and the LLM systems on the cases they were sent, so the number of cases differs between them. Counts are not weighted. The last column is the share alerted with its 95% Wilson interval, which shows how little ten cases can pin down.
+
+Two kinds are split where the spec predicts differently. M2b is split by whether the emergency contact is recorded, and coverage by whether the schedule documents it. One row is a subset of the rows above it, the coworker, neighbor and VIP cases whose target was seen in the actor's own department.
+
+| System | Kind of access | Cases | Left alone | Verify | Alerted | Share alerted (95% interval) |
+|---|---|---|---|---|---|---|
+| Rules, all five | M1 coworker snooping | 10 | 0 | - | 10 | 100% (72%-100%) |
+| Rules, all five | M2a relative in the same household | 12 | 0 | - | 12 | 100% (76%-100%) |
+| Rules, all five | M2b relative elsewhere, emergency contact recorded | 3 | 3 | - | 0 | 0% (0%-56%) |
+| Rules, all five | M2b relative elsewhere, no emergency contact | 7 | 6 | - | 1 | 14% (3%-51%) |
+| Rules, all five | M3 neighbor | 10 | 0 | - | 10 | 100% (72%-100%) |
+| Rules, all five | M4 VIP | 16 | 13 | - | 3 | 19% (7%-43%) |
+| Rules, all five | M5 curiosity after a news event | 21 | 21 | - | 0 | 0% (0%-15%) |
+| Rules, all five | M6a shared credentials, overlap | 23 | 22 | - | 1 | 4% (1%-21%) |
+| Rules, all five | M6b shared credentials, off shift | 21 | 16 | - | 5 | 24% (11%-45%) |
+| Rules, all five | M1, M3 or M4 with the target seen in the actor's department | 4 | 3 | - | 1 | 25% (5%-70%) |
+| Rules, all five | H1 consult | 380 | 333 | - | 47 | 12% (9%-16%) |
+| Rules, all five | H2a coverage, documented | 167 | 143 | - | 24 | 14% (10%-20%) |
+| Rules, all five | H2b coverage, undocumented | 150 | 129 | - | 21 | 14% (9%-20%) |
+| Rules, all five | H3 undocumented care team | 15,576 | 13,839 | - | 1,737 | 11% (11%-12%) |
+| Rules, all five | H4a documented care, relationship present | 307 | 0 | - | 307 | 100% (99%-100%) |
+| Rules, all five | H4b undocumented work, relationship present | 870 | 0 | - | 870 | 100% (100%-100%) |
+| Rules, all five | H5 back-office work | 14,166 | 12,576 | - | 1,590 | 11% (11%-12%) |
+| Rules, all five | H6 hospital-wide role | 1,900 | 1,640 | - | 260 | 14% (12%-15%) |
+| Templates, direct and responsibility | M1 coworker snooping | 10 | 0 | - | 10 | 100% (72%-100%) |
+| Templates, direct and responsibility | M2a relative in the same household | 12 | 0 | - | 12 | 100% (76%-100%) |
+| Templates, direct and responsibility | M2b relative elsewhere, emergency contact recorded | 3 | 0 | - | 3 | 100% (44%-100%) |
+| Templates, direct and responsibility | M2b relative elsewhere, no emergency contact | 7 | 0 | - | 7 | 100% (65%-100%) |
+| Templates, direct and responsibility | M3 neighbor | 10 | 0 | - | 10 | 100% (72%-100%) |
+| Templates, direct and responsibility | M4 VIP | 16 | 0 | - | 16 | 100% (81%-100%) |
+| Templates, direct and responsibility | M5 curiosity after a news event | 21 | 0 | - | 21 | 100% (85%-100%) |
+| Templates, direct and responsibility | M6a shared credentials, overlap | 23 | 2 | - | 21 | 91% (73%-98%) |
+| Templates, direct and responsibility | M6b shared credentials, off shift | 21 | 3 | - | 18 | 86% (65%-95%) |
+| Templates, direct and responsibility | M1, M3 or M4 with the target seen in the actor's department | 4 | 0 | - | 4 | 100% (51%-100%) |
+| Templates, direct and responsibility | H1 consult | 380 | 87 | - | 293 | 77% (73%-81%) |
+| Templates, direct and responsibility | H2a coverage, documented | 167 | 0 | - | 167 | 100% (98%-100%) |
+| Templates, direct and responsibility | H2b coverage, undocumented | 150 | 0 | - | 150 | 100% (98%-100%) |
+| Templates, direct and responsibility | H3 undocumented care team | 15,576 | 3,230 | - | 12,346 | 79% (79%-80%) |
+| Templates, direct and responsibility | H4a documented care, relationship present | 307 | 307 | - | 0 | 0% (0%-1%) |
+| Templates, direct and responsibility | H4b undocumented work, relationship present | 870 | 38 | - | 832 | 96% (94%-97%) |
+| Templates, direct and responsibility | H5 back-office work | 14,166 | 0 | - | 14,166 | 100% (100%-100%) |
+| Templates, direct and responsibility | H6 hospital-wide role | 1,900 | 0 | - | 1,900 | 100% (100%-100%) |
+| LLM on log lines | M1 coworker snooping | 10 | 1 | 9 | 0 | 0% (0%-28%) |
+| LLM on log lines | M2a relative in the same household | 12 | 0 | 12 | 0 | 0% (0%-24%) |
+| LLM on log lines | M2b relative elsewhere, emergency contact recorded | 3 | 0 | 3 | 0 | 0% (0%-56%) |
+| LLM on log lines | M2b relative elsewhere, no emergency contact | 7 | 0 | 7 | 0 | 0% (0%-35%) |
+| LLM on log lines | M3 neighbor | 10 | 0 | 10 | 0 | 0% (0%-28%) |
+| LLM on log lines | M4 VIP | 16 | 0 | 16 | 0 | 0% (0%-19%) |
+| LLM on log lines | M5 curiosity after a news event | 21 | 0 | 21 | 0 | 0% (0%-15%) |
+| LLM on log lines | M6a shared credentials, overlap | 23 | 1 | 22 | 0 | 0% (0%-14%) |
+| LLM on log lines | M6b shared credentials, off shift | 21 | 0 | 21 | 0 | 0% (0%-15%) |
+| LLM on log lines | M1, M3 or M4 with the target seen in the actor's department | 4 | 1 | 3 | 0 | 0% (0%-49%) |
+| LLM on log lines | H1 consult | 100 | 1 | 99 | 0 | 0% (0%-4%) |
+| LLM on log lines | H2a coverage, documented | 53 | 2 | 51 | 0 | 0% (0%-7%) |
+| LLM on log lines | H2b coverage, undocumented | 47 | 0 | 47 | 0 | 0% (0%-8%) |
+| LLM on log lines | H3 undocumented care team | 200 | 9 | 191 | 0 | 0% (0%-2%) |
+| LLM on log lines | H4a documented care, relationship present | 100 | 2 | 98 | 0 | 0% (0%-4%) |
+| LLM on log lines | H4b undocumented work, relationship present | 300 | 21 | 279 | 0 | 0% (0%-1%) |
+| LLM on log lines | H5 back-office work | 200 | 9 | 191 | 0 | 0% (0%-2%) |
+| LLM on log lines | H6 hospital-wide role | 150 | 14 | 136 | 0 | 0% (0%-2%) |
+| LLM with identity graph | M1 coworker snooping | 10 | 1 | 0 | 9 | 90% (60%-98%) |
+| LLM with identity graph | M2a relative in the same household | 12 | 0 | 0 | 12 | 100% (76%-100%) |
+| LLM with identity graph | M2b relative elsewhere, emergency contact recorded | 3 | 0 | 0 | 3 | 100% (44%-100%) |
+| LLM with identity graph | M2b relative elsewhere, no emergency contact | 7 | 1 | 5 | 1 | 14% (3%-51%) |
+| LLM with identity graph | M3 neighbor | 10 | 0 | 5 | 5 | 50% (24%-76%) |
+| LLM with identity graph | M4 VIP | 16 | 4 | 9 | 3 | 19% (7%-43%) |
+| LLM with identity graph | M5 curiosity after a news event | 21 | 7 | 14 | 0 | 0% (0%-15%) |
+| LLM with identity graph | M6a shared credentials, overlap | 23 | 6 | 17 | 0 | 0% (0%-14%) |
+| LLM with identity graph | M6b shared credentials, off shift | 21 | 15 | 6 | 0 | 0% (0%-15%) |
+| LLM with identity graph | M1, M3 or M4 with the target seen in the actor's department | 4 | 4 | 0 | 0 | 0% (0%-49%) |
+| LLM with identity graph | H1 consult | 100 | 2 | 71 | 27 | 27% (19%-36%) |
+| LLM with identity graph | H2a coverage, documented | 53 | 51 | 2 | 0 | 0% (0%-7%) |
+| LLM with identity graph | H2b coverage, undocumented | 47 | 3 | 38 | 6 | 13% (6%-25%) |
+| LLM with identity graph | H3 undocumented care team | 200 | 194 | 5 | 1 | 0% (0%-3%) |
+| LLM with identity graph | H4a documented care, relationship present | 100 | 100 | 0 | 0 | 0% (0%-4%) |
+| LLM with identity graph | H4b undocumented work, relationship present | 300 | 182 | 84 | 34 | 11% (8%-15%) |
+| LLM with identity graph | H5 back-office work | 200 | 100 | 87 | 13 | 6% (4%-11%) |
+| LLM with identity graph | H6 hospital-wide role | 150 | 39 | 97 | 14 | 9% (6%-15%) |
+
 ## Within a daily review budget
 
 A reviewer takes the highest-priority alerts each day, up to the budget. LLM alerts are ranked by disposition, then by the priority the model gave. The sample is too thin to rank day by day, so every system here is scored on an average day, which is why the rules and templates figures differ a little from `baseline-results.md`. Recall is over all misuse first accesses.
@@ -135,6 +216,19 @@ The paired run is identical except that each M1-M4 actor also makes 10 covering 
 | LLM on log lines, verify or escalate | 57 of 58 | 57 of 58 | 90 of 100 |
 | LLM with identity graph, escalate | 33 of 58 | 34 of 58 | 5 of 100 |
 | LLM with identity graph, verify or escalate | 52 of 58 | 53 of 58 | 48 of 100 |
+
+## Tests
+
+Each row asks one question of two things measured on the same cases. Where the two are yes-or-no answers on the same cases, the test is McNemar's exact test. It looks only at the cases where the two disagree and asks whether the disagreements lean one way more than a coin would. The staff row asks whether an escalation is tied to the patient being staff once the kind of access is held fixed, with the Cochran-Mantel-Haenszel test. Every p-value is two-sided. Counts are over the sample and not weighted, so a test says whether two things differ on these cases. It does not estimate a rate for the hospital. The staff question was asked after the results were seen, which makes it exploratory. The others follow from the hypotheses in the spec.
+
+| Question | Cases | Yes answers | Disagreements | Test | p |
+|---|---|---|---|---|---|
+| Does the identity graph change which misuse is escalated? | 123 | LLM with identity graph 33; LLM on log lines 0 | 33 one way, 0 the other | McNemar, exact | under 0.001 |
+| Does the identity graph change which legitimate work is cleared? | 1,550 | LLM with identity graph 1,059; LLM on log lines 76 | 1,005 one way, 22 the other | McNemar, exact | under 0.001 |
+| Does the grounded LLM escalate more misuse than rules followed by direct evidence? | 123 | LLM with identity graph 33; Rules, then direct evidence 33 | 7 one way, 7 the other | McNemar, exact | 1.000 |
+| Is a legitimate access more likely to be escalated by the grounded LLM when the patient is staff, within the same kind of access? | 1,550 | staff charts 73 of 438; other charts 24 of 1,112 | common odds ratio 10 | Cochran-Mantel-Haenszel | under 0.001 |
+| Do covering accesses change which targets the grounded LLM escalates? | 58 | without cover 33; with cover 34 | 4 one way, 5 the other | McNemar, exact | 1.000 |
+| Do covering accesses change which targets it flags at verify or escalate? | 58 | without cover 52; with cover 53 | 0 one way, 1 the other | McNemar, exact | 1.000 |
 
 ## Tokens and cost
 

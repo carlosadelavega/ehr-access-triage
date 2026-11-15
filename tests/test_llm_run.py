@@ -247,6 +247,18 @@ def test_render_fills_the_header_from_the_log_and_writes_out_the_cited_facts(run
     assert "did not fit the template (not JSON)" in triage.render_case(v, unit, broken)
 
 
+def test_the_small_sample_statistics_match_values_worked_by_hand():
+    low, high = evaluate.wilson(9, 10)
+    assert (low, high) == pytest.approx((0.596, 0.982), abs=0.001)
+    assert evaluate.wilson(0, 0) == (0.0, 1.0)
+    assert evaluate.mcnemar(7, 7) == 1.0 and evaluate.mcnemar(0, 0) == 1.0
+    assert evaluate.mcnemar(0, 5) == pytest.approx(2 / 32)  # five disagreements all one way: twice the chance of five heads
+    odds, p = evaluate.mantel_haenszel([(10, 0, 0, 10)])
+    assert odds == float("inf") and p == pytest.approx(8.7e-5, rel=0.02)  # chi-square 15.39 on one degree of freedom
+    odds, p = evaluate.mantel_haenszel([(5, 5, 5, 5), (2, 8, 2, 8)])
+    assert odds == pytest.approx(1.0) and p == 1.0  # no association in either stratum
+
+
 def test_average_day_budget_splits_a_tie_by_weight():
     # one misuse alert and one legitimate alert standing for 9, all at the same priority, over 2 days
     found, shown = evaluate.average_day_top_k([1, 1], [True, False], [1, 9], k=1, days=2)
@@ -261,7 +273,7 @@ def test_llm_results_report_runs_end_to_end(answered, runs, cfg, tmp_path):
     done = evaluate.write_llm_results(base, cfg, out, answered / base.name, covered, answered / covered.name)
     text = out.read_text()
     assert done["llm_raw"] == done["llm_graph"] == done["sampled"]
-    for heading in ("## Alerts raised", "## Dispositions, by kind of access", "## When the patient is also staff", "## Within a daily review budget",
+    for heading in ("## Alerts raised", "## Dispositions, by kind of access", "## When the patient is also staff", "## Every row of the expected-outcome matrix", "## Tests", "## Within a daily review budget",
                     "## Faithfulness of the summaries", "## With covering accesses", "## Tokens and cost"):
         assert heading in text
     assert "## Repeat passes" not in text

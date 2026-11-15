@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 import numpy as np
@@ -34,6 +35,26 @@ LEGITIMATE = {
     **HARD_NEGATIVES,
 }
 TARGETS = ["M1", "M2a", "M2b", "M3", "M4"]  # the scenarios that get covering accesses
+MATRIX_ROWS = [  # the rows of the expected-outcome matrix in spec 5.2, in its order
+    ("M1", "M1 coworker snooping"),
+    ("M2a", "M2a relative in the same household"),
+    ("M2b+", "M2b relative elsewhere, emergency contact recorded"),
+    ("M2b-", "M2b relative elsewhere, no emergency contact"),
+    ("M3", "M3 neighbor"),
+    ("M4", "M4 VIP"),
+    ("M5", "M5 curiosity after a news event"),
+    ("M6a", "M6a shared credentials, overlap"),
+    ("M6b", "M6b shared credentials, off shift"),
+    ("own", "M1, M3 or M4 with the target seen in the actor's department"),
+    ("consult", "H1 consult"),
+    ("H2a", "H2a coverage, documented"),
+    ("H2b", "H2b coverage, undocumented"),
+    ("undocumented_team", "H3 undocumented care team"),
+    ("H4a", "H4a documented care, relationship present"),
+    ("H4b", "H4b undocumented work, relationship present"),
+    ("back_office", "H5 back-office work"),
+    ("hospital_wide", "H6 hospital-wide role"),
+]
 
 
 def truth(run_dir: str | Path, units: pd.DataFrame, cfg: Config) -> pd.DataFrame:
@@ -243,6 +264,68 @@ def answers(results_dir: str | Path, name: str) -> pd.DataFrame | None:
     return pd.DataFrame(rows).drop_duplicates("case_id", keep="last")  # a case sent again keeps its later answer
 
 
+def matrix_cells(run_dir: str | Path, u: pd.DataFrame) -> pd.DataFrame:
+    """Which row of the spec's expected-outcome matrix each first access falls in.
+
+    The kinds are those of the case set, with two of them split where the
+    spec predicts differently: M2b by whether the emergency contact is
+    recorded, and coverage by whether the schedule documents it.
+    `own_department` marks misuse whose target has an encounter in the
+    actor's own department, which the spec leaves as an open question.
+    """
+    sc = pd.read_csv(Path(run_dir) / "labels" / "scenarios.csv", keep_default_na=False)
+    by_pair = sc.drop_duplicates(["actor_user_id", "target_patient_id"]).set_index(["actor_user_id", "target_patient_id"])["evidence_in_context"]
+    evidence = pd.Series(by_pair.reindex(pd.MultiIndex.from_frame(u[["user_id", "patient_id"]])).fillna("").to_numpy(), index=u.index)
+    evidence = evidence.where(u["misuse"] != "", "")
+    cell = strata(u)
+    documented = u["documented"].astype(str) == "True"
+    cell = cell.mask(cell == "coverage", pd.Series(np.where(documented, "H2a", "H2b"), index=u.index))
+    cell = cell.mask(cell == "M2b", pd.Series(np.where(evidence.str.contains("emergency contact"), "M2b+", "M2b-"), index=u.index))
+    return u[["user_id", "patient_id", "week"]].assign(cell=cell, own_department=evidence.str.contains("actor's department"))
+
+
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95% Wilson interval for a share of k out of n. It behaves on small counts, where the usual interval does not."""
+    if n == 0:
+        return 0.0, 1.0
+    p = k / n
+    centre, half = p + z * z / (2 * n), z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return max(0.0, (centre - half) / (1 + z * z / n)), min(1.0, (centre + half) / (1 + z * z / n))
+
+
+def mcnemar(first_only: int, second_only: int) -> float:
+    """Two-sided exact McNemar test for two yes-or-no outcomes on the same cases.
+
+    Only the cases where the two disagree carry information. If the two
+    were equally likely to say yes, each disagreement would fall either
+    way like a coin toss, so the p-value is a binomial tail.
+    """
+    n, k = first_only + second_only, min(first_only, second_only)
+    return 1.0 if n == 0 else min(1.0, 2 * sum(math.comb(n, i) for i in range(k + 1)) / 2 ** n)
+
+
+def mantel_haenszel(tables: list[tuple[int, int, int, int]]) -> tuple[float, float]:
+    """Cochran-Mantel-Haenszel test of one association across several 2x2 tables, with continuity correction.
+
+    Each table is (a, b, c, d): group one yes and no, group two yes and no,
+    for one stratum. Returns the common odds ratio (infinite when group two
+    never says yes) and the two-sided p-value. Stratifying keeps a kind of
+    access that has more of group one from passing for an effect of the group.
+    """
+    seen = expected = variance = top = bottom = 0.0
+    for a, b, c, d in tables:
+        n = a + b + c + d
+        if n < 2:
+            continue
+        seen, expected = seen + a, expected + (a + b) * (a + c) / n
+        variance += (a + b) * (c + d) * (a + c) * (b + d) / (n * n * (n - 1))
+        top, bottom = top + a * d / n, bottom + b * c / n
+    if variance == 0:
+        return float("nan"), 1.0
+    chi2 = max(abs(seen - expected) - 0.5, 0) ** 2 / variance
+    return (top / bottom if bottom else float("inf")), math.erfc(math.sqrt(chi2 / 2))
+
+
 def calls(path: str | Path) -> pd.DataFrame:
     """Every call recorded in a results file, including the earlier tries of a case that was sent again.
 
@@ -422,6 +505,35 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
     names = [LLM_NAMES[s] for s in frames]
     lines += table(["Kind of access", "Staff charts"] + names + ["Other charts"] + names, rows)
 
+    cells = matrix_cells(run_dir, u)
+    key = ["user_id", "patient_id", "week"]
+    counted = {"Rules, all five": (cells, None, variants(u)["Rules, all five"][0]),
+               "Templates, direct and responsibility": (cells, None, variants(u)["Templates, direct and responsibility"][0])}
+    for s, f in frames.items():
+        mine = f[key].merge(cells, on=key, how="left").set_axis(f.index)
+        counted[LLM_NAMES[s]] = (mine, f["disposition"] == "verify", f["disposition"] == "escalate")
+    lines += ["## Every row of the expected-outcome matrix", "",
+              "Section 5.2 of the spec predicts an outcome for each system on each kind of access. This table counts what "
+              "happened, so each prediction can be checked against a number. Left alone means that no rule fired, that an "
+              "explanation was found, or that the model answered clear. Alerted means that a rule fired, that no explanation "
+              "was found, or that the model answered escalate. Only the two LLM systems can answer verify. The rules and the "
+              "templates are counted on every first access and the LLM systems on the cases they were sent, so the number of "
+              "cases differs between them. Counts are not weighted. The last column is the share alerted with its 95% Wilson "
+              "interval, which shows how little ten cases can pin down.", "",
+              "Two kinds are split where the spec predicts differently. M2b is split by whether the emergency contact is "
+              "recorded, and coverage by whether the schedule documents it. One row is a subset of the rows above it, the "
+              "coworker, neighbor and VIP cases whose target was seen in the actor's own department.", ""]
+    rows = []
+    for name, (mine, verify, alert) in counted.items():
+        for cell, label in MATRIX_ROWS:
+            part = (mine["own_department"] if cell == "own" else mine["cell"] == cell).to_numpy()
+            n, hit = int(part.sum()), int((alert.to_numpy() & part).sum())
+            asked = int((verify.to_numpy() & part).sum()) if verify is not None else 0
+            low, high = wilson(hit, n)
+            rows.append([name, label, f"{n:,}", f"{n - hit - asked:,}", f"{asked:,}" if verify is not None else "-", f"{hit:,}",
+                         f"{hit / n:.0%} ({low:.0%}-{high:.0%})" if n else "no cases"])
+    lines += table(["System", "Kind of access", "Cases", "Left alone", "Verify", "Alerted", "Share alerted (95% interval)"], rows)
+
     lines += ["## Within a daily review budget", "",
               "A reviewer takes the highest-priority alerts each day, up to the budget. LLM alerts are ranked by disposition, "
               "then by the priority the model gave. The sample is too thin to rank day by day, so every system here is scored "
@@ -481,6 +593,60 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
                          f"{int((c_alert & c['case_id'].isin(both)).sum())} of {len(both)}",
                          f"{int((c_alert & ~target).sum())} of {int((~target).sum())}"])
         lines += table(["System", "Targets flagged, no cover", "Targets flagged, with cover", "Covering accesses flagged"], rows)
+
+    if set(frames) == set(SYSTEMS):
+        lines += ["## Tests", "",
+                  "Each row asks one question of two things measured on the same cases. Where the two are yes-or-no answers "
+                  "on the same cases, the test is McNemar's exact test. It looks only at the cases where the two disagree and "
+                  "asks whether the disagreements lean one way more than a coin would. The staff row asks whether an escalation "
+                  "is tied to the patient being staff once the kind of access is held fixed, with the Cochran-Mantel-Haenszel "
+                  "test. Every p-value is two-sided. Counts are over the sample and not weighted, so a test says whether two "
+                  "things differ on these cases. It does not estimate a rate for the hospital. The staff question was asked "
+                  "after the results were seen, which makes it exploratory. The others follow from the hypotheses in the spec.", ""]
+        raw, graph = (frames[s].set_index("case_id") for s in SYSTEMS)
+        graph = graph.loc[raw.index]
+
+        def paired(question, n, a_name, a, b_name, b):
+            only_a, only_b = int((a & ~b).sum()), int((~a & b).sum())
+            p = mcnemar(only_a, only_b)
+            return [question, f"{n:,}", f"{a_name} {int(a.sum()):,}; {b_name} {int(b.sum()):,}",
+                    f"{only_a:,} one way, {only_b:,} the other", "McNemar, exact", f"{p:.3f}" if p >= 0.001 else "under 0.001"]
+
+        bad, legit = graph["is_misuse"].to_numpy(), ~graph["is_misuse"].to_numpy() & (graph["stratum"] != "cover").to_numpy()
+        esc_g, esc_r = (graph["disposition"] == "escalate").to_numpy(), (raw["disposition"] == "escalate").to_numpy()
+        clear_g, clear_r = (graph["disposition"] == "clear").to_numpy(), (raw["disposition"] == "clear").to_numpy()
+        best = variants(u)["Rules, then direct evidence"][0]
+        flagged = set(map(tuple, u.loc[best, key].to_numpy()))
+        by_rules = np.array([tuple(r) in flagged for r in graph[key].to_numpy()])
+        rows = [
+            paired("Does the identity graph change which misuse is escalated?", int(bad.sum()),
+                   LLM_NAMES["llm_graph"], esc_g[bad], LLM_NAMES["llm_raw"], esc_r[bad]),
+            paired("Does the identity graph change which legitimate work is cleared?", int(legit.sum()),
+                   LLM_NAMES["llm_graph"], clear_g[legit], LLM_NAMES["llm_raw"], clear_r[legit]),
+            paired("Does the grounded LLM escalate more misuse than rules followed by direct evidence?", int(bad.sum()),
+                   LLM_NAMES["llm_graph"], esc_g[bad], "Rules, then direct evidence", by_rules[bad]),
+        ]
+        is_staff = graph["patient_id"].isin(staff).to_numpy()
+        tables = []
+        for kind in sorted(set(graph.loc[legit, "stratum"])):
+            k = legit & (graph["stratum"] == kind).to_numpy()
+            tables.append((int((k & is_staff & esc_g).sum()), int((k & is_staff & ~esc_g).sum()),
+                           int((k & ~is_staff & esc_g).sum()), int((k & ~is_staff & ~esc_g).sum())))
+        odds, p = mantel_haenszel(tables)
+        rows.append(["Is a legitimate access more likely to be escalated by the grounded LLM when the patient is staff, "
+                     "within the same kind of access?", f"{int(legit.sum()):,}",
+                     f"staff charts {int((legit & is_staff & esc_g).sum())} of {int((legit & is_staff).sum()):,}; "
+                     f"other charts {int((legit & ~is_staff & esc_g).sum())} of {int((legit & ~is_staff).sum()):,}",
+                     "common odds ratio " + ("not finite" if not math.isfinite(odds) else f"{odds:.0f}"),
+                     "Cochran-Mantel-Haenszel", f"{p:.3f}" if p >= 0.001 else "under 0.001"])
+        if "llm_graph" in covered:
+            c = covered["llm_graph"].set_index("case_id")
+            both = [i for i in c.index[c["stratum"] != "cover"] if i in graph.index]
+            for question, flag in (("Do covering accesses change which targets the grounded LLM escalates?", lambda d: d == "escalate"),
+                                   ("Do covering accesses change which targets it flags at verify or escalate?", lambda d: d != "clear")):
+                rows.append(paired(question, len(both), "without cover", flag(graph.loc[both, "disposition"]).to_numpy(),
+                                   "with cover", flag(c.loc[both, "disposition"]).to_numpy()))
+        lines += table(["Question", "Cases", "Yes answers", "Disagreements", "Test", "p"], rows)
 
     repeats = {s: sorted(int(p.stem.split("pass")[1]) for p in Path(results_dir).glob(f"{s}.pass*.jsonl")) for s in frames}
     if any(len(p) > 1 for p in repeats.values()):
