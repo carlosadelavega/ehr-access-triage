@@ -705,6 +705,102 @@ def fig09_predicted_and_observed(run: Path, out_dir: Path, frames: dict, u: pd.D
     return save(fig, out_dir, "fig09-predicted-against-observed")
 
 
+# ---- figure 10 ----
+
+def faithfulness(run: Path, cfg: Config, results: Path, frames: dict) -> dict:
+    """Claims per system: failing the first check, not judged, and each verdict, as in llm-results.md."""
+    from .triage import VERDICTS
+    out = {}
+    for s in frames:
+        judged = evaluate.answers(results, f"judge.{s}.pass1")
+        verdicts = [v for item in judged["verdicts"] for v in item] if judged is not None else []
+        ruled = [v for v in verdicts if v is not None]
+        n = evaluate.citation_counts(run, results, s, cfg)
+        out[s] = {"claims": n["claims"], "listed": n["listed"], "fail": n["claims"] - n["exist"],
+                  "unjudged": n["exist"] - len(ruled), **{v: ruled.count(v) for v in VERDICTS}}
+    return out
+
+
+def fig10_faithfulness(run: Path, cfg: Config, out_dir: Path, results: Path, frames: dict) -> Path:
+    """Per system, a bar for the first check over all claims and a bar for the judge's verdicts over judged claims."""
+    data = faithfulness(run, cfg, results, frames)
+    fig, ax = plt.subplots(figsize=(8.8, 3.6))
+    bars, labels = [], []
+    for s in data:
+        d = data[s]
+        judged = d["supported"] + d["partly"] + d["unsupported"]
+        bars.append(([("Cites listed IDs", d["listed"], HUE), ("Passes through a range", d["claims"] - d["fail"] - d["listed"], HUE_LIGHT),
+                      ("Cites a fact not shown", d["fail"], INK)], d["claims"],
+                     f"through a range {(d['claims'] - d['fail'] - d['listed']) / d['claims']:.1%}, fail {d['fail']} of {d['claims']:,}"))
+        labels.append(f"{SYSTEM_NAMES[s]}, first check")
+        bars.append(([("Supported", d["supported"], HUE), ("Partly", d["partly"], HUE_LIGHT), ("Unsupported", d["unsupported"], INK)],
+                     judged, f"unsupported {d['unsupported'] / judged:.1%}, not judged {d['unjudged']}"))
+        labels.append(f"{SYSTEM_NAMES[s]}, judge")
+    y = [4.2, 3.4, 1.4, 0.6][: len(bars)]
+    for yi, (parts, total, side) in zip(y, bars):
+        left = 0.0
+        for name, n, color in parts:
+            share = n / total
+            ax.barh(yi, share, left=left, color=color, height=0.6, edgecolor="white", lw=0.6)
+            if share >= 0.2:
+                ax.text(left + share / 2, yi, f"{name} {share:.1%}", ha="center", va="center", fontsize=7.5,
+                        color="white" if color in (HUE, INK) else INK)
+            left += share
+        ax.text(1.01, yi, side, va="center", fontsize=7.5, color=MUTED, transform=ax.get_yaxis_transform())
+    ax.set_yticks(y, labels)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 4.9)
+    ax.set_xticks([0, 0.25, 0.5, 0.75, 1], ["0", "25%", "50%", "75%", "100%"])
+    ax.tick_params(axis="y", length=0)
+    ax.spines["left"].set_visible(False)
+    ax.set_title("Faithfulness", pad=10)
+    note(fig, "First check, in code, over every claim: each fact a claim cites was shown to the model. The light part passes "
+              "only because a range such as L2-L31 counts as every fact in it. Judge, over the claims it gave a verdict on: "
+              "supported means the cited facts confirm all of it, partly that it adds an interpretation. A hand-read found "
+              "about half of a sample of unsupported verdicts to hold, so that share is an upper bound (docs/judge-review.md). "
+              "Counts are over the sample, as in docs/llm-results.md.", y=-0.02)
+    return save(fig, out_dir, "fig10-faithfulness")
+
+
+# ---- figure 11 ----
+
+def fig11_covering(cfg: Config, out_dir: Path, frames: dict, covered: dict) -> Path:
+    """How each target's answer moved between the run without covering accesses and the run with them."""
+    order = ["clear", "verify", "escalate"]
+    fig, axes = plt.subplots(1, 2, figsize=(8.0, 3.7), gridspec_kw={"wspace": 0.45})
+    for ax, s in zip(axes, ("llm_raw", "llm_graph")):
+        c = covered[s]
+        targets = c.loc[c["stratum"] != "cover", ["case_id", "disposition"]]
+        pair = frames[s][["case_id", "disposition"]].merge(targets, on="case_id", suffixes=("_plain", "_covered"))
+        grid = np.zeros((3, 3), dtype=int)
+        for r in pair.itertuples():
+            grid[order.index(r.disposition_plain), order.index(r.disposition_covered)] += 1
+        for i in range(3):
+            for j in range(3):
+                n = grid[i, j]
+                shade = HUE if (i == j and n) else (HUE_LIGHT if n else "white")
+                ax.add_patch(plt.Rectangle((j, 2 - i), 1, 1, color=shade, ec=LIGHT, lw=0.8))
+                ax.text(j + 0.5, 2 - i + 0.5, str(n), ha="center", va="center", fontsize=10,
+                        color="white" if (i == j and n) else INK)
+        ax.set_xlim(0, 3)
+        ax.set_ylim(0, 3)
+        ax.set_xticks([0.5, 1.5, 2.5], order)
+        ax.set_yticks([2.5, 1.5, 0.5], order)
+        ax.set_xlabel("With covering accesses")
+        ax.set_ylabel("Without")
+        ax.tick_params(length=0)
+        for side in ax.spines.values():
+            side.set_visible(False)
+        moved = int(grid.sum() - np.trace(grid))
+        ax.set_title(f"{SYSTEM_NAMES[s]}, {moved} of {int(grid.sum())} targets moved", fontsize=9.5)
+    fig.suptitle("Covering accesses", x=0.0, ha="left", fontsize=11, fontweight="bold", y=1.03)
+    note(fig, f"The same M1-M4 target accesses, triaged once in the base run and once in the paired run where each actor "
+              f"also opened {cfg['covering']['accesses']} covering charts within an hour of the target (Xu et al. 2023). "
+              "The diagonal, in dark tiles, is a target whose answer did not change. Counts are as in the covering-accesses "
+              "table of docs/llm-results.md.", y=-0.06)
+    return save(fig, out_dir, "fig11-covering-accesses")
+
+
 # ---- the command ----
 
 def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path = "results") -> dict:
@@ -729,7 +825,14 @@ def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path
         u = evaluate.score_run(run, cfg)
         written += [fig05_dispositions(run, cfg, out_dir, frames, u), fig06_alerts_and_catches(cfg, out_dir, frames, u),
                     fig07_review_budget(cfg, out_dir, frames, u), fig08_staff_charts(run, out_dir, frames),
-                    fig09_predicted_and_observed(run, out_dir, frames, u)]
+                    fig09_predicted_and_observed(run, out_dir, frames, u),
+                    fig10_faithfulness(run, cfg, out_dir, Path(results), frames)]
+        covered_run, covered_results = run.with_name(run.name + "-covered"), Path(results).with_name(Path(results).name + "-covered")
+        covered = llm_frames(covered_run, covered_results) if (covered_run / "cases.csv").exists() else None
+        if covered is None:
+            skipped.append("fig11, no answers on the paired run with covering accesses")
+        else:
+            written.append(fig11_covering(cfg, out_dir, frames, covered))
     return {"written": [str(p) for p in written], "skipped": skipped}
 
 
