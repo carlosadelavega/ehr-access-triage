@@ -2,11 +2,12 @@
 import copy
 import json
 import shutil
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
-from ehr_triage import evaluate, triage
+from ehr_triage import evaluate, figures, triage
 from ehr_triage.generate import generate
 
 USAGE = {"prompt_tokens": 2000, "completion_tokens": 500, "completion_tokens_details": {"reasoning_tokens": 200}}
@@ -282,3 +283,13 @@ def test_llm_results_report_runs_end_to_end(answered, runs, cfg, tmp_path):
     assert (raw["disposition"] == "clear").all()  # the made-up model only escalates on a graph fact
     by_kind = raw.groupby("stratum")
     assert by_kind["weight"].sum().to_numpy() == pytest.approx(by_kind["population"].first().to_numpy())
+
+
+def test_figures_are_written_from_the_answers(runs, answered, cfg, tmp_path):
+    base, _ = runs
+    out = figures.build(base, cfg, tmp_path, answered / base.name)
+    names = sorted(p.name for p in tmp_path.glob("*.svg"))
+    assert names == sorted(Path(p).name for p in out["written"])
+    for start in ("fig01-", "fig02-", "fig03-"):
+        assert any(n.startswith(start) for n in names)
+    assert all((tmp_path / n).read_text().lstrip().startswith("<?xml") for n in names)

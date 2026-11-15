@@ -45,7 +45,7 @@ No em dashes, no emojis, no colons before lists. Light prose, no corporate jargo
 
 ## Stack and commands
 
-Python 3.10+, pandas, NumPy, PyYAML, NetworkX, pytest, managed with uv. Synthea v3.2.0 jar is downloaded by `scripts/fetch_synthea.sh` into `vendor/` and needs Java 11 or newer.
+Python 3.10+, pandas, NumPy, PyYAML, NetworkX, pytest, managed with uv. matplotlib is a dev dependency, used only for the figures. Synthea v3.2.0 jar is downloaded by `scripts/fetch_synthea.sh` into `vendor/` and needs Java 11 or newer.
 
 ```
 scripts/run_synthea.sh           # population into data/synthea/slim, slow, rarely needed
@@ -59,9 +59,10 @@ python -m ehr_triage.triage run --limit 20   # needs .env, calls the model, cost
 python -m ehr_triage.triage judge         # second faithfulness check, also calls the model
 python -m ehr_triage.evaluate llm         # rewrites docs/llm-results.md from results/, same rule
 python -m ehr_triage.triage render --case C0100   # prints one stored answer as the case summary, no model call
+python -m ehr_triage.figures      # rewrites the SVGs in docs/figures/ from the same functions as the reports, no model call
 pytest                           # runs on a made-up population and a made-up model, no Java or key needed
 ```
 
-After any change to the generator or the config, rerun generate, report and evaluate and commit the new reports with the change.
+After any change to the generator or the config, rerun generate, report, evaluate and figures and commit the new reports and figures with the change.
 
 Systems under test load data only through `graph.load_visible`. Only `report.py` and `evaluate.py` may read `labels/`.

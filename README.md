@@ -79,6 +79,7 @@ python -m ehr_triage.triage run              # both systems on every case, into 
 python -m ehr_triage.triage judge            # checks each claim against the facts it cites
 python -m ehr_triage.evaluate llm            # writes docs/llm-results.md
 python -m ehr_triage.triage render --case C0100   # one answer as the case summary an officer would read
+python -m ehr_triage.figures                 # rewrites the figures in docs/figures/
 ```
 
 A run can be stopped and started again. It skips the cases already answered and stops by itself at the cost cap set in the config. The case set, the settings and the scoring are described in section 10 of the [spec](docs/spec.md).

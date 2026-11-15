@@ -239,6 +239,12 @@ def build_cases(run_dir: str | Path, cfg: Config, covered_dir: str | Path | None
     return out
 
 
+def case_strata(run_dir: str | Path) -> pd.Series:
+    """The kind of every case in the case set, by case ID, for code outside this module that may not read labels/."""
+    truth = pd.read_csv(Path(run_dir) / "labels" / "case_truth.csv", keep_default_na=False)
+    return truth.set_index("case_id")["stratum"]
+
+
 # ---- scoring systems 3 and 4 ----
 
 def answers(results_dir: str | Path, name: str) -> pd.DataFrame | None:
