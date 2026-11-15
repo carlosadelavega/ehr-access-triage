@@ -801,6 +801,74 @@ def fig11_covering(cfg: Config, out_dir: Path, frames: dict, covered: dict) -> P
     return save(fig, out_dir, "fig11-covering-accesses")
 
 
+# ---- figure 13 ----
+
+SECTION_NOTES = [
+    ("# Case", "Header", "Filled by the pipeline\nfrom the access log"),
+    ("## Draft triage note", "Draft note", "Written by the model.\nEvery claim cites the\nIDs of facts it was shown"),
+    ("## Facts cited", "Facts cited", "Each cited fact written out\nby the pipeline, ranges\nexpanded, so the officer\ncan check every claim"),
+    ("## For the Privacy Officer", "Officer's part", "Never drafted. Left for\nthe determinations only\nthe officer can make"),
+]
+
+
+def rendered_lines(text: str, width: int = 104) -> list[tuple[str, int]]:
+    """The Markdown of `triage render` as plain lines, each with the index of the section it belongs to."""
+    out, section = [], -1
+    for raw in text.splitlines():
+        for i, (start, _, _) in enumerate(SECTION_NOTES):
+            if raw.startswith(start):
+                section = i
+        if raw.startswith("|---") or raw.startswith("```") or raw.strip() == "| | |":
+            continue
+        line = raw.replace("**", "")
+        if line.startswith("| "):
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            line = f"{cells[0]:<14}{cells[1]}"
+        wrapped = textwrap.wrap(line, width, subsequent_indent="    ", break_on_hyphens=False) or [""]
+        out += [(w, section) for w in wrapped]
+    while out and not out[-1][0]:
+        out.pop()
+    return out
+
+
+def fig13_rendered_case(run: Path, cfg: Config, out_dir: Path, results: Path) -> Path | None:
+    picked = fig04_pick(run, results)
+    if picked is None:
+        return None
+    from .triage import Views, read_answers, read_cases, render_case
+    row = picked["misuse"]
+    units = {u.case_id: u for u in read_cases(run).itertuples()}
+    stored = {r["case_id"]: r for r in read_answers(results / "llm_graph.pass1.jsonl")}
+    text = render_case(Views(run, "llm_graph", cfg), units[row["case_id"]], stored.get(row["case_id"]))
+    lines = rendered_lines(text)
+    n = len(lines)
+    fig = plt.figure(figsize=(9.6, 0.135 * n + 1.0))
+    ax = fig.add_axes([0.0, 0.0, 1.0, 1.0])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(n + 0.5, -2.5)
+    ax.axis("off")
+    ax.add_patch(plt.Rectangle((0.005, -0.6), 0.735, n + 0.6, fc="#fafafa", ec=LIGHT, lw=0.8))
+    for i, (line, _) in enumerate(lines):
+        heading = line.startswith("#")
+        shown = line.lstrip("# ") if heading else line.replace(" ", "\u00a0")  # SVG would collapse runs of plain spaces
+        ax.text(0.015, i, shown, va="center", ha="left",
+                fontsize=7.5 if heading else 6.4, family="DejaVu Sans" if heading else "DejaVu Sans Mono",
+                fontweight="bold" if heading else "normal", color=INK)
+    for k, (_, name, words) in enumerate(SECTION_NOTES):
+        rows = [i for i, (_, s) in enumerate(lines) if s == k]
+        if not rows:
+            continue
+        top, bottom = rows[0] - 0.4, rows[-1] + 0.4
+        x = 0.755
+        ax.plot([x, x + 0.008, x + 0.008, x], [top, top, bottom, bottom], color=HUE, lw=1.0)
+        ax.text(x + 0.02, (top + bottom) / 2, f"{name}\n{words}", va="center", ha="left", fontsize=7.5, color=INK,
+                linespacing=1.3)
+    ax.text(0.005, -2.0, "One rendered case", fontsize=11, fontweight="bold", va="center")
+    ax.text(0.005, -1.2, f"Case {row['case_id']}, {KIND_NAMES.get(row['stratum'], row['stratum'])}, as the LLM + Graph "
+                         "answered it and python -m ehr_triage.triage render prints it", fontsize=7.5, color=MUTED, va="center")
+    return save(fig, out_dir, "fig13-one-rendered-case")
+
+
 # ---- the command ----
 
 def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path = "results") -> dict:
@@ -833,6 +901,10 @@ def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path
             skipped.append("fig11, no answers on the paired run with covering accesses")
         else:
             written.append(fig11_covering(cfg, out_dir, frames, covered))
+        fig13 = fig13_rendered_case(run, cfg, out_dir, Path(results))
+        if fig13 is not None:
+            written.append(fig13)
+    skipped.append("fig12, waits for triage passes 2 and 3")
     return {"written": [str(p) for p in written], "skipped": skipped}
 
 

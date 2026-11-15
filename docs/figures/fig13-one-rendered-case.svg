@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="705.6pt" height="844.758524pt" viewBox="0 0 705.6 844.758524" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.9, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 844.758524 
+L 705.6 844.758524 
+L 705.6 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 10.656 26.871413 
+L 518.688 26.871413 
+L 518.688 832.43408 
+L 10.656 832.43408 
+z
+" clip-path="url(#pa3bb6c6b0a)" style="fill: #fafafa; stroke: #d9d9d9; stroke-width: 0.8; stroke-linejoin: miter"/>
+   </g>
+   <g id="line2d_1">
+    <path d="M 529.056 28.921191 
+L 534.5856 28.921191 
+L 534.5856 149.85808 
+L 529.056 149.85808 
+" clip-path="url(#pa3bb6c6b0a)" style="fill: none; stroke: #2f6690; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_2">
+    <path d="M 529.056 151.907858 
+L 534.5856 151.907858 
+L 534.5856 549.564747 
+L 529.056 549.564747 
+" clip-path="url(#pa3bb6c6b0a)" style="fill: none; stroke: #2f6690; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_3">
+    <path d="M 529.056 551.614524 
+L 534.5856 551.614524 
+L 534.5856 723.795858 
+L 529.056 723.795858 
+" clip-path="url(#pa3bb6c6b0a)" style="fill: none; stroke: #2f6690; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_4">
+    <path d="M 529.056 725.845635 
+L 534.5856 725.845635 
+L 534.5856 826.284747 
+L 529.056 826.284747 
+" clip-path="url(#pa3bb6c6b0a)" style="fill: none; stroke: #2f6690; stroke-linecap: square"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="17.568" y="35.090278" transform="rotate(-0 17.568 35.090278)">Case C0033</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="55.301524" transform="rotate(-0 17.568 55.301524)">User          U0049</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="65.550413" transform="rotate(-0 17.568 65.550413)">Patient       P00273</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="75.799302" transform="rotate(-0 17.568 75.799302)">First access  2026-10-27T13:16:27</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="86.048191" transform="rotate(-0 17.568 86.048191)">Last access   2026-10-27T13:18:47</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="96.29708" transform="rotate(-0 17.568 96.29708)">Accesses      3</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="106.545969" transform="rotate(-0 17.568 106.545969)">Devices       D0024</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="116.772858" transform="rotate(-0 17.568 116.772858)">Raised by     LLM with identity graph (z-ai/glm-5.3-flash, pass 1)</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="137.270635" transform="rotate(-0 17.568 137.270635)">The header is filled from the access log for the week of the first access.</text>
+   </g>
+   <g id="text_10">
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="17.568" y="158.047648" transform="rotate(-0 17.568 158.047648)">Draft triage note</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="178.266191" transform="rotate(-0 17.568 178.266191)">Written by the model. It is a note for triage, not a finding.</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="198.763969" transform="rotate(-0 17.568 198.763969)">What happened. During her scheduled CARD shift (G1, G2), nurse U0049 opened the record of P00273 —</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="209.034858" transform="rotate(-0 17.568 209.034858)">    linked to her as a CARD department co-worker (G5, G6) — three times (L1–L3) on a CARD workstation</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="219.283747" transform="rotate(-0 17.568 219.283747)">    (G7), between work on other patients (L22, L23).</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="239.781524" transform="rotate(-0 17.568 239.781524)">Evidence of a job-related purpose</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="260.279302" transform="rotate(-0 17.568 260.279302)">1. U0049 is a full-time CARD nurse scheduled in CARD 08:00–17:00 on 2026-10-27; the 13:16–13:18 access</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="270.528191" transform="rotate(-0 17.568 270.528191)">    falls inside the shift, on a CARD workstation. [G1, G2, G7, L1]</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="280.77708" transform="rotate(-0 17.568 280.77708)">2. The P00273 lookups sit inside a busy clinical session: U0049 worked other patients immediately before</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="291.025969" transform="rotate(-0 17.568 291.025969)">    (P03113, until 13:15:28) and after (P00697, from 13:35:35). [L22, L23]</text>
+   </g>
+   <g id="text_20">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="301.274858" transform="rotate(-0 17.568 301.274858)">3. The only documented encounters for P00273 are ED visits on 2026-10-01 and 2026-10-12 for chronic</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="311.501747" transform="rotate(-0 17.568 311.501747)">    intractable migraine; no CARD encounter or care-team link to U0049 appears in the facts. [G3, G4]</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="332.021524" transform="rotate(-0 17.568 332.021524)">Risk indicators</text>
+   </g>
+   <g id="text_23">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="352.497302" transform="rotate(-0 17.568 352.497302)">1. P00273 is linked to U0049 as both an organization co-worker and a department co-worker in CARD — a</text>
+   </g>
+   <g id="text_24">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="362.768191" transform="rotate(-0 17.568 362.768191)">    personal connection between user and patient. [G5, G6]</text>
+   </g>
+   <g id="text_25">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="372.99508" transform="rotate(-0 17.568 372.99508)">2. The patient's documented care was in the ED, most recently 15 days before the access, leaving no</text>
+   </g>
+   <g id="text_26">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="383.265969" transform="rotate(-0 17.568 383.265969)">    shown clinical reason for a CARD nurse to open the record on 2026-10-27. [G3, G4, L1]</text>
+   </g>
+   <g id="text_27">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="403.724747" transform="rotate(-0 17.568 403.724747)">Missing information</text>
+   </g>
+   <g id="text_28">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="424.222524" transform="rotate(-0 17.568 424.222524)">- Whether P00273 had a CARD encounter, appointment, or care-team assignment on or near 2026-10-27 that</text>
+   </g>
+   <g id="text_29">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="434.488413" transform="rotate(-0 17.568 434.488413)">    would give U0049 a treatment role.</text>
+   </g>
+   <g id="text_30">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="444.737302" transform="rotate(-0 17.568 444.737302)">- U0049's stated reason for the access and any supervisor-confirmed work task involving P00273.</text>
+   </g>
+   <g id="text_31">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="455.008191" transform="rotate(-0 17.568 455.008191)">- Other users' access to P00273 that week (none provided), to establish a baseline.</text>
+   </g>
+   <g id="text_32">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="465.23508" transform="rotate(-0 17.568 465.23508)">- Current role/department data underlying the co-worker links (G5, G6).</text>
+   </g>
+   <g id="text_33">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="485.754858" transform="rotate(-0 17.568 485.754858)">Disposition. escalate, priority medium</text>
+   </g>
+   <g id="text_34">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="506.252635" transform="rotate(-0 17.568 506.252635)">Rationale. Shown: P00273 is U0049's CARD co-worker (G5, G6) and no job-related purpose appears — the</text>
+   </g>
+   <g id="text_35">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="516.479524" transform="rotate(-0 17.568 516.479524)">    patient's only encounters are ED visits weeks earlier (G3, G4). The shift and surrounding</text>
+   </g>
+   <g id="text_36">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="526.750413" transform="rotate(-0 17.568 526.750413)">    multi-patient work show U0049 was on duty but not why this record opened. A personal connection</text>
+   </g>
+   <g id="text_37">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="536.977302" transform="rotate(-0 17.568 536.977302)">    without shown purpose warrants escalation; medium priority given the brief, single-session scope.</text>
+   </g>
+   <g id="text_38">
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="17.568" y="557.783611" transform="rotate(-0 17.568 557.783611)">Facts cited</text>
+   </g>
+   <g id="text_39">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="577.994858" transform="rotate(-0 17.568 577.994858)">Each fact the note cites, as it was shown to the model.</text>
+   </g>
+   <g id="text_40">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="598.400635" transform="rotate(-0 17.568 598.400635)">L1 | 2026-10-27T13:16:27 user U0049 patient P00273 device D0024 action A0048 81s</text>
+   </g>
+   <g id="text_41">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="608.649524" transform="rotate(-0 17.568 608.649524)">L22 | 2026-10-27T13:15:28 user U0049 patient P03113 device D0237 action A0335 59s</text>
+   </g>
+   <g id="text_42">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="618.898413" transform="rotate(-0 17.568 618.898413)">L23 | 2026-10-27T13:35:35 user U0049 patient P00697 device D0024 action A0248 25s</text>
+   </g>
+   <g id="text_43">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="629.150302" transform="rotate(-0 17.568 629.150302)">G1 | user U0049 is a nurse in CARD (Cardiology clinic), full_time, usual shift office</text>
+   </g>
+   <g id="text_44">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="639.399191" transform="rotate(-0 17.568 639.399191)">G2 | schedule: U0049 is scheduled 2026-10-27T08:00:00 to 2026-10-27T17:00:00 in CARD</text>
+   </g>
+   <g id="text_45">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="649.64508" transform="rotate(-0 17.568 649.64508)">G3 | encounter E005378: P00273 emergency in ED 2026-10-01T10:30:28 to 2026-10-01T11:30:28, reason</text>
+   </g>
+   <g id="text_46">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="659.963969" transform="rotate(-0 17.568 659.963969)">    Chronic intractable migraine without aura</text>
+   </g>
+   <g id="text_47">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="670.142858" transform="rotate(-0 17.568 670.142858)">G4 | encounter E003124: P00273 emergency in ED 2026-10-12T14:14:29 to 2026-10-12T15:14:29, reason</text>
+   </g>
+   <g id="text_48">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="680.461747" transform="rotate(-0 17.568 680.461747)">    Chronic intractable migraine without aura</text>
+   </g>
+   <g id="text_49">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="690.640635" transform="rotate(-0 17.568 690.640635)">G5 | connection 'organization co-worker': user U0049 - patient P00273 - department CARD</text>
+   </g>
+   <g id="text_50">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="700.889524" transform="rotate(-0 17.568 700.889524)">G6 | connection 'department co-worker': user U0049 - department CARD - patient P00273</text>
+   </g>
+   <g id="text_51">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="711.138413" transform="rotate(-0 17.568 711.138413)">G7 | device D0024 is a workstation in CARD</text>
+   </g>
+   <g id="text_52">
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="17.568" y="731.985425" transform="rotate(-0 17.568 731.985425)">For the Privacy Officer</text>
+   </g>
+   <g id="text_53">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="752.225969" transform="rotate(-0 17.568 752.225969)">Left blank on purpose. Each of these follows a determination that only the officer can make.</text>
+   </g>
+   <g id="text_54">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="772.723747" transform="rotate(-0 17.568 772.723747)">- Interview notes</text>
+   </g>
+   <g id="text_55">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="782.972635" transform="rotate(-0 17.568 782.972635)">- Determination</text>
+   </g>
+   <g id="text_56">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="793.221524" transform="rotate(-0 17.568 793.221524)">- Breach risk assessment</text>
+   </g>
+   <g id="text_57">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="803.448413" transform="rotate(-0 17.568 803.448413)">- Violation category and sanction</text>
+   </g>
+   <g id="text_58">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="813.719302" transform="rotate(-0 17.568 813.719302)">- Corrective action</text>
+   </g>
+   <g id="text_59">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans Mono'; text-anchor: start; fill: #222222" x="17.568" y="823.968191" transform="rotate(-0 17.568 823.968191)">- Notifications</text>
+   </g>
+   <g id="text_60">
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 82.490924)">Header</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 91.459167)">Filled by the pipeline</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 100.427409)">from the access log</text>
+   </g>
+   <g id="text_61">
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 339.35347)">Draft note</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 348.321712)">Written by the model.</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 357.289954)">Every claim cites the</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 366.258197)">IDs of facts it was shown</text>
+   </g>
+   <g id="text_62">
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 621.838238)">Facts cited</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 630.80648)">Each cited fact written out</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 639.774722)">by the pipeline, ranges</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 648.742964)">expanded, so the officer</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 657.711207)">can check every claim</text>
+   </g>
+   <g id="text_63">
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 764.682359)">Officer's part</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 773.650601)">Never drafted. Left for</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 782.618843)">the determinations only</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(542.88 791.587086)">the officer can make</text>
+   </g>
+   <g id="text_64">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="10.656" y="15.558281" transform="rotate(-0 10.656 15.558281)">One rendered case</text>
+   </g>
+   <g id="text_65">
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #8a8a8a" x="10.656" y="22.687314" transform="rotate(-0 10.656 22.687314)">Case C0033, Coworker snooping (M1), as the LLM + Graph answered it and python -m ehr_triage.triage render prints it</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pa3bb6c6b0a">
+   <rect x="7.2" y="7.398524" width="691.2" height="830.16"/>
+  </clipPath>
+ </defs>
+</svg>
