@@ -635,6 +635,76 @@ def fig08_staff_charts(run: Path, out_dir: Path, frames: dict) -> Path:
     return save(fig, out_dir, "fig08-staff-charts-and-other-charts")
 
 
+# ---- figure 9 ----
+
+# Whether each prediction of spec 5.2 held, one mark per row of evaluate.MATRIX_ROWS in its order. Grouped from the
+# leading words of the Reading column of docs/results-reading-draft.md, as Carlos reviewed it (15 Nov 2026):
+# "As predicted", "A miss in substance, as predicted" and "As the scenarios themselves" are held (H), "Mostly as
+# predicted" and "Partly contradicted" are partly (P), "Contradicted" is contradicted (C), and "Open question" is
+# open (O). When a reading in the draft changes, change its mark here.
+MATRIX_MARKS = {
+    #             M1   M2a  M2b+ M2b- M3   M4   M5   M6a  M6b  own  H1   H2a  H2b  H3   H4a  H4b  H5   H6
+    "rules":     "H    H    H    P    H    P    H    H    P    H    P    P    P    P    H    H    P    P",
+    "templates": "H    H    H    H    H    H    H    H    H    C    H    H    H    H    H    H    H    H",
+    "llm_raw":   "H    H    H    H    H    H    C    C    H    H    H    H    H    H    C    H    H    H",
+    "llm_graph": "H    H    H    H    H    P    P    P    C    O    C    H    P    H    H    P    C    C",
+}
+MARK_WORDS = {"H": "✓ held", "P": "~ partly", "C": "✗ contradicted", "O": "? open"}
+
+
+def matrix_counts(run: Path, u: pd.DataFrame, frames: dict) -> dict:
+    """(system, row) to (cases, alerted), counted as in the matrix of llm-results.md."""
+    cells = evaluate.matrix_cells(run, u)
+    v = evaluate.variants(u)
+    counted = {"rules": (cells, v["Rules, all five"][0]), "templates": (cells, v["Templates, direct and responsibility"][0])}
+    for s, f in frames.items():
+        counted[s] = (f[KEY].merge(cells, on=KEY, how="left").set_axis(f.index), f["disposition"] == "escalate")
+    out = {}
+    for system, (mine, alert) in counted.items():
+        for cell, _ in evaluate.MATRIX_ROWS:
+            part = (mine["own_department"].astype(bool) if cell == "own" else mine["cell"] == cell).to_numpy()
+            out[system, cell] = (int(part.sum()), int((alert.to_numpy() & part).sum()))
+    return out
+
+
+def fig09_predicted_and_observed(run: Path, out_dir: Path, frames: dict, u: pd.DataFrame) -> Path:
+    counts = matrix_counts(run, u, frames)
+    systems = list(MATRIX_MARKS)
+    marks = {s: MATRIX_MARKS[s].split() for s in systems}
+    assert all(len(m) == len(evaluate.MATRIX_ROWS) for m in marks.values())
+    shades = matplotlib.colors.LinearSegmentedColormap.from_list("share", ["#ffffff", HUE])
+    fig, ax = plt.subplots(figsize=(8.8, 8.2))
+    n_rows = len(evaluate.MATRIX_ROWS)
+    for i, (cell, label) in enumerate(evaluate.MATRIX_ROWS):
+        y = n_rows - 1 - i
+        for j, s in enumerate(systems):
+            n, hit = counts[s, cell]
+            share = hit / n if n else 0.0
+            ax.add_patch(plt.Rectangle((j + 0.04, y + 0.06), 0.92, 0.88, color=shades(0.12 + 0.88 * share), lw=0))
+            ax.add_patch(plt.Rectangle((j + 0.04, y + 0.06), 0.92, 0.88, fill=False, ec=LIGHT, lw=0.6))
+            ink = "white" if share > 0.55 else INK
+            ax.text(j + 0.5, y + 0.64, f"{share:.0%} of {n:,}" if n else "no cases", ha="center", va="center", fontsize=7.5, color=ink)
+            word = MARK_WORDS[marks[s][i]]
+            ax.text(j + 0.5, y + 0.32, word, ha="center", va="center", fontsize=7.5, color=ink,
+                    fontweight="bold" if marks[s][i] in ("C", "P") else "normal")
+    ax.axhline(n_rows - 10, color=INK, lw=0.8)
+    ax.set_xlim(0, len(systems))
+    ax.set_ylim(0, n_rows)
+    ax.set_xticks([j + 0.5 for j in range(len(systems))], [SYSTEM_NAMES[s] for s in systems])
+    ax.xaxis.tick_top()
+    ax.set_yticks([n_rows - 1 - i + 0.5 for i in range(n_rows)], [KIND_NAMES.get(c, c) for c, _ in evaluate.MATRIX_ROWS])
+    ax.tick_params(length=0)
+    for side in ax.spines.values():
+        side.set_visible(False)
+    ax.set_title("Predicted against observed", pad=28)
+    note(fig, "Each tile is one row of the expected-outcome matrix (spec 5.2) for one system. The share is the cases "
+              "alerted: a rule fired, no explanation was found, or the model escalated. Verify is not counted as an alert "
+              "here. Darker tiles alert more. Misuse is above the line, legitimate work below it. The mark says whether the prediction held, grouped from the Reading column "
+              "of the reading draft. Rules and templates are counted on every first access, the LLM systems on the case "
+              "set, as in the matrix of docs/llm-results.md.", y=0.03)
+    return save(fig, out_dir, "fig09-predicted-against-observed")
+
+
 # ---- the command ----
 
 def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path = "results") -> dict:
@@ -658,7 +728,8 @@ def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path
     else:
         u = evaluate.score_run(run, cfg)
         written += [fig05_dispositions(run, cfg, out_dir, frames, u), fig06_alerts_and_catches(cfg, out_dir, frames, u),
-                    fig07_review_budget(cfg, out_dir, frames, u), fig08_staff_charts(run, out_dir, frames)]
+                    fig07_review_budget(cfg, out_dir, frames, u), fig08_staff_charts(run, out_dir, frames),
+                    fig09_predicted_and_observed(run, out_dir, frames, u)]
     return {"written": [str(p) for p in written], "skipped": skipped}
 
 
