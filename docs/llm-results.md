@@ -122,8 +122,8 @@ The first check is mechanical. A claim passes when it cites at least one fact an
 
 | System | Summaries | Fit the template | Cut off by the token limit | Claims | Citations exist | Without counting ranges | Claims judged | Not yet judged | Supported | Partly | Unsupported | Of which absence claims |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| LLM on log lines | 1,673 | 100.0% | 0 | 6,697 | 6,691 | 6,053 | 6,052 | 639 | 64.4% | 33.0% | 2.6% | 1,350 |
-| LLM with identity graph | 1,673 | 100.0% | 0 | 11,024 | 11,023 | 10,627 | 10,623 | 400 | 69.4% | 29.5% | 1.2% | 1,216 |
+| LLM on log lines | 1,673 | 100.0% | 0 | 6,697 | 6,691 | 6,053 | 6,653 | 38 | 65.8% | 31.6% | 2.6% | 1,520 |
+| LLM with identity graph | 1,673 | 100.0% | 0 | 11,024 | 11,023 | 10,627 | 10,993 | 30 | 69.6% | 29.3% | 1.1% | 1,234 |
 
 ## With covering accesses
 
@@ -142,11 +142,11 @@ Summed from the usage and the cost each call reported. A case that was sent agai
 
 | File | Answers | Calls | Prompt tokens | Completion tokens | Of which reasoning | Cost |
 |---|---|---|---|---|---|---|
-| seed42/judge.llm_graph.pass1.jsonl | 1,673 | 1,687 | 6,905,988 | 4,399,019 | 4,242,657 | $0.95 |
-| seed42/judge.llm_raw.pass1.jsonl | 1,592 | 1,625 | 6,077,245 | 4,716,178 | 4,619,536 | $0.92 |
+| seed42/judge.llm_graph.pass1.jsonl | 1,673 | 1,851 | 7,918,361 | 4,873,287 | 4,700,395 | $1.07 |
+| seed42/judge.llm_raw.pass1.jsonl | 1,668 | 1,816 | 7,547,872 | 5,358,269 | 5,248,758 | $1.09 |
 | seed42/llm_graph.pass1.jsonl | 1,673 | 1,700 | 5,571,934 | 10,108,980 | 8,377,506 | $1.01 |
 | seed42/llm_raw.pass1.jsonl | 1,673 | 1,678 | 4,854,583 | 11,003,773 | 9,073,263 | $1.05 |
-| seed42-covered/judge.llm_graph.pass1.jsonl | 158 | 160 | 554,790 | 393,881 | 379,619 | $0.08 |
-| seed42-covered/judge.llm_raw.pass1.jsonl | 157 | 158 | 501,682 | 365,227 | 356,349 | $0.07 |
+| seed42-covered/judge.llm_graph.pass1.jsonl | 158 | 174 | 617,041 | 421,614 | 406,112 | $0.09 |
+| seed42-covered/judge.llm_raw.pass1.jsonl | 158 | 172 | 579,919 | 407,681 | 398,018 | $0.08 |
 | seed42-covered/llm_graph.pass1.jsonl | 158 | 158 | 423,099 | 873,422 | 734,543 | $0.08 |
 | seed42-covered/llm_raw.pass1.jsonl | 158 | 159 | 376,321 | 972,774 | 808,589 | $0.09 |
