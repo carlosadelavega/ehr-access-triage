@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import textwrap
 from pathlib import Path
 
 import matplotlib
@@ -19,6 +20,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 
 from . import evaluate, report  # noqa: E402
 from .config import Config, load_config  # noqa: E402
@@ -280,6 +282,137 @@ def fig03_calibration(run: Path, cfg: Config, out_dir: Path) -> Path:
     return save(fig, out_dir, "fig03-calibration-against-targets")
 
 
+# ---- figure 4 ----
+
+# Chosen by hand for seed 42 (Carlos, 15 Nov 2026): a misuse access the LLM + Graph escalated and the LLM
+# did not, and a legitimate access with the same kind of tie that the LLM + Graph cleared. On another run,
+# such as the tests', the first case in ID order that meets the same test is drawn instead.
+FIG04_CASES = {"misuse": "C0033", "legitimate": "C0021"}
+
+EDGE_NAMES = {
+    "works_in": "works in", "employed_in": "employed in", "is": "is", "same_surname": "same last name",
+    "same_street": "same street", "lives_near": "lives nearby", "emergency_contact": "emergency contact",
+    "had": "had", "in": "seen in", "care_team": "care team", "ordered": "ordered", "order_to": "order sent to",
+}
+
+
+def fig04_pick(run: Path, results: Path) -> dict | None:
+    """The two cases to draw, with both systems' answers, or None when the answers are not there."""
+    graph = evaluate.scored_answers(run, results, "llm_graph")
+    raw = evaluate.scored_answers(run, results, "llm_raw")
+    if graph is None or raw is None:
+        return None
+    both = graph.merge(raw[["case_id", "disposition", "priority"]], on="case_id", suffixes=("", "_raw")).sort_values("case_id")
+    tests = {
+        "misuse": both["is_misuse"] & (both["disposition"] == "escalate") & (both["disposition_raw"] != "escalate"),
+        "legitimate": (both["stratum"] == "H4a") & (both["disposition"] == "clear"),
+    }
+    picked = {}
+    for role, ok in tests.items():
+        fits = both[ok]
+        if fits.empty:
+            return None
+        chosen = fits[fits["case_id"] == FIG04_CASES[role]]
+        picked[role] = (chosen if len(chosen) else fits).iloc[0]
+    return picked
+
+
+def case_graph(v, row) -> tuple[list, list, dict]:
+    """The nodes and edges on every evidence path between the case's user and patient, as the LLM + Graph saw them."""
+    from .graph import evidence_paths
+    from .triage import case_events
+    case, _ = case_events(v, row.user_id, row.patient_id, int(row.week))
+    paths = evidence_paths(v.graph, row.user_id, row.patient_id, pd.Timestamp(case["timestamp"].iloc[0]))
+    nodes, edges = [], {}
+    for path in paths.values():
+        for n in path:
+            if n not in nodes:
+                nodes.append(n)
+        for a, b in zip(path, path[1:]):
+            pair = tuple(sorted([a, b]))
+            keys = [k for x, y in ((a, b), (b, a)) for k in (v.graph.get_edge_data(x, y) or {})]
+            if not keys:  # a path can name two nodes with no edge between them, as organization co-worker does
+                continue
+            edges.setdefault(pair, [])
+            for k in keys:
+                if EDGE_NAMES.get(k, k) not in edges[pair]:
+                    edges[pair].append(EDGE_NAMES.get(k, k))
+    return nodes, list(edges.items()), paths
+
+
+def node_text(v, node) -> str:
+    kind, ident = node
+    if kind == "user":
+        s = v.staff.loc[ident]
+        return f"User {ident}\n{s['role']}, {s['department_id']}"
+    if kind == "patient":
+        return f"Patient {ident}"
+    if kind == "department":
+        return f"Department\n{ident}"
+    for rows in v.encounters.values():
+        hit = rows[rows["encounter_id"] == ident]
+        if len(hit):
+            r = hit.iloc[0]
+            return f"Encounter {ident}\n{r['kind']}, {r['department_id']}"
+    return f"Encounter {ident}"
+
+
+def draw_case(ax, v, row, title: str) -> None:
+    nodes, edges, paths = case_graph(v, row)
+    xy = {}
+    middle = {"department": [n for n in nodes if n[0] == "department"], "encounter": [n for n in nodes if n[0] == "encounter"]}
+    for n in nodes:
+        if n[0] == "user":
+            xy[n] = (0.0, 0.0)
+        elif n[0] == "patient":
+            xy[n] = (2.0, 0.0)
+    for kind, y in (("department", 1.0), ("encounter", -1.0)):
+        group = middle[kind]
+        for i, n in enumerate(group):
+            xy[n] = (1.0 + (i - (len(group) - 1) / 2) * 0.7, y)
+    for (a, b), names in edges:
+        (x1, y1), (x2, y2) = xy[a], xy[b]
+        ax.plot([x1, x2], [y1, y2], color=MUTED, lw=1.2, zorder=1)
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        ax.text(mx, my, "\n".join(names), ha="center", va="center", fontsize=7, color=INK, zorder=3,
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none"))
+    markers = {"user": ("o", HUE), "patient": ("o", HUE), "department": ("s", MUTED), "encounter": ("D", MUTED)}
+    for n in nodes:
+        m, c = markers[n[0]]
+        ax.plot(*xy[n], m, color=c, ms=13, zorder=2)
+        x, y = xy[n]
+        if n[0] in ("user", "patient"):  # outside the drawing, clear of the edges
+            ax.text(x + (-0.17 if n[0] == "user" else 0.17), y, node_text(v, n), ha="right" if n[0] == "user" else "left",
+                    va="center", fontsize=7.5)
+        else:
+            up = n[0] == "department"
+            ax.text(x, y + (0.2 if up else -0.2), node_text(v, n), ha="center", va="bottom" if up else "top", fontsize=7.5)
+    ax.set_xlim(-0.9, 2.9)
+    ax.set_ylim(-1.75, 1.65)
+    ax.axis("off")
+    ax.set_title(title, fontsize=9.5, loc="left")
+    answers = (f"LLM: {row['disposition_raw']}, {row['priority_raw']} priority\n"
+               f"LLM + Graph: {row['disposition']}, {row['priority']} priority")
+    named = textwrap.fill("Connections named in the graph: " + ", ".join(paths), 52, break_on_hyphens=False) if paths else "No connection in the graph"
+    ax.text(-0.9, -1.95, named + "\n\n" + answers, ha="left", va="top", fontsize=7.5, transform=ax.transData)
+
+
+def fig04_identity_graph(run: Path, cfg: Config, out_dir: Path, results: Path) -> Path | None:
+    picked = fig04_pick(run, results)
+    if picked is None:
+        return None
+    from .triage import Views
+    v = Views(run, "llm_graph", cfg)
+    fig, axes = plt.subplots(1, 2, figsize=(9.4, 3.9), gridspec_kw={"wspace": 0.25})
+    for ax, role in zip(axes, ("misuse", "legitimate")):
+        row = picked[role]
+        draw_case(ax, v, row, f"{KIND_NAMES.get(row['stratum'], row['stratum'])}, case {row['case_id']}")
+    fig.suptitle("One case in the identity graph", x=0.0, ha="left", fontsize=11, fontweight="bold", y=1.02)
+    note(fig, "Each drawing is every edge on the evidence paths the LLM + Graph was shown for that case, at the "
+              "encounter nearest the access. The organization co-worker connection is the patient being employed in a department, so it adds no edge of its own here. The LLM saw the same log lines and no graph. Both cases carry the same "
+              "co-worker tie. Only the legitimate one also has a care-team path to the patient's stay.", y=-0.2)
+    return save(fig, out_dir, "fig04-one-case-in-the-identity-graph")
+
 # ---- the command ----
 
 def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path = "results") -> dict:
@@ -292,6 +425,11 @@ def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path
         written.insert(1, fig02_first_accesses(run, cfg, out_dir))
     else:
         skipped.append("fig02, no case set in the run folder")
+    fig04 = fig04_identity_graph(run, cfg, out_dir, Path(results)) if (run / "cases.csv").exists() else None
+    if fig04 is None:
+        skipped.append("fig04, no answers from both LLM systems, or no case that fits")
+    else:
+        written.append(fig04)
     return {"written": [str(p) for p in written], "skipped": skipped}
 
 

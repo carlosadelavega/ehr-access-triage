@@ -290,6 +290,6 @@ def test_figures_are_written_from_the_answers(runs, answered, cfg, tmp_path):
     out = figures.build(base, cfg, tmp_path, answered / base.name)
     names = sorted(p.name for p in tmp_path.glob("*.svg"))
     assert names == sorted(Path(p).name for p in out["written"])
-    for start in ("fig01-", "fig02-", "fig03-"):
+    for start in ("fig01-", "fig02-", "fig03-", "fig04-"):
         assert any(n.startswith(start) for n in names)
     assert all((tmp_path / n).read_text().lstrip().startswith("<?xml") for n in names)
