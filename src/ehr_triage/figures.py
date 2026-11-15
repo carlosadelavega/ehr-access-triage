@@ -413,6 +413,228 @@ def fig04_identity_graph(run: Path, cfg: Config, out_dir: Path, results: Path) -
               "co-worker tie. Only the legitimate one also has a care-team path to the patient's stay.", y=-0.2)
     return save(fig, out_dir, "fig04-one-case-in-the-identity-graph")
 
+# ---- shared by figures 5 to 8 ----
+
+VARIANT_NAMES = {
+    "Rules, all five": "Rules",
+    "Rules, without organization co-worker": "Rules, without organization co-worker",
+    "Templates, direct evidence": "Templates, direct evidence only",
+    "Templates, direct and responsibility": "Templates",
+    "Rules, then direct evidence": "Best baseline",
+}
+KEY = ["user_id", "patient_id", "week"]
+
+
+def llm_frames(run: Path, results: Path) -> dict | None:
+    """Both LLM systems' answers joined to the truth, or None unless both are there."""
+    frames = {s: evaluate.scored_answers(run, results, s) for s in ("llm_raw", "llm_graph")}
+    return None if any(f is None for f in frames.values()) else frames
+
+
+def staff_patients(run: Path) -> set:
+    return set(pd.read_csv(run / "context" / "staff.csv", keep_default_na=False)["patient_id"])
+
+
+# ---- figure 5 ----
+
+DISPOSITION_SHADES = {"clear": LIGHT, "verify": HUE_LIGHT, "escalate": HUE}
+
+
+def fig05_dispositions(run: Path, cfg: Config, out_dir: Path, frames: dict, u: pd.DataFrame) -> Path:
+    """Clear, verify and escalate on every row of the matrix, centred on verify."""
+    cells = evaluate.matrix_cells(run, u)
+    rows = [(cell, KIND_NAMES.get(cell, label)) for cell, label in evaluate.MATRIX_ROWS]
+    fig, axes = plt.subplots(1, 2, figsize=(9.6, 6.4), sharey=True, gridspec_kw={"wspace": 0.06})
+    y = np.arange(len(rows))[::-1]
+    for ax, system in zip(axes, ("llm_raw", "llm_graph")):
+        f = frames[system]
+        mine = f[KEY].merge(cells, on=KEY, how="left").set_axis(f.index)
+        counts = []
+        for cell, _ in rows:
+            part = mine["own_department"].astype(bool) if cell == "own" else mine["cell"] == cell
+            d = f.loc[part, "disposition"].value_counts()
+            counts.append([int(d.get(x, 0)) for x in ("clear", "verify", "escalate")])
+        counts = np.array(counts, dtype=float)
+        n = counts.sum(axis=1)
+        share = counts / np.where(n == 0, 1, n)[:, None]
+        left = -share[:, 1] / 2 - share[:, 0]
+        for j, name in enumerate(("clear", "verify", "escalate")):
+            ax.barh(y, share[:, j], left=left, color=DISPOSITION_SHADES[name], height=0.72, edgecolor="white", lw=0.5)
+            for yi, s, l, c in zip(y, share[:, j], left, counts[:, j]):
+                if s >= 0.12:
+                    ax.text(l + s / 2, yi, f"{int(c)}", ha="center", va="center", fontsize=7,
+                            color="white" if name == "escalate" else INK)
+            left = left + share[:, j]
+        ax.axvline(0, color=INK, lw=0.6)
+        ax.set_xlim(-1.02, 1.02)
+        ax.set_xticks([-1, -0.5, 0, 0.5, 1], ["100%", "50%", "0", "50%", "100%"])
+        ax.set_title(SYSTEM_NAMES[system], fontsize=9.5)
+        ax.tick_params(axis="y", length=0)
+        ax.axhline(y[9] - 0.5, color=MUTED, lw=0.6, ls=(0, (2, 2)))
+        ax.spines["left"].set_visible(False)
+        top = y[0] + 0.75
+        for x, word in ((-0.75, "Clear"), (0, "Verify"), (0.75, "Escalate")):
+            ax.text(x, top, word, ha="center", va="bottom", fontsize=8, color=MUTED)
+    axes[0].set_yticks(y, [f"{label}, {int(c)} cases" for (_, label), c in zip(rows, n)])
+    axes[0].set_ylim(y[-1] - 0.6, y[0] + 1.4)
+    axes[0].text(-1.0, y[9] - 0.42, "Misuse above", fontsize=7, color=MUTED, va="bottom", ha="left")
+    axes[0].text(-1.0, y[9] - 0.58, "Legitimate below", fontsize=7, color=MUTED, va="top", ha="left")
+    fig.suptitle("Dispositions by scenario", x=0.0, ha="left", fontsize=11, fontweight="bold", y=0.99)
+    note(fig, "Share of cases sent to clear, verify and escalate on each row of the expected-outcome matrix (spec 5.2), "
+              "with the bars centred on verify. Numbers in the bars are cases, and the number after each name is the cases "
+              "on that row. Counts are in the sample and not weighted. The row on the target seen in the actor's department "
+              "is a subset of the misuse rows above it. Same counts as the matrix in docs/llm-results.md.", y=0.0)
+    return save(fig, out_dir, "fig05-dispositions-by-scenario")
+
+
+# ---- figure 6 ----
+
+def system_points(u: pd.DataFrame, frames: dict, days: int) -> list[dict]:
+    """Every system as alerts per day and misuse caught, the numbers of the alerts table in llm-results.md."""
+    is_misuse = u["misuse"] != ""
+    points = []
+    for name, (alert, _) in evaluate.variants(u).items():
+        points.append(dict(name=VARIANT_NAMES[name], alerts=alert.sum() / days, margin=0.0,
+                           caught=int((alert & is_misuse).sum()), llm=False))
+    for system in ("llm_raw", "llm_graph"):
+        f = frames[system]
+        for label, alert in (("escalate", f["disposition"] == "escalate"), ("verify or escalate", f["disposition"] != "clear")):
+            total, margin = evaluate.weighted_alerts(f, alert)
+            points.append(dict(name=f"{SYSTEM_NAMES[system]}, {label}", alerts=total / days, margin=margin / days,
+                               caught=int((alert & f["is_misuse"]).sum()), llm=True))
+    return points
+
+
+def fig06_alerts_and_catches(cfg: Config, out_dir: Path, frames: dict, u: pd.DataFrame) -> Path:
+    days = cfg["window_days"]
+    points = system_points(u, frames, days)
+    n_misuse = int((u["misuse"] != "").sum())
+    floor = 0.3  # where a system with no alerts at all is drawn on the log scale
+    fig, ax = plt.subplots(figsize=(8.4, 4.6))
+    ax.set_xscale("log")
+    ax.set_xlim(0.2, 6000)
+    ax.set_ylim(-5, n_misuse + 8)
+    ax.axhline(n_misuse, color=LIGHT, lw=0.8)
+    ax.text(0.22, n_misuse + 1.5, f"All {n_misuse} misuse first accesses", fontsize=7.5, color=MUTED)
+    offsets = {"Rules": (6, 6), "Rules, without organization co-worker": (-6, -11), "Templates": (-8, -9),
+               "Templates, direct evidence only": (-8, 8), "Best baseline": (-6, 7), "LLM, verify or escalate": (8, -1)}
+    for p in points:
+        x = max(p["alerts"], floor)
+        if p["llm"]:
+            if p["margin"] > 0:
+                ax.plot([max(p["alerts"] - p["margin"], floor), p["alerts"] + p["margin"]], [p["caught"]] * 2, color=HUE, lw=1.2)
+            ax.plot(x, p["caught"], "o", color=HUE, ms=6, zorder=3)
+        else:
+            ax.plot(x, p["caught"], "s", color=MUTED, ms=6, zorder=3)
+        dx, dy = offsets.get(p["name"], (7, 4) if p["alerts"] < 1000 else (-7, 4))
+        label = p["name"] + (" (no alerts)" if p["alerts"] == 0 else "")
+        ax.annotate(label, (x, p["caught"]), xytext=(dx, dy), textcoords="offset points", fontsize=7.5,
+                    ha="left" if dx > 0 else "right", va="center")
+    ax.set_xlabel("Alerts per day, over all first accesses (log scale)")
+    ax.set_ylabel(f"Misuse caught, of {n_misuse}")
+    ax.set_xticks([1, 10, 100, 1000], ["1", "10", "100", "1,000"])
+    ax.set_title("Alerts against catches", pad=10)
+    note(fig, "Squares are the rules and templates, counted on every first access. Circles are the LLM systems at two "
+              "thresholds, escalate alone and verify or escalate, weighted back from the case set. The bars on the circles "
+              "are 95% intervals from the sampling alone, and say nothing about run-to-run variation. The LLM at escalate "
+              "raised no alerts and is drawn at the left edge. Same numbers as the alerts table in docs/llm-results.md.", y=-0.04)
+    return save(fig, out_dir, "fig06-alerts-against-catches")
+
+
+# ---- figure 7 ----
+
+def budget_curves(cfg: Config, u: pd.DataFrame, frames: dict) -> dict:
+    """Misuse found over the window at each daily budget, for the four systems drawn."""
+    days, budgets = cfg["window_days"], list(cfg["review_budget_per_day"])
+    is_misuse = u["misuse"] != ""
+    v = evaluate.variants(u)
+    curves = {}
+    for name in ("Rules, all five", "Rules, then direct evidence"):
+        alert, score = v[name]
+        curves[VARIANT_NAMES[name]] = [evaluate.average_day_top_k(score[alert], is_misuse[alert], np.ones(int(alert.sum())), k, days)[0]
+                                       for k in budgets]
+    for system in ("llm_graph", "llm_raw"):
+        f = frames[system]
+        a = f[f["disposition"] != "clear"]  # ranked by disposition, then priority, so escalations come first
+        curves[SYSTEM_NAMES[system]] = [evaluate.average_day_top_k(a["score"], a["is_misuse"], a["weight"], k, days)[0] for k in budgets]
+    return {"budgets": budgets, "curves": curves}
+
+
+def fig07_review_budget(cfg: Config, out_dir: Path, frames: dict, u: pd.DataFrame) -> Path:
+    data = budget_curves(cfg, u, frames)
+    budgets = data["budgets"]
+    n_misuse = int((u["misuse"] != "").sum())
+    styles = {"Best baseline": ("s", MUTED, "-"), "Rules": ("s", MUTED, ":"), "LLM + Graph": ("o", HUE, "-"), "LLM": ("o", HUE, ":")}
+    fig, ax = plt.subplots(figsize=(7.2, 4.2))
+    above = {"Best baseline": True, "Rules": False, "LLM + Graph": False, "LLM": True}
+    ends = sorted(data["curves"].items(), key=lambda kv: kv[1][-1])
+    placed = []
+    for name, found in ends:  # end labels from the bottom up, pushed apart so they never touch
+        y_end = found[-1] if not placed else max(found[-1], placed[-1] + 2.4)
+        placed.append(y_end)
+        ax.text(budgets[-1] + 2, y_end, f"{name}, {int(found[-1])}", va="center", fontsize=8, color=INK)
+    for name, found in data["curves"].items():
+        m, c, ls = styles[name]
+        ax.plot(budgets, found, marker=m, color=c, ls=ls, lw=1.4, ms=5)
+        for k, v in zip(budgets[:-1], found[:-1]):
+            ax.text(k, v + (1.0 if above[name] else -1.0), f"{int(v)}", ha="center", va="bottom" if above[name] else "top",
+                    fontsize=7, color=c)
+    ax.set_xticks(budgets, [str(k) for k in budgets])
+    ax.set_xlim(budgets[0] - 3, budgets[-1] + 18)
+    ax.set_ylim(0, max(max(c) for c in data["curves"].values()) * 1.25)
+    ax.set_xlabel("Alerts a reviewer takes each day")
+    ax.set_ylabel(f"Misuse found over {cfg['window_days']} days, of {n_misuse}")
+    ax.set_title("Inside a review budget", pad=10)
+    note(fig, "The reviewer takes the highest-ranked alerts each day. Rules are ranked by their observed-to-expected ratios, "
+              "the LLM systems by disposition and then the priority the model gave. Every system is scored on an average "
+              "day, as in the budget table in docs/llm-results.md, and counts are rounded down. The budgets of 10, 25 and 50 are an assumption.", y=-0.04)
+    return save(fig, out_dir, "fig07-inside-a-review-budget")
+
+
+# ---- figure 8 ----
+
+def fig08_staff_charts(run: Path, out_dir: Path, frames: dict) -> Path:
+    """Share escalated by the LLM + Graph on staff charts and on other charts, per kind of legitimate access."""
+    f = frames["llm_graph"]
+    staff = f["patient_id"].isin(staff_patients(run))
+    kinds = [k for k in evaluate.LEGITIMATE if k in set(f["stratum"])]
+    rows = []
+    for kind in kinds:
+        part = f["stratum"] == kind
+        row = {"kind": kind}
+        for side, mask in (("staff", part & staff), ("other", part & ~staff)):
+            n, k = int(mask.sum()), int((mask & (f["disposition"] == "escalate")).sum())
+            row[side] = (k, n, *evaluate.wilson(k, n))
+        rows.append(row)
+    rows.sort(key=lambda r: -(r["staff"][0] / max(r["staff"][1], 1)))
+    fig, ax = plt.subplots(figsize=(8.2, 0.42 * len(rows) + 1.4))
+    y = np.arange(len(rows))[::-1]
+    for yi, r in zip(y, rows):
+        (ks, ns, ls, hs), (ko, no, lo, ho) = r["staff"], r["other"]
+        ps, po = ks / max(ns, 1), ko / max(no, 1)
+        ax.plot([po, ps], [yi, yi], color=LIGHT, lw=3, zorder=1)
+        ax.plot([ls, hs], [yi + 0.14] * 2, color=HUE, lw=1, zorder=2)
+        ax.plot([lo, ho], [yi - 0.14] * 2, color=MUTED, lw=1, zorder=2)
+        ax.plot(ps, yi + 0.14, "o", color=HUE, ms=6, zorder=3)
+        ax.plot(po, yi - 0.14, "o", mfc="white", mec=MUTED, mew=1.4, ms=6, zorder=3)
+        ax.text(1.03, yi, f"{ks} of {ns}", va="center", fontsize=7.5, color=HUE, transform=ax.get_yaxis_transform())
+        ax.text(1.16, yi, f"{ko} of {no}", va="center", fontsize=7.5, color=MUTED, transform=ax.get_yaxis_transform())
+    ax.text(1.03, y[0] + 0.7, "Staff", fontsize=7.5, color=HUE, transform=ax.get_yaxis_transform(), fontweight="bold")
+    ax.text(1.16, y[0] + 0.7, "Other", fontsize=7.5, color=MUTED, transform=ax.get_yaxis_transform(), fontweight="bold")
+    ax.set_yticks(y, [KIND_NAMES.get(r["kind"], r["kind"]) for r in rows])
+    ax.tick_params(axis="y", length=0)
+    ax.spines["left"].set_visible(False)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(y[-1] - 0.6, y[0] + 1.0)
+    ax.set_xticks([0, 0.25, 0.5, 0.75, 1], ["0", "25%", "50%", "75%", "100%"])
+    ax.set_xlabel("Share of legitimate cases the LLM + Graph escalated")
+    ax.set_title("Staff charts and other charts", pad=10)
+    note(fig, "Filled circles are cases where the patient is also staff, open circles the rest. Thin bars are 95% Wilson "
+              "intervals. Counts are cases in the sample, from the staff split in docs/llm-results.md. Staff are 11% of "
+              "patients here, about three times as many staff charts as the published data, a gap reported and not tuned.", y=-0.02)
+    return save(fig, out_dir, "fig08-staff-charts-and-other-charts")
+
+
 # ---- the command ----
 
 def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path = "results") -> dict:
@@ -430,6 +652,13 @@ def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path
         skipped.append("fig04, no answers from both LLM systems, or no case that fits")
     else:
         written.append(fig04)
+    frames = llm_frames(run, Path(results)) if (run / "cases.csv").exists() else None
+    if frames is None:
+        skipped.append("fig05-fig08, no answers from both LLM systems")
+    else:
+        u = evaluate.score_run(run, cfg)
+        written += [fig05_dispositions(run, cfg, out_dir, frames, u), fig06_alerts_and_catches(cfg, out_dir, frames, u),
+                    fig07_review_budget(cfg, out_dir, frames, u), fig08_staff_charts(run, out_dir, frames)]
     return {"written": [str(p) for p in written], "skipped": skipped}
 
 
