@@ -4,14 +4,14 @@ Written by hand on 14 Nov 2026. This is the record the spec asks for before any 
 
 ## What the judge reported
 
-The judge is DeepSeek V4.1 Flash 1017 on Sail Research's fp4 endpoint with reasoning effort low. It rated 17,646 claims from 3,341 summaries of the main run. These are the figures in `llm-results.md`.
+The judge is DeepSeek V4.1 Flash 1017 on Sail Research's fp4 endpoint with reasoning effort low. It rated 17,696 claims from 3,341 summaries of the main run. These are the figures in `llm-results.md`.
 
 | System | Claims judged | Supported | Partly | Unsupported |
 |---|---|---|---|---|
-| LLM on log lines | 6,653 | 65.8% | 31.6% | 2.6% |
-| LLM with identity graph | 10,993 | 69.6% | 29.3% | 1.1% |
+| LLM on log lines | 6,673 | 65.8% | 31.6% | 2.7% |
+| LLM with identity graph | 11,023 | 69.5% | 29.3% | 1.2% |
 
-13 judge calls ran out of tokens on their latest try, which leaves 68 claims with no verdict. Those claims are not in the shares.
+Four judge calls on log lines kept running out of tokens, three of them on all four tries. That leaves 18 claims with no verdict, which are not in the shares. Every claim of the system with the graph has a verdict.
 
 ## What a hand-read found
 
