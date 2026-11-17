@@ -171,7 +171,7 @@ P1 is labeled as `policy`, not misuse. Whether staff may view their own record i
 
 ### 5.2 Which systems should and should not catch it
 
-These are predictions to be tested. Nothing in the generator enforces them, and results that contradict a cell get reported.
+These are predictions to be tested. Nothing in the generator enforces them, and results that contradict a cell get reported. How each word is scored is fixed in section 11.5.
 
 - **flag** means the system should put the access in front of a reviewer
 - **miss** means it should not be able to
@@ -286,7 +286,7 @@ Decided since, and recorded in section 10. The model is GLM 5.3 Flash and the Pr
 
 ## 9. Baselines (build step 4)
 
-Results are in [baseline-results.md](baseline-results.md).
+Results are in [baseline-results.md](baseline-results.md). Section 11 amends the unit, the timing of evidence and how responsibility is mined.
 
 **Unit.** Both baselines judge a first access, one user opening one patient for the first time in a week, with self-accesses left out. That is the unit in Hedda et al. and in Fabbri and LeFevre. A 30-day run has about 64,000.
 
@@ -323,7 +323,7 @@ There is no "patient was seen in the user's department" template, because their 
 
 ## 10. LLM triage (build step 5)
 
-Status on 12 Nov 2026: built and tested against a made-up model. No real model has been run yet, so there are no LLM results.
+Status on 12 Nov 2026: built and tested against a made-up model. No real model has been run yet, so there are no LLM results. Pass 1 ran on this design. Section 11 corrects what the systems are shown and how they are scored, for every later pass.
 
 **Systems 3 and 4.** Both triage the same first accesses, chosen by the harness. System 3 is shown log lines only. These are the access under review, up to 30 other lines by the same user, taken nearest the access and within 12 hours either side, and up to 30 lines by other users on the same patient that week. System 4 is shown the same lines plus facts from the identity graph, which are who the user is, their shifts around that date, the patient's encounters nearest the access, the VIP flag, every named connection between the two, and what the devices and action codes are. Prompts average about 2,200 and 2,500 tokens.
 
@@ -409,3 +409,80 @@ The judge is a different model from the one that wrote the summary, DeepSeek V4.
 **Checking the matrix, and tests.** `evaluate llm` also counts the outcome of every row of the matrix in section 5.2 for all four systems, with M2b split by whether the emergency contact is recorded, coverage split by whether the schedule documents it, and a row for misuse whose target was seen in the actor's own department. Each share alerted carries a 95% Wilson interval, since most misuse rows have about ten cases. A short set of tests follows. Two systems compared on the same cases use McNemar's exact test, which reads only the cases where they disagree. Whether an escalation is tied to the patient being staff is tested within each kind of access with the Cochran-Mantel-Haenszel test. The tests run on the sample as it is, not weighted, so they say whether two things differ on these cases and do not estimate a rate. The staff question was asked after pass 1 and is marked as exploratory. The tests were added on 14 Nov 2026, after pass 1, and none of them was used to choose a setting.
 
 **Reading a case.** `triage render --case <id>` prints one stored answer as the case summary of the template above. The header is filled from the log, for the week of the first access. The draft is the model's answer as stored, with nothing added or reworded. Under it, every fact the draft cites is written out as the model was shown it, a range fact by fact, and a cited ID that was never shown is named as such. The officer's part is printed blank. The command calls no model.
+
+## 11. Corrections after the red-team review (15 Nov 2026)
+
+Pass 1 was run on the design in sections 9 and 10. A review by a model from another lab, given the repository without the project's own notes, found faults in what the LLM systems were shown and in how the matrix was scored. Carlos decided on 15 Nov 2026 to fix the inputs before any further pass. This section is the corrected design. Where it differs from sections 5.2, 9 and 10, it wins.
+
+Pass 1 is kept as an exploratory first run. The commit it was scored at is tagged `pass1-exploratory`, so its reports can be rebuilt by checking out the tag, and its answers move to `results/exploratory-pass1/`. Its numbers are not pooled with any later pass.
+
+### 11.1 The unit of triage
+
+The unit stays one user, one patient and one week, represented by the first access. That is the unit of Hedda et al., who count a later access in the same week as a repeat, of Xu et al., who keep only the first access to an encounter in each weekly split, and of Fabbri and LeFevre, who evaluate first accesses. None of the three labels misuse, so how this project labels its own injected misuse does not affect comparison with their published rates.
+
+A unit is misuse when any of that week's accesses by the user to the patient is misuse, as before. Four shared-credential units on seed 42 open with a legitimate access and turn to misuse one to three days later. They stay misuse. Xu et al. justify their unit by assuming that a user with the right to open a chart once almost always has the right to open it again, and shared credentials are the case that breaks it.
+
+What changes is what the LLM systems are shown. They already see all of the week's accesses by the user to the patient, up to 30. Their other facts are now chosen around all of those accesses and not only the first (11.3). Rules and templates still judge the first access, as in their papers, so misuse that comes after a legitimate first access is out of their reach by design. That is reported as a finding about the unit.
+
+### 11.2 Evidence must not come from the future
+
+In pass 1, care-team and order connections ignored time. One case was cleared on a care-team assignment for an admission 22 days after the access. From now on a care-team, order or "department of encounter" connection counts for an access only when the access falls inside the encounter's window. The window opens at the start of the calendar day on which the encounter begins and closes 7 days after the encounter ends. Relationship connections (surname, street, proximity, co-worker, emergency contact) do not depend on time and are unchanged. Connections are evaluated at the unit's first access, for every system, so all four see the same evidence.
+
+The window is tied to the encounter and not to the time a care-team row or an order was written. A clinician usually opens the chart and then places the order. On seed 42, 2,314 of the 4,217 first accesses with an order by the same user come before that order, by a median of about 24 minutes. Requiring the order to come first would remove the commonest legitimate pattern.
+
+The window opens on the day of the encounter so that chart preparation before a visit stays explained (decided by Carlos on 16 Nov 2026). On seed 42, 3,092 of the 14,405 first accesses with a care-team or order connection come before the encounter starts, by a median of 20 minutes, and 2,735 of them on the same day. Western University's Epic training page describes an employee break-the-glass check that does not fire when the patient has an appointment that day, which supports the same-day opening. Opening earlier keeps few more. A window that opens 7 days before the encounter would explain 122 more first accesses than the same-day opening, which mostly reach to encounters a week or more away, the kind of evidence this rule is meant to stop.
+
+The 7 days after the encounter ends are an assumption with no published source (decided by Carlos on 15 Nov 2026). They allow follow-up such as reviewing results in the week after a visit or a discharge. On seed 42 the rule removes the explanation from 582 first accesses that pass 1 counted as explained by direct evidence, 0.9% of all first accesses. Fabbri and LeFevre did not restrict evidence by time. They used a snapshot of the record from the weeks around the accesses, so the templates here are stricter than their method. The effect on the calibration measures is reported, not tuned.
+
+### 11.3 Which log lines the LLM systems are shown
+
+- **The user's other lines.** Up to 30 lines by the same user on other patients, the nearest in time to any of the unit's accesses, within 12 hours of one of them. In pass 1 they were taken around the first access only.
+- **Other users on the same patient.** Up to 30 lines by other users on the patient that week, the nearest in time to any of the unit's accesses. In pass 1 they were the first 30 of the week, so in 11 of 21 news-event cases the model saw none of the other users who opened the patient after the news.
+- **Devices and action codes (System 4).** Facts for every device and action code on any line shown. In pass 1 they covered the unit's own lines only.
+
+The prompt wording is unchanged (decided by Carlos on 15 Nov 2026), so the difference from pass 1 comes from the evidence alone. A reworded prompt can follow later as a declared variant.
+
+`evaluate llm` reports, for every news-event and shared-credential case, whether the cue that defines its scenario was in the prompt. For a news-event case the cue is a line by another user who opened the patient after the news. For a shared-credential case it is a line by the same account that overlaps a session elsewhere or falls outside the owner's shift. Results on those rows are shown for cases with the cue and cases without it.
+
+### 11.4 Departmental responsibility is mined out of sample
+
+In pass 1 the templates mined departmental responsibility from the same first accesses they then explained. Fabbri and LeFevre split patients into a training set and a test set and learn responsibility from the training set alone. Here the patients are split at random into two halves, with a fixed seed. Responsibility is mined on the first accesses to one half and applied to the other, then the other way round, so no first access is explained by a pattern mined from itself. This changes the templates baseline and the calibration measure "first access explained with responsibility". Both are reported as they come out.
+
+### 11.5 How the matrix is scored
+
+Section 5.2 defined its words before any results existed. They are scored as defined there. For the LLM systems, verify sends the access to a supervisor, so it puts the access in front of a reviewer.
+
+| Word in 5.2 | Rules | Templates | LLM systems |
+|---|---|---|---|
+| flag | a rule fires | unexplained | verify or escalate |
+| miss | no rule fires | explained | clear |
+| clear | no rule fires | explained | clear |
+| false alert | a rule fires | unexplained | verify or escalate |
+| unexplained | | unexplained | |
+| should say it cannot confirm, the evidence does not settle it | | | verify |
+| clear, with stated uncertainty | | | clear |
+| clear with stated uncertainty, or say it cannot confirm | | | clear or verify |
+
+A cell holds when at least 90% of its cases match the prediction. It holds partly at 50% to 89%, and it is contradicted below 50%. Three kinds of cell are not scored.
+
+- **No test.** "No basis, any answer is a guess" fits any answer. So does "false alert, unless a template applies" when the only template that could apply is departmental responsibility, since every case then ends either unexplained or explained by responsibility.
+- **Open.** "Open question" makes no prediction.
+- **Per scenario.** The row for misuse whose target was seen in the actor's department takes, for the rules, the prediction of each case's own scenario.
+
+The coded predictions live in `evaluate.py`, next to the definitions above, and figure 9 is drawn from them. They were written on 15 Nov 2026, after pass 1 and before the corrected pass, and the report says so. Every LLM cell also shows the escalate-only share beside the scored one, since escalate is what reaches the Privacy Officer.
+
+### 11.6 How the results are reported
+
+These change no model call.
+
+- **Faithfulness.** The judge rates two parts of each summary, the purpose evidence and the risk indicators. Its shares are reported as ratings of those items, not of whole summaries. The unsupported share is not called an upper bound, and no corrected error rate is derived from the hand-read, because errors among supported and partly verdicts were not measured. A larger hand-read, blinded and spread across all three verdicts and both systems, comes before any faithfulness figure is quoted as a rate.
+- **Zero counts.** A share of zero is reported with its 95% upper bound, not as 0 ± 0.
+- **Dependence.** Misuse units come from a smaller number of injections. 23 shared-credential units come from 5 injections and 21 news-event units from 2 news events. Counts by injection are shown beside counts by unit.
+- **The staff association.** The odds ratio is reported for each kind of access as well as pooled.
+- **The review budget.** The budget table is named pooled-budget performance, since it scores an average day and not a daily queue.
+- **Covering accesses.** A difference between the paired runs mixes the effect of the covers with run-to-run variation, and a p-value of 1 is not evidence that the covers had no effect. The repeat pass on the base run gives the variation to compare against.
+- **Template fit.** "Fits the template" includes the 60-word limit on the rationale. An answer that does not fit counts as verify whatever disposition it names. Cut-off answers are counted over every try, not only over the answers kept.
+
+### 11.7 What is run again
+
+Generation is unchanged, so the logs and context come out byte-identical. The case set is drawn again, because the kinds move when evidence changes (11.2, 11.4). Carlos runs one corrected pass on the base run and the paired run, then the judge, then one repeat pass on the base run for run-to-run variation. At pass 1 prices that is about 2.20 USD for the triage pass, about 2 USD for the judge and about 2.20 USD for the repeat, about 6.40 USD in all.
