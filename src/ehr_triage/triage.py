@@ -28,6 +28,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from .baselines import first_access_units
@@ -120,26 +121,35 @@ def case_events(v: Views, user: str, patient: str, week: int) -> tuple[pd.DataFr
     return theirs[theirs["user_id"] == user], theirs
 
 
-def log_facts(v: Views, user: str, patient: str, week: int) -> list[tuple[str, str]]:
-    """The access under review, what else the user did around it, and who else opened the patient that week.
+def nearest(t: pd.Series, anchors: np.ndarray) -> pd.Series:
+    """Seconds from each time in `t` to the nearest of the anchor times."""
+    return pd.Series(np.abs(t.to_numpy()[:, None] - anchors[None, :]).min(axis=1), index=t.index)
 
-    The user's other lines are the ones nearest the access in time, within
-    a fixed number of hours either side. A calendar day would cut a night
-    shift in two.
+
+def log_facts(v: Views, user: str, patient: str, week: int) -> list[tuple[str, str]]:
+    """The accesses under review, what else the user did around them, and who else opened the patient that week.
+
+    The unit is one user and one patient for one week (spec 11.1), so the
+    context is chosen around all of the week's accesses and not only the
+    first: the user's other lines nearest any of them, within a fixed number
+    of hours of one, and the other users' lines on the patient nearest any of
+    them (spec 11.3). A calendar day would cut a night shift in two.
     """
     cap, hours = v.cfg["triage"]["context_lines"], v.cfg["triage"]["context_hours"]
     e = v.events
     case, theirs = case_events(v, user, patient, week)
-    away = (e["t"].iloc[v.by_user[user]] - case["t"].iloc[0]).abs()
+    anchors = case["t"].to_numpy()
+    away = nearest(e["t"].iloc[v.by_user[user]], anchors)
     mine = e.loc[away.index[(away <= hours * 3600).to_numpy()]]
     mine = mine[mine["patient_id"] != patient]
     around = mine.loc[away[mine.index].sort_values(kind="stable").index[:cap]].sort_values("event_id")
-    others = theirs[theirs["user_id"] != user].head(cap)
+    other = theirs[theirs["user_id"] != user]
+    others = other.loc[nearest(other["t"], anchors).sort_values(kind="stable").index[:cap]].sort_values("event_id")
     facts, n = [], 0
     for title, rows, more in (
         ("the access under review", case.head(cap), len(case) - cap),
         (f"the same user, within {hours} hours, other patients", around, len(mine) - len(around)),
-        ("the same patient, same week, other users", others, len(theirs) - len(case) - len(others)),
+        ("the same patient, same week, other users", others, len(other) - len(others)),
     ):
         facts.append(("", f"-- {title}" + (f" ({more} more lines not shown)" if more > 0 else "")))
         for r in rows.itertuples():
@@ -149,39 +159,42 @@ def log_facts(v: Views, user: str, patient: str, week: int) -> list[tuple[str, s
     return facts
 
 
-def graph_facts(v: Views, user: str, patient: str, day: int, case_lines: list[str]) -> list[tuple[str, str]]:
-    """Who the user is, where the patient was seen, and every connection between them."""
+def graph_facts(v: Views, user: str, patient: str, case: pd.DataFrame, lines: list[str]) -> list[tuple[str, str]]:
+    """Who the user is, their shifts on the days of the accesses, where the patient was seen, every connection
+    between the two at the first access, and what every device and action code on the lines shown is."""
     out: list[str] = []
-    at = pd.Timestamp(case_lines[0].split(" ")[0])
+    at = pd.Timestamp(case["timestamp"].iloc[0])
     s = v.staff.loc[user]
     out.append(f"user {user} is a {s['role']} in {s['department_id']} ({v.dept[s['department_id']]}), {s['employment']}, "
                f"usual shift {s['usual_shift']}")
-    date = (pd.Timestamp(v.cfg["window_start"]) + pd.Timedelta(days=int(day))).strftime("%Y-%m-%d")
     shifts = v.schedule.get(user)
-    near = shifts[(shifts["shift_start"].str[:10] <= date) & (shifts["shift_end"].str[:10] >= date)] if shifts is not None else []
-    for r in getattr(near, "itertuples", lambda: [])():
-        out.append(f"schedule: {user} is scheduled {r.shift_start} to {r.shift_end} in {r.department_id}")
-    if not len(near):
-        out.append(f"schedule: {user} has no scheduled shift on {date}")
+    for date in sorted(set(case["timestamp"].str[:10])):
+        near = shifts[(shifts["shift_start"].str[:10] <= date) & (shifts["shift_end"].str[:10] >= date)] if shifts is not None else []
+        for r in getattr(near, "itertuples", lambda: [])():
+            text = f"schedule: {user} is scheduled {r.shift_start} to {r.shift_end} in {r.department_id}"
+            if text not in out:
+                out.append(text)
+        if not len(near):
+            out.append(f"schedule: {user} has no scheduled shift on {date}")
     seen = v.encounters.get(patient)
     if seen is None:
         out.append(f"patient {patient} has no encounter in the period")
     else:
-        gap = (pd.to_datetime(seen["start"]) - at).abs()  # show the encounters nearest the access
-        for r in seen.loc[gap.sort_values().index[: v.cfg["triage"]["encounters_shown"]]].sort_values("start").itertuples():
+        gap = nearest(pd.to_datetime(seen["start"]).astype("int64") / 1e9, pd.to_datetime(case["timestamp"]).astype("int64").to_numpy() / 1e9)
+        for r in seen.loc[gap.sort_values(kind="stable").index[: v.cfg["triage"]["encounters_shown"]]].sort_values("start").itertuples():
             out.append(f"encounter {r.encounter_id}: {patient} {r.kind} in {r.department_id} "
                        f"{r.start} to {r.stop}" + (f", reason {r.reason_description}" if r.reason_description else ""))
     if patient in v.vip:
         out.append(f"patient {patient} carries the VIP flag")
-    paths = evidence_paths(v.graph, user, patient, at)
+    paths = evidence_paths(v.graph, user, patient, at, v.cfg["evidence_window"]["after_days"])
     for name, nodes in paths.items():
         out.append(f"connection '{name}': " + " - ".join(f"{kind} {ident}" for kind, ident in nodes))
     if not paths:
         out.append(f"the identity graph holds no connection between {user} and {patient}")
-    devices = sorted({line.split(" device ")[1].split(" ")[0] for line in case_lines})
+    devices = sorted({line.split(" device ")[1].split(" ")[0] for line in lines})
     for d in devices:
         out.append(f"device {d} is a {v.device.loc[d, 'kind']} in {v.device.loc[d, 'department_id']}")
-    actions = sorted({line.split(" action ")[1].split(" ")[0] for line in case_lines})
+    actions = sorted({line.split(" action ")[1].split(" ")[0] for line in lines})
     out.append("action categories: " + ", ".join(f"{a} {v.action[a]}" for a in actions))
     return [(f"G{i + 1}", text) for i, text in enumerate(out)]
 
@@ -190,12 +203,9 @@ def case_facts(v: Views, unit) -> list[tuple[str, str]]:
     """Every line shown for one first access, as (fact ID, text). Section titles have no ID."""
     facts = log_facts(v, unit.user_id, unit.patient_id, unit.week)
     if v.system == "llm_graph":
-        case_lines = []
-        for ident, text in facts[1:]:
-            if not ident:
-                break
-            case_lines.append(text)
-        facts += [("", "-- identity graph")] + graph_facts(v, unit.user_id, unit.patient_id, unit.day, case_lines)
+        case, _ = case_events(v, unit.user_id, unit.patient_id, unit.week)
+        lines = [text for ident, text in facts if ident]
+        facts += [("", "-- identity graph")] + graph_facts(v, unit.user_id, unit.patient_id, case, lines)
     return facts
 
 

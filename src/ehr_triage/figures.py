@@ -322,7 +322,7 @@ def case_graph(v, row) -> tuple[list, list, dict]:
     from .graph import evidence_paths
     from .triage import case_events
     case, _ = case_events(v, row.user_id, row.patient_id, int(row.week))
-    paths = evidence_paths(v.graph, row.user_id, row.patient_id, pd.Timestamp(case["timestamp"].iloc[0]))
+    paths = evidence_paths(v.graph, row.user_id, row.patient_id, pd.Timestamp(case["timestamp"].iloc[0]), v.cfg["evidence_window"]["after_days"])
     nodes, edges = [], {}
     for path in paths.values():
         for n in path:

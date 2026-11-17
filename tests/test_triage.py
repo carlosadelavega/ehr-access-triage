@@ -66,3 +66,26 @@ def test_a_summary_outside_the_template_is_rejected():
     bad = triage.parse_summary(json.dumps({"disposition": "ignore", "priority": "low", "what_happened": "x",
                                            "rationale": "y", "purpose_evidence": [], "risk_indicators": []}), ["L1"])
     assert bad["problems"] == ["disposition"]
+
+
+def test_context_lines_are_the_nearest_to_any_of_the_weeks_accesses(run_dir, cfg):
+    """Spec 11.3. No line left out may be nearer the week's accesses than a line that was shown."""
+    import copy
+    few = copy.deepcopy(cfg)
+    few.params["triage"]["value"]["context_lines"] = 3  # so that some lines are always left out
+    v = triage.Views(run_dir, "llm_raw", few)
+    checked = 0
+    units = triage.case_units(run_dir, few).sample(60, random_state=1)
+    for u in units.itertuples():
+        case, theirs = triage.case_events(v, u.user_id, u.patient_id, u.week)
+        shown = {text.split(" ")[0] + text.split(" user ")[1] for ident, text in triage.log_facts(v, u.user_id, u.patient_id, u.week) if ident}
+        anchors = case["t"].to_numpy()
+        other = theirs[theirs["user_id"] != u.user_id]
+        dist = triage.nearest(other["t"], anchors)
+        key = other["timestamp"] + other["user_id"] + " patient " + other["patient_id"] + " device " + other["device_id"] \
+            + " action " + other["action_code"] + " " + other["duration_s"].astype(str) + "s"
+        is_shown = key.isin(shown)
+        if is_shown.any() and (~is_shown).any():
+            assert dist[is_shown].max() <= dist[~is_shown].min()
+            checked += 1
+    assert checked > 0
