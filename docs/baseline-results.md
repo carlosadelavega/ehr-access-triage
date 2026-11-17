@@ -10,9 +10,9 @@ The unit is a first access: one user opening one patient for the first time in a
 |---|---|---|---|---|---|
 | Rules, all five | 8,454 | 282 | 13.2% | 42 of 123 | 0.50% |
 | Rules, without organization co-worker | 1,210 | 40 | 1.9% | 33 of 123 | 2.73% |
-| Templates, direct evidence | 49,467 | 1,649 | 77.4% | 122 of 123 | 0.25% |
-| Templates, direct and responsibility | 45,906 | 1,530 | 71.9% | 118 of 123 | 0.26% |
-| Rules, then direct evidence | 903 | 30 | 1.4% | 33 of 123 | 3.65% |
+| Templates, direct evidence | 50,049 | 1,668 | 78.4% | 122 of 123 | 0.24% |
+| Templates, direct and responsibility | 46,608 | 1,554 | 73.0% | 118 of 123 | 0.25% |
+| Rules, then direct evidence | 915 | 30 | 1.4% | 33 of 123 | 3.61% |
 
 ## Misuse caught, by scenario
 
@@ -35,15 +35,15 @@ Share of legitimate first accesses that each system flags. A hard negative has n
 
 | Legitimate access | Count | Rules, all five | Rules, without organization co-worker | Templates, direct evidence | Templates, direct and responsibility | Rules, then direct evidence |
 |---|---|---|---|---|---|---|
-| explained by direct evidence | 14,404 | 13% | 2% | 0% | 0% | 0% |
+| explained by direct evidence | 13,822 | 13% | 2% | 0% | 0% | 0% |
 | H1 consult | 382 | 13% | 1% | 100% | 77% | 1% |
-| H2 coverage | 323 | 16% | 2% | 100% | 100% | 2% |
-| H3 undocumented care team | 15,962 | 13% | 2% | 100% | 80% | 2% |
+| H2 coverage | 335 | 16% | 2% | 100% | 100% | 2% |
+| H3 undocumented care team | 16,532 | 13% | 2% | 100% | 80% | 2% |
 | H5 back office | 14,348 | 12% | 1% | 100% | 100% | 1% |
 | H6 hospital-wide role | 1,913 | 14% | 1% | 100% | 100% | 1% |
-| order handled by a department | 16,417 | 14% | 2% | 100% | 99% | 2% |
-| H4a documented, relationship present | 307 | 100% | 100% | 0% | 0% | 0% |
-| H4b undocumented, relationship present | 870 | 100% | 100% | 100% | 96% | 100% |
+| order handled by a department | 16,417 | 14% | 2% | 100% | 100% | 2% |
+| H4a documented, relationship present | 295 | 100% | 100% | 0% | 0% | 0% |
+| H4b undocumented, relationship present | 882 | 100% | 100% | 100% | 96% | 100% |
 
 ## Within a daily review budget
 
@@ -53,19 +53,19 @@ A reviewer takes the highest-priority alerts each day, up to the budget. Rules a
 |---|---|---|---|---|---|
 | 10 | Rules, all five | 300 | 16.1 | 5.37% | 13% |
 | 10 | Rules, without organization co-worker | 300 | 16.1 | 5.37% | 13% |
-| 10 | Templates, direct evidence | 300 | 0.9 | 0.29% | 1% |
-| 10 | Templates, direct and responsibility | 300 | 0.9 | 0.30% | 1% |
-| 10 | Rules, then direct evidence | 300 | 17.5 | 5.84% | 14% |
+| 10 | Templates, direct evidence | 300 | 0.9 | 0.28% | 1% |
+| 10 | Templates, direct and responsibility | 300 | 0.9 | 0.29% | 1% |
+| 10 | Rules, then direct evidence | 300 | 17.4 | 5.80% | 14% |
 | 25 | Rules, all five | 750 | 23.8 | 3.17% | 19% |
 | 25 | Rules, without organization co-worker | 726 | 23.7 | 3.27% | 19% |
-| 25 | Templates, direct evidence | 750 | 2.2 | 0.29% | 2% |
-| 25 | Templates, direct and responsibility | 750 | 2.2 | 0.30% | 2% |
-| 25 | Rules, then direct evidence | 685 | 26.8 | 3.91% | 22% |
+| 25 | Templates, direct evidence | 750 | 2.1 | 0.28% | 2% |
+| 25 | Templates, direct and responsibility | 750 | 2.2 | 0.29% | 2% |
+| 25 | Rules, then direct evidence | 688 | 26.6 | 3.87% | 22% |
 | 50 | Rules, all five | 1,500 | 33.5 | 2.23% | 27% |
 | 50 | Rules, without organization co-worker | 1,169 | 32.9 | 2.82% | 27% |
-| 50 | Templates, direct evidence | 1,500 | 4.3 | 0.29% | 3% |
-| 50 | Templates, direct and responsibility | 1,500 | 4.4 | 0.30% | 4% |
-| 50 | Rules, then direct evidence | 903 | 33.0 | 3.65% | 27% |
+| 50 | Templates, direct evidence | 1,500 | 4.3 | 0.28% | 3% |
+| 50 | Templates, direct and responsibility | 1,500 | 4.4 | 0.29% | 4% |
+| 50 | Rules, then direct evidence | 915 | 33.0 | 3.61% | 27% |
 
 ## With covering accesses
 
@@ -75,6 +75,6 @@ A second run is identical except that each M1-M4 actor first makes 10 covering a
 |---|---|---|---|
 | Rules, all five | 36 of 58 | 36 of 58 | 79 of 580 |
 | Rules, without organization co-worker | 32 of 58 | 32 of 58 | 8 of 580 |
-| Templates, direct evidence | 58 of 58 | 58 of 58 | 578 of 580 |
-| Templates, direct and responsibility | 58 of 58 | 58 of 58 | 529 of 580 |
+| Templates, direct evidence | 58 of 58 | 58 of 58 | 580 of 580 |
+| Templates, direct and responsibility | 58 of 58 | 58 of 58 | 532 of 580 |
 | Rules, then direct evidence | 32 of 58 | 32 of 58 | 8 of 580 |

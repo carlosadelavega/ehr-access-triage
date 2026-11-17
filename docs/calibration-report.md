@@ -13,12 +13,12 @@ Every generated value below is measured from the log and context files only. Gap
 | accesses per staff week | 375-580 | 393 | inside the range | level | Fabbri & LeFevre 2013 (Michigan, about 375); Hedda et al. 2017 and Laszka et al. 2017 (Vanderbilt, about 580) |
 | repeat access share | 92.0% | 90.6% | -1.4 points | level | Hedda et al. 2017 (6.9M of 7.5M accesses in one week) |
 | self access share | 0.30% | 0.30% | +0.00 points | level | Hedda et al. 2017 (21K of 7.5M accesses in one week) |
-| first access explained direct | 23.0% | 22.8% | -0.2 points | level | Fabbri & LeFevre 2013 |
-| first access explained with responsibility | 41.0% | 28.4% | -12.6 points | reported | Fabbri & LeFevre 2013 (evidence plus departmental responsibility, s = 1, t = 2) |
-| all accesses explained | 94.0% | 93.3% | -0.7 points | reported | Fabbri & LeFevre 2011, 2013 (over 94% once repeats are filtered) |
+| first access explained direct | 23.0% | 21.8% | -1.2 points | level | Fabbri & LeFevre 2013 |
+| first access explained with responsibility | 41.0% | 27.1% | -13.9 points | reported | Fabbri & LeFevre 2013 (evidence plus departmental responsibility, s = 1, t = 2) |
+| all accesses explained | 94.0% | 93.2% | -0.8 points | reported | Fabbri & LeFevre 2011, 2013 (over 94% once repeats are filtered) |
 | rule match share | organization co-worker 3.8%, department co-worker 0.04%, last name 0.14%, proximity 0.16%, same street 0.12% | organization co-worker 12.8%, department co-worker 1.3%, last name 0.29%, proximity 0.46%, same street 0.11% | organization co-worker 3.3x, department co-worker 32.1x, last name 2.1x, proximity 2.9x, same street 0.9x | reported | Hedda et al. 2017, Table 3 (observed share of 100,000 unique non-self accesses) |
 | rule observed to expected | organization co-worker 1.00, department co-worker 3.22, last name 1.53, proximity 2.51, same street 4.04 | organization co-worker 1.00, department co-worker 1.32, last name 1.50, proximity 1.77, same street 1.69 | organization co-worker 1.0x, department co-worker 0.4x, last name 1.0x, proximity 0.7x, same street 0.4x | reported | Hedda et al. 2017, Table 2 (patients permuted) |
-| rule match explained share | organization co-worker 38.8%, department co-worker 43.9%, last name 21.4%, proximity 24.8%, same street 16.1% | organization co-worker 22.7%, department co-worker 28.2%, last name 13.6%, proximity 21.8%, same street 18.0% | organization co-worker 0.6x, department co-worker 0.6x, last name 0.6x, proximity 0.9x, same street 1.1x | reported | Hedda et al. 2017, Table 4 (share of rule-matching accesses explained by five clinical reasons) |
+| rule match explained share | organization co-worker 38.8%, department co-worker 43.9%, last name 21.4%, proximity 24.8%, same street 16.1% | organization co-worker 21.8%, department co-worker 27.2%, last name 13.0%, proximity 20.3%, same street 18.0% | organization co-worker 0.6x, department co-worker 0.6x, last name 0.6x, proximity 0.8x, same street 1.1x | reported | Hedda et al. 2017, Table 4 (share of rule-matching accesses explained by five clinical reasons) |
 | alerts per access | 10.0% |  | not measurable yet | later | Laszka et al. 2017 |
 | nurse chart time share | 34.0% | 34.3% | +0.3 points | level | Association Between EHR-Based Nursing Workload and Turnover, JMIR Nursing 2026 (432 inpatient nurses, median 260 minutes of EHR time per shift, about 34% of a shift) |
 | physician ehr hours per day | 5.9 | 2.3 | -61% | reported | Arndt et al. 2017 (primary care, 355 minutes per weekday per clinical FTE, from EHR event logs) |
@@ -35,7 +35,7 @@ Weekly measures use the four whole weeks of the window. Repeats, first accesses 
 
 The log uses the US unit of an access. The UK log of Herrera Montano et al. records about 9 events per user per week, so its rows are compared by shape only, as the ratio of a high percentile to the median, and its duration and zero-gap rows are shown for reference. A duration here is time until the user's next action, capped at five minutes.
 
-Departmental responsibility is mined from this log with the method and thresholds of Fabbri and LeFevre 2013. Their evidence covers more sources than exist here (documents, for one), so the two explanation rows are comparable in kind and not exactly in scope.
+Departmental responsibility is mined from this log with the method and thresholds of Fabbri and LeFevre 2013, out of sample. Patients are split in two halves and each half is explained by what was mined on the other, as their paper learns on training patients and tests on the rest. Direct evidence counts only when the access falls inside the encounter's window, from the day it begins to a week after it ends (spec 11.2). Their evidence covers more sources than exist here (documents, for one), so the two explanation rows are comparable in kind and not exactly in scope.
 
 ## Workload check
 
@@ -57,11 +57,11 @@ Chart time per user per day is 1.3 hours at the median and 4.8 hours at the 95th
 | Hard negative (first accesses) | Count |
 |---|---|
 | H1 consult | 344 |
-| H2a coverage, documented | 151 |
-| H2b coverage, undocumented | 143 |
-| H3 undocumented care team | 14,606 |
-| H4a documented care with a rule match | 282 |
-| H4b undocumented work with a rule match | 810 |
+| H2a coverage, documented | 157 |
+| H2b coverage, undocumented | 149 |
+| H3 undocumented care team | 15,133 |
+| H4a documented care with a rule match | 270 |
+| H4b undocumented work with a rule match | 822 |
 | H5 back office | 12,421 |
 | H6 hospital-wide role | 1,752 |
 
@@ -91,8 +91,8 @@ Chart time per user per day is 1.3 hours at the median and 4.8 hours at the 95th
 | setting | 4 |
 | published | 11 |
 | derived | 4 |
-| assumption | 51 |
+| assumption | 52 |
 
-Assumptions have no public source. They are `duration_sigma`, `departments`, `staffing`, `employment_mix`, `load_weight_sigma`, `staff_age_range`, `shifts`, `shift_weights`, `physician_shift_pattern`, `devices_per_staff`, `usual_device_count`, `away_device_prob`, `remote_share`, `encounter_lookback_years`, `inpatient_census`, `inpatient_los_clip_hours`, `ed_visits_per_day`, `ed_night_relative_rate`, `ed_los_clip_hours`, `clinic_los_clip_minutes`, `specialty_keywords`, `helper_prob`, `inpatient_daily_orders`, `order_caps`, `order_second_visit_prob`, `registration_prob_clinic`, `coding_delay_days`, `billing_delay_days`, `hospital_wide_review_prob`, `consult_prob`, `consult_visits`, `consult_specialty_match_prob`, `consult_departments`, `consult_duration_factor`, `float_prob`, `float_documented_prob`, `max_backlog_s`, `households`, `vip_share`, `action_code_count`, `role_action_tilt`, `review_budget_per_day`, `triage`, `case_set`, `scenario_counts`, `m5_users_per_event`, `target_in_actor_department_share`, `misuse_events_per_visit`, `misuse_repeat_prob`, `misuse_duration_cap_s`, `shared_credential_visits`.
+Assumptions have no public source. They are `duration_sigma`, `departments`, `staffing`, `employment_mix`, `load_weight_sigma`, `staff_age_range`, `shifts`, `shift_weights`, `physician_shift_pattern`, `devices_per_staff`, `usual_device_count`, `away_device_prob`, `remote_share`, `encounter_lookback_years`, `inpatient_census`, `inpatient_los_clip_hours`, `ed_visits_per_day`, `ed_night_relative_rate`, `ed_los_clip_hours`, `clinic_los_clip_minutes`, `specialty_keywords`, `helper_prob`, `inpatient_daily_orders`, `order_caps`, `order_second_visit_prob`, `registration_prob_clinic`, `coding_delay_days`, `billing_delay_days`, `hospital_wide_review_prob`, `consult_prob`, `consult_visits`, `consult_specialty_match_prob`, `consult_departments`, `consult_duration_factor`, `float_prob`, `float_documented_prob`, `max_backlog_s`, `households`, `vip_share`, `action_code_count`, `role_action_tilt`, `evidence_window`, `review_budget_per_day`, `triage`, `case_set`, `scenario_counts`, `m5_users_per_event`, `target_in_actor_department_share`, `misuse_events_per_visit`, `misuse_repeat_prob`, `misuse_duration_cap_s`, `shared_credential_visits`.
 
 Encounter sampling notes from the manifest: 57% of the inpatient pool was used, and the share of clinic visits whose Synthea reason matched the clinic's specialty was PCP 0%, CARD 91%, ORTH 97%.

@@ -85,7 +85,16 @@ def build_graph(t: dict[str, pd.DataFrame], proximity_miles: float) -> nx.MultiD
     return g
 
 
-def evidence_paths(g: nx.MultiDiGraph, user_id: str, patient_id: str, at=None) -> dict[str, list]:
+def in_window(g: nx.MultiDiGraph, e, at, after_days: float) -> bool:
+    """Whether an access at `at` falls in the encounter's evidence window (spec 11.2):
+    from the start of the day the encounter begins to `after_days` after it ends."""
+    start, stop = g.nodes[e].get("start"), g.nodes[e].get("stop")
+    if start is None:
+        return True  # a system that cannot see encounter dates cannot apply the window
+    return start.normalize() <= at <= stop + pd.Timedelta(days=after_days)
+
+
+def evidence_paths(g: nx.MultiDiGraph, user_id: str, patient_id: str, at=None, after_days: float | None = None) -> dict[str, list]:
     """Every known kind of connection between this user and this patient.
 
     Returns {evidence name: path}, where a path is the list of nodes walked.
@@ -93,6 +102,9 @@ def evidence_paths(g: nx.MultiDiGraph, user_id: str, patient_id: str, at=None) -
     grounded LLM will be shown. When a connection runs through one of
     several encounters, `at` picks the encounter nearest that moment, so
     the path shown is the one that bears on the access under review.
+    With `after_days`, a connection through an encounter counts only when
+    `at` falls in that encounter's evidence window (spec 11.2). Connections
+    that do not run through an encounter do not depend on time.
     """
     u, p = U(user_id), P(patient_id)
     found: dict[str, list] = {}
@@ -125,7 +137,10 @@ def evidence_paths(g: nx.MultiDiGraph, user_id: str, patient_id: str, at=None) -
             return 0.0
         return 0.0 if start <= at <= stop else min(abs((at - start).total_seconds()), abs((at - stop).total_seconds()))
 
-    for e in sorted((e for e in g.successors(p) if e[0] == "encounter"), key=distance):
+    encounters = [e for e in g.successors(p) if e[0] == "encounter"]
+    if at is not None and after_days is not None:
+        encounters = [e for e in encounters if in_window(g, e, at, after_days)]
+    for e in sorted(encounters, key=distance):
         if has(u, e, "care_team"):
             found.setdefault("care team", [u, e, p])
         if has(u, e, "ordered"):

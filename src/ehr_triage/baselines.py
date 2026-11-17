@@ -7,6 +7,7 @@ reach labels/.
 """
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -71,25 +72,51 @@ def responsibility(units: pd.DataFrame, encounters: pd.DataFrame, staff: pd.Data
     return {(d, c) for c, row in hit.iterrows() for d in row.index[row.to_numpy()]}
 
 
+def patient_half(patient_id: str, seed: int) -> int:
+    """0 or 1, fixed for a patient and a seed whatever set of accesses is being scored."""
+    return int(hashlib.sha256(f"{seed}|{patient_id}".encode()).hexdigest(), 16) % 2
+
+
+def responsible_out_of_sample(units: pd.DataFrame, encounters: pd.DataFrame, staff: pd.DataFrame, cfg: Config) -> pd.Series:
+    """Whether departmental responsibility explains each first access, mined out of sample (spec 11.4).
+
+    Patients are split in two halves. Responsibility is mined on the first
+    accesses to one half and applied to the other, then the other way round,
+    as Fabbri and LeFevre learn it on training patients and test it on the
+    rest. No first access is explained by a pattern mined from itself.
+    """
+    diagnoses = encounters[encounters["reason_description"] != ""].groupby("patient_id")["reason_description"].agg(set).to_dict()
+    dept = dict(zip(staff["user_id"], staff["department_id"]))
+    half = units["patient_id"].map(lambda p: patient_half(p, cfg["seed"]))
+    out = pd.Series(False, index=units.index)
+    for test in (0, 1):
+        mined = responsibility(units[half != test].reset_index(drop=True), encounters, staff, cfg)
+        rows = units[half == test]
+        out.loc[rows.index] = [any((dept[u], c) in mined for c in diagnoses.get(p, ()))
+                               for u, p in zip(rows["user_id"], rows["patient_id"])]
+    return out
+
+
+def direct_evidence(units: pd.DataFrame, at: pd.Series, g, cfg: Config) -> tuple[list[bool], list[list[str]]]:
+    """Whether a care team or an order explains each first access, inside the evidence window (spec 11.2)."""
+    after = cfg["evidence_window"]["after_days"]
+    direct, evidence = [], []
+    for u, p, when in zip(units["user_id"], units["patient_id"], at):
+        paths = evidence_paths(g, u, p, when, after)
+        direct.append(any(k in paths for k in DIRECT))
+        evidence.append(sorted(paths))
+    return direct, evidence
+
+
 def run_templates(run_dir: str | Path, cfg: Config) -> pd.DataFrame:
     """System 2. Whether each first access is explained, and by what."""
     t = load_visible(run_dir, "templates")
     g = build_graph(t, cfg["proximity_miles"])
     units = first_access_units(t["events"], t["staff"], cfg["window_start"])
-    responsible = responsibility(units, t["encounters"], t["staff"], cfg)
-    diagnoses = t["encounters"][t["encounters"]["reason_description"] != ""].groupby("patient_id")["reason_description"].agg(set)
-    diagnoses = diagnoses.to_dict()
-    dept = dict(zip(t["staff"]["user_id"], t["staff"]["department_id"]))
-    direct, by_responsibility, evidence = [], [], []
-    for u, p in zip(units["user_id"], units["patient_id"]):
-        paths = evidence_paths(g, u, p)
-        direct.append(any(k in paths for k in DIRECT))
-        by_responsibility.append(any((dept[u], c) in responsible for c in diagnoses.get(p, ())))
-        evidence.append(sorted(paths))
-    units["direct"] = direct
-    units["responsible"] = by_responsibility
-    units["evidence"] = evidence
-    return units
+    at = pd.to_datetime(units["event_id"].map(t["events"].set_index("event_id")["timestamp"]))
+    units["direct"], units["evidence"] = direct_evidence(units, at, g, cfg)
+    units["responsible"] = responsible_out_of_sample(units, t["encounters"], t["staff"], cfg).to_numpy()
+    return units[["user_id", "patient_id", "week", "day", "event_id", "direct", "responsible", "evidence"]]
 
 
 def expected_top_k(day, score, hit, k: int) -> tuple[float, float]:

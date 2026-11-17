@@ -13,8 +13,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .baselines import responsibility
+from .baselines import direct_evidence, responsible_out_of_sample
 from .config import Config, load_config
+from .graph import build_graph
 from .population import miles_between, street_of
 
 
@@ -61,21 +62,16 @@ def explained(first: pd.DataFrame, t: dict, cfg: Config) -> tuple[pd.Series, pd.
     """Which first accesses have direct evidence, and which are explained once
     departmental responsibility is added, both as in Fabbri & LeFevre 2013.
 
-    Direct: the user is on the care team of one of the patient's encounters,
-    or ordered something for the patient. Responsibility: the user's
-    department is responsible for one of the patient's diagnoses.
+    The same two functions as the templates baseline: direct evidence inside
+    the encounter's evidence window (spec 11.2), and responsibility mined out
+    of sample (spec 11.4). The report and the baseline cannot disagree.
     """
-    enc_patient = dict(zip(t["encounters"]["encounter_id"], t["encounters"]["patient_id"]))
-    direct = set(zip(t["care_team"]["user_id"], t["care_team"]["encounter_id"].map(enc_patient)))
-    direct |= set(zip(t["orders"]["ordered_by"], t["orders"]["patient_id"]))
-    responsible = responsibility(first, t["encounters"], t["staff"], cfg)
-    seen = t["encounters"][t["encounters"]["reason_description"] != ""]
-    diagnoses = seen.groupby("patient_id")["reason_description"].agg(set).to_dict()
-    dept = first["user_id"].map(dict(zip(t["staff"]["user_id"], t["staff"]["department_id"])))
-    pairs = list(zip(first["user_id"], first["patient_id"]))
-    is_direct = pd.Series([p in direct for p in pairs], index=first.index)
-    by_dept = [any((d, c) in responsible for c in diagnoses.get(p, ())) for d, p in zip(dept, first["patient_id"])]
-    return is_direct, is_direct | pd.Series(by_dept, index=first.index)
+    visible = {k: t[k] for k in ("staff", "departments", "encounters", "care_team", "orders")}
+    g = build_graph(visible, cfg["proximity_miles"])
+    direct, _ = direct_evidence(first, pd.to_datetime(first["timestamp"]), g, cfg)
+    is_direct = pd.Series(direct, index=first.index)
+    by_dept = responsible_out_of_sample(first, t["encounters"], t["staff"], cfg)
+    return is_direct, is_direct | by_dept
 
 
 def rule_matches(first: pd.DataFrame, staff: pd.DataFrame, patients: pd.DataFrame, miles: float) -> pd.DataFrame:
@@ -317,7 +313,10 @@ def write_report(run_dir: str | Path, cfg: Config, out_path: str | Path) -> dict
         "duration and zero-gap rows are shown for reference. A duration here is time until the user's next action, "
         "capped at five minutes.",
         "",
-        "Departmental responsibility is mined from this log with the method and thresholds of Fabbri and LeFevre 2013. "
+        "Departmental responsibility is mined from this log with the method and thresholds of Fabbri and LeFevre 2013, out of sample. "
+        "Patients are split in two halves and each half is explained by what was mined on the other, as their paper learns on "
+        "training patients and tests on the rest. Direct evidence counts only when the access falls inside the encounter's "
+        "window, from the day it begins to a week after it ends (spec 11.2). "
         "Their evidence covers more sources than exist here (documents, for one), so the two explanation rows are "
         "comparable in kind and not exactly in scope.",
         "",

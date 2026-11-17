@@ -428,6 +428,11 @@ parameters:
     note: "Multipliers on the category shares, by role"
 
   # ---- baselines (build step 4), not used by the generator ----
+  evidence_window:
+    value: {after_days: 7}
+    basis: assumption
+    note: "Spec 11.2. A care-team, order or department-of-encounter connection counts for an access only when the access falls between the start of the calendar day the encounter begins and after_days after it ends. The same-day opening keeps chart preparation before a visit explained (Carlos, 16 Nov 2026) and has partial support in Western University's Epic training page, where employee break-the-glass does not fire when the patient has an appointment that day. The 7 days after have no published source (Carlos, 15 Nov 2026)"
+
   responsibility_thresholds:
     value: {s: 1.0, t: 2.0, min_patients: 30}
     basis: published
