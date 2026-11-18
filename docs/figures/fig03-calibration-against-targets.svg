@@ -69,7 +69,7 @@ L 423.655828 80.10389
    </g>
    <g id="line2d_4">
     <path d="M 423.663303 93.09094 
-L 422.841114 93.09094 
+L 419.292891 93.09094 
 " clip-path="url(#pdff3518623)" style="fill: none; stroke: #a9c4da; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_5">
@@ -79,12 +79,12 @@ L 424.460415 106.07799
    </g>
    <g id="line2d_6">
     <path d="M 423.663303 138.545614 
-L 392.47979 138.545614 
+L 388.44719 138.545614 
 " clip-path="url(#pdff3518623)" style="fill: none; stroke: #a9c4da; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_7">
     <path d="M 423.663303 151.532664 
-L 423.010355 151.532664 
+L 422.899126 151.532664 
 " clip-path="url(#pdff3518623)" style="fill: none; stroke: #a9c4da; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_8">
@@ -139,22 +139,22 @@ L 350.033472 281.403161
    </g>
    <g id="line2d_18">
     <path d="M 423.663303 294.390211 
-L 378.245071 294.390211 
+L 375.039144 294.390211 
 " clip-path="url(#pdff3518623)" style="fill: none; stroke: #a9c4da; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_19">
     <path d="M 423.663303 307.37726 
-L 386.059098 307.37726 
+L 383.172293 307.37726 
 " clip-path="url(#pdff3518623)" style="fill: none; stroke: #a9c4da; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_20">
     <path d="M 423.663303 320.36431 
-L 385.189071 320.36431 
+L 381.422223 320.36431 
 " clip-path="url(#pdff3518623)" style="fill: none; stroke: #a9c4da; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_21">
     <path d="M 423.663303 333.35136 
-L 412.789157 333.35136 
+L 406.733715 333.35136 
 " clip-path="url(#pdff3518623)" style="fill: none; stroke: #a9c4da; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_22">
@@ -538,7 +538,7 @@ z
    </g>
    <g id="line2d_78">
     <g clip-path="url(#pdff3518623)">
-     <use xlink:href="#m84e157a71d" x="422.841114" y="93.09094" style="fill: #2f6690; stroke: #2f6690"/>
+     <use xlink:href="#m84e157a71d" x="419.292891" y="93.09094" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="line2d_79">
@@ -548,12 +548,12 @@ z
    </g>
    <g id="line2d_80">
     <g clip-path="url(#pdff3518623)">
-     <use xlink:href="#m84e157a71d" x="392.47979" y="138.545614" style="fill: #2f6690; stroke: #2f6690"/>
+     <use xlink:href="#m84e157a71d" x="388.44719" y="138.545614" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="line2d_81">
     <g clip-path="url(#pdff3518623)">
-     <use xlink:href="#m84e157a71d" x="423.010355" y="151.532664" style="fill: #2f6690; stroke: #2f6690"/>
+     <use xlink:href="#m84e157a71d" x="422.899126" y="151.532664" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="line2d_82">
@@ -608,22 +608,22 @@ z
    </g>
    <g id="line2d_92">
     <g clip-path="url(#pdff3518623)">
-     <use xlink:href="#m84e157a71d" x="378.245071" y="294.390211" style="fill: #2f6690; stroke: #2f6690"/>
+     <use xlink:href="#m84e157a71d" x="375.039144" y="294.390211" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="line2d_93">
     <g clip-path="url(#pdff3518623)">
-     <use xlink:href="#m84e157a71d" x="386.059098" y="307.37726" style="fill: #2f6690; stroke: #2f6690"/>
+     <use xlink:href="#m84e157a71d" x="383.172293" y="307.37726" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="line2d_94">
     <g clip-path="url(#pdff3518623)">
-     <use xlink:href="#m84e157a71d" x="385.189071" y="320.36431" style="fill: #2f6690; stroke: #2f6690"/>
+     <use xlink:href="#m84e157a71d" x="381.422223" y="320.36431" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="line2d_95">
     <g clip-path="url(#pdff3518623)">
-     <use xlink:href="#m84e157a71d" x="412.789157" y="333.35136" style="fill: #2f6690; stroke: #2f6690"/>
+     <use xlink:href="#m84e157a71d" x="406.733715" y="333.35136" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="line2d_96">
@@ -691,16 +691,16 @@ L 751.709375 495.689481
     <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="82.035453" transform="rotate(-0 758.231064 82.035453)">0.30% vs 0.30%</text>
    </g>
    <g id="text_47">
-    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="95.022502" transform="rotate(-0 758.231064 95.022502)">22.8% vs 23.0%</text>
+    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="95.022502" transform="rotate(-0 758.231064 95.022502)">21.8% vs 23.0%</text>
    </g>
    <g id="text_48">
     <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="108.009552" transform="rotate(-0 758.231064 108.009552)">34.3% vs 34.0%</text>
    </g>
    <g id="text_49">
-    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="140.477176" transform="rotate(-0 758.231064 140.477176)">28.4% vs 41.0%</text>
+    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="140.477176" transform="rotate(-0 758.231064 140.477176)">27.1% vs 41.0%</text>
    </g>
    <g id="text_50">
-    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="153.464226" transform="rotate(-0 758.231064 153.464226)">93.3% vs 94.0%</text>
+    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="153.464226" transform="rotate(-0 758.231064 153.464226)">93.2% vs 94.0%</text>
    </g>
    <g id="text_51">
     <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="166.451276" transform="rotate(-0 758.231064 166.451276)">12.8% vs 3.8%</text>
@@ -733,16 +733,16 @@ L 751.709375 495.689481
     <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="283.334723" transform="rotate(-0 758.231064 283.334723)">1.69 vs 4.04</text>
    </g>
    <g id="text_61">
-    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="296.321773" transform="rotate(-0 758.231064 296.321773)">22.7% vs 38.8%</text>
+    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="296.321773" transform="rotate(-0 758.231064 296.321773)">21.8% vs 38.8%</text>
    </g>
    <g id="text_62">
-    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="309.308823" transform="rotate(-0 758.231064 309.308823)">28.2% vs 43.9%</text>
+    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="309.308823" transform="rotate(-0 758.231064 309.308823)">27.2% vs 43.9%</text>
    </g>
    <g id="text_63">
-    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="322.295872" transform="rotate(-0 758.231064 322.295872)">13.6% vs 21.4%</text>
+    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="322.295872" transform="rotate(-0 758.231064 322.295872)">13.0% vs 21.4%</text>
    </g>
    <g id="text_64">
-    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="335.282922" transform="rotate(-0 758.231064 335.282922)">21.8% vs 24.8%</text>
+    <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="335.282922" transform="rotate(-0 758.231064 335.282922)">20.3% vs 24.8%</text>
    </g>
    <g id="text_65">
     <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="758.231064" y="348.269972" transform="rotate(-0 758.231064 348.269972)">18.0% vs 16.1%</text>

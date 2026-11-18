@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="602.139296pt" height="361.517594pt" viewBox="0 0 602.139296 361.517594" xmlns="http://www.w3.org/2000/svg" version="1.1">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="601.277344pt" height="369.915953pt" viewBox="0 0 601.277344 369.915953" xmlns="http://www.w3.org/2000/svg" version="1.1">
  <metadata>
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
@@ -20,9 +20,9 @@
  </defs>
  <g id="figure_1">
   <g id="patch_1">
-   <path d="M 0 361.517594 
-L 602.139296 361.517594 
-L 602.139296 0 
+   <path d="M 0 369.915953 
+L 601.277344 369.915953 
+L 601.277344 0 
 L 0 0 
 z
 " style="fill: #ffffff"/>
@@ -347,7 +347,7 @@ L 0 2
      </g>
     </g>
     <g id="text_5">
-     <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="317.16" y="307.131187" transform="rotate(-0 317.16 307.131187)">Alerts per day, over all first accesses (log scale)</text>
+     <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="317.16" y="307.131188" transform="rotate(-0 317.16 307.131188)">Alerts per day, over all first accesses (log scale)</text>
     </g>
    </g>
    <g id="matplotlib.axis_2">
@@ -433,22 +433,27 @@ L -3.5 0
    <g id="line2d_49">
     <path d="M 82.8 40.559693 
 L 551.52 40.559693 
-" clip-path="url(#p9df74a7e3f)" style="fill: none; stroke: #d9d9d9; stroke-width: 0.8; stroke-linecap: square"/>
+" clip-path="url(#peb9c1258e4)" style="fill: none; stroke: #d9d9d9; stroke-width: 0.8; stroke-linecap: square"/>
    </g>
    <g id="line2d_50">
-    <path d="M 501.608946 44.310046 
-L 502.898779 44.310046 
-" clip-path="url(#p9df74a7e3f)" style="fill: none; stroke: #2f6690; stroke-width: 1.2; stroke-linecap: square"/>
+    <path d="M 101.235394 271.206399 
+L 325.553337 271.206399 
+" clip-path="url(#peb9c1258e4)" style="fill: none; stroke: #2f6690; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_51">
-    <path d="M 316.79904 209.325575 
-L 350.217387 209.325575 
-" clip-path="url(#p9df74a7e3f)" style="fill: none; stroke: #2f6690; stroke-width: 1.2; stroke-linecap: square"/>
+    <path d="M 498.234254 53.685928 
+L 500.294145 53.685928 
+" clip-path="url(#peb9c1258e4)" style="fill: none; stroke: #2f6690; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_52">
-    <path d="M 418.615305 104.315693 
-L 428.501231 104.315693 
-" clip-path="url(#p9df74a7e3f)" style="fill: none; stroke: #2f6690; stroke-width: 1.2; stroke-linecap: square"/>
+    <path d="M 316.243502 203.700046 
+L 348.788694 203.700046 
+" clip-path="url(#peb9c1258e4)" style="fill: none; stroke: #2f6690; stroke-width: 1.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_53">
+    <path d="M 415.053572 87.439105 
+L 425.392953 87.439105 
+" clip-path="url(#peb9c1258e4)" style="fill: none; stroke: #2f6690; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="patch_3">
     <path d="M 82.8 280.582281 
@@ -463,7 +468,7 @@ L 551.52 280.582281
    <g id="text_14">
     <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #8a8a8a" x="87.133494" y="37.746928" transform="rotate(-0 87.133494 37.746928)">All 123 misuse first accesses</text>
    </g>
-   <g id="line2d_53">
+   <g id="line2d_54">
     <defs>
      <path id="m04ab8cb638" d="M -3 3 
 L 3 3 
@@ -472,46 +477,46 @@ L -3 -3
 z
 " style="stroke: #8a8a8a; stroke-linejoin: miter"/>
     </defs>
-    <g clip-path="url(#p9df74a7e3f)">
+    <g clip-path="url(#peb9c1258e4)">
      <use xlink:href="#m04ab8cb638" x="412.466649" y="192.448987" style="fill: #8a8a8a; stroke: #8a8a8a; stroke-linejoin: miter"/>
     </g>
    </g>
    <g id="text_15">
     <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="418.466649" y="188.518518" transform="rotate(-0 418.466649 188.518518)">Rules</text>
    </g>
-   <g id="line2d_54">
-    <g clip-path="url(#p9df74a7e3f)">
+   <g id="line2d_55">
+    <g clip-path="url(#peb9c1258e4)">
      <use xlink:href="#m04ab8cb638" x="324.077384" y="209.325575" style="fill: #8a8a8a; stroke: #8a8a8a; stroke-linejoin: miter"/>
     </g>
    </g>
    <g id="text_16">
     <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="318.077384" y="222.395107" transform="rotate(-0 318.077384 222.395107)">Rules, without organization co-worker</text>
    </g>
-   <g id="line2d_55">
-    <g clip-path="url(#p9df74a7e3f)">
-     <use xlink:href="#m04ab8cb638" x="492.792144" y="42.434869" style="fill: #8a8a8a; stroke: #8a8a8a; stroke-linejoin: miter"/>
+   <g id="line2d_56">
+    <g clip-path="url(#peb9c1258e4)">
+     <use xlink:href="#m04ab8cb638" x="493.323963" y="42.434869" style="fill: #8a8a8a; stroke: #8a8a8a; stroke-linejoin: miter"/>
     </g>
    </g>
    <g id="text_17">
-    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="484.792144" y="36.504401" transform="rotate(-0 484.792144 36.504401)">Templates, direct evidence only</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="485.323963" y="36.504401" transform="rotate(-0 485.323963 36.504401)">Templates, direct evidence only</text>
    </g>
-   <g id="line2d_56">
-    <g clip-path="url(#p9df74a7e3f)">
-     <use xlink:href="#m04ab8cb638" x="489.395286" y="49.935575" style="fill: #8a8a8a; stroke: #8a8a8a; stroke-linejoin: miter"/>
+   <g id="line2d_57">
+    <g clip-path="url(#peb9c1258e4)">
+     <use xlink:href="#m04ab8cb638" x="490.085314" y="49.935575" style="fill: #8a8a8a; stroke: #8a8a8a; stroke-linejoin: miter"/>
     </g>
    </g>
    <g id="text_18">
-    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="481.395286" y="61.005107" transform="rotate(-0 481.395286 61.005107)">Templates</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="482.085314" y="61.005107" transform="rotate(-0 482.085314 61.005107)">Templates</text>
    </g>
-   <g id="line2d_57">
-    <g clip-path="url(#p9df74a7e3f)">
-     <use xlink:href="#m04ab8cb638" x="310.771245" y="209.325575" style="fill: #8a8a8a; stroke: #8a8a8a; stroke-linejoin: miter"/>
+   <g id="line2d_58">
+    <g clip-path="url(#peb9c1258e4)">
+     <use xlink:href="#m04ab8cb638" x="311.371482" y="209.325575" style="fill: #8a8a8a; stroke: #8a8a8a; stroke-linejoin: miter"/>
     </g>
    </g>
    <g id="text_19">
-    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="304.771245" y="204.395107" transform="rotate(-0 304.771245 204.395107)">Best baseline</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="305.371482" y="204.395107" transform="rotate(-0 305.371482 204.395107)">Best baseline</text>
    </g>
-   <g id="line2d_58">
+   <g id="line2d_59">
     <defs>
      <path id="me30abb588a" d="M 0 3 
 C 0.795609 3 1.55874 2.683901 2.12132 2.12132 
@@ -525,36 +530,36 @@ C -1.55874 2.683901 -0.795609 3 0 3
 z
 " style="stroke: #2f6690"/>
     </defs>
-    <g clip-path="url(#p9df74a7e3f)">
+    <g clip-path="url(#peb9c1258e4)">
      <use xlink:href="#me30abb588a" x="101.235394" y="271.206399" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="text_20">
-    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="108.235394" y="269.27593" transform="rotate(-0 108.235394 269.27593)">LLM, escalate (no alerts)</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="108.235394" y="269.27593" transform="rotate(-0 108.235394 269.27593)">LLM, escalate (none seen, at most 42 a day)</text>
    </g>
-   <g id="line2d_59">
-    <g clip-path="url(#p9df74a7e3f)">
-     <use xlink:href="#me30abb588a" x="502.258436" y="44.310046" style="fill: #2f6690; stroke: #2f6690"/>
+   <g id="line2d_60">
+    <g clip-path="url(#peb9c1258e4)">
+     <use xlink:href="#me30abb588a" x="499.275864" y="53.685928" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="text_21">
-    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="510.258436" y="47.379577" transform="rotate(-0 510.258436 47.379577)">LLM, verify or escalate</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="507.275864" y="56.75546" transform="rotate(-0 507.275864 56.75546)">LLM, verify or escalate</text>
    </g>
-   <g id="line2d_60">
-    <g clip-path="url(#p9df74a7e3f)">
-     <use xlink:href="#me30abb588a" x="336.511796" y="209.325575" style="fill: #2f6690; stroke: #2f6690"/>
+   <g id="line2d_61">
+    <g clip-path="url(#peb9c1258e4)">
+     <use xlink:href="#me30abb588a" x="335.367932" y="203.700046" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="text_22">
-    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="343.511796" y="207.395107" transform="rotate(-0 343.511796 207.395107)">LLM + Graph, escalate</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="342.367932" y="201.769577" transform="rotate(-0 342.367932 201.769577)">LLM + Graph, escalate</text>
    </g>
-   <g id="line2d_61">
-    <g clip-path="url(#p9df74a7e3f)">
-     <use xlink:href="#me30abb588a" x="423.826427" y="104.315693" style="fill: #2f6690; stroke: #2f6690"/>
+   <g id="line2d_62">
+    <g clip-path="url(#peb9c1258e4)">
+     <use xlink:href="#me30abb588a" x="420.516532" y="87.439105" style="fill: #2f6690; stroke: #2f6690"/>
     </g>
    </g>
    <g id="text_23">
-    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="430.826427" y="102.385224" transform="rotate(-0 430.826427 102.385224)">LLM + Graph, verify or escalate</text>
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="427.516532" y="85.508636" transform="rotate(-0 427.516532 85.508636)">LLM + Graph, verify or escalate</text>
    </g>
    <g id="text_24">
     <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="82.8" y="15.558281" transform="rotate(-0 82.8 15.558281)">Alerts against catches</text>
@@ -563,11 +568,12 @@ z
   <g id="text_25">
    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #8a8a8a" transform="translate(7.2 335.961109)">Squares are the rules and templates, counted on every first access. Circles are the LLM systems at two thresholds, escalate alone and verify or escalate,</text>
    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #8a8a8a" transform="translate(7.2 344.359469)">weighted back from the case set. The bars on the circles are 95% intervals from the sampling alone, and say nothing about run-to-run variation. The LLM at</text>
-   <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #8a8a8a" transform="translate(7.2 352.757828)">escalate raised no alerts and is drawn at the left edge. Same numbers as the alerts table in docs/llm-results.md.</text>
+   <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #8a8a8a" transform="translate(7.2 352.757828)">escalate raised no alerts in the sample. It is drawn at the left edge, with its bar running to the 95% upper bound. Same numbers as the alerts table in</text>
+   <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #8a8a8a" transform="translate(7.2 361.156187)">docs/llm-results.md.</text>
   </g>
  </g>
  <defs>
-  <clipPath id="p9df74a7e3f">
+  <clipPath id="peb9c1258e4">
    <rect x="82.8" y="25.558281" width="468.72" height="255.024"/>
   </clipPath>
  </defs>

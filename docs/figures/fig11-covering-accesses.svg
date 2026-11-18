@@ -164,10 +164,10 @@ z
     <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="231.036735" y="84.107375" transform="rotate(-0 231.036735 84.107375)">0</text>
    </g>
    <g id="text_12">
-    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="109.567347" y="152.483375" transform="rotate(-0 109.567347 152.483375)">1</text>
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="109.567347" y="152.483375" transform="rotate(-0 109.567347 152.483375)">9</text>
    </g>
    <g id="text_13">
-    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="170.302041" y="152.483375" transform="rotate(-0 170.302041 152.483375)">56</text>
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="170.302041" y="152.483375" transform="rotate(-0 170.302041 152.483375)">48</text>
    </g>
    <g id="text_14">
     <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="231.036735" y="152.483375" transform="rotate(-0 231.036735 152.483375)">0</text>
@@ -182,7 +182,7 @@ z
     <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="231.036735" y="220.859375" transform="rotate(-0 231.036735 220.859375)">0</text>
    </g>
    <g id="text_18">
-    <text style="font-weight: 700; font-size: 9.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="79.2" y="41.16" transform="rotate(-0 79.2 41.16)">LLM, 2 of 58 targets moved</text>
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="79.2" y="41.16" transform="rotate(-0 79.2 41.16)">LLM, 10 of 58 targets moved</text>
    </g>
   </g>
   <g id="axes_2">
@@ -216,7 +216,7 @@ L 525.6 115.536
 L 525.6 47.16 
 L 464.865306 47.16 
 z
-" clip-path="url(#pfd4cfda514)" style="fill: #ffffff; stroke: #d9d9d9; stroke-width: 0.8; stroke-linejoin: miter"/>
+" clip-path="url(#pfd4cfda514)" style="fill: #a9c4da; stroke: #d9d9d9; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
    <g id="patch_16">
     <path d="M 343.395918 183.912 
@@ -313,34 +313,34 @@ z
     </g>
    </g>
    <g id="text_27">
-    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="373.763265" y="84.107375" transform="rotate(-0 373.763265 84.107375)">5</text>
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="373.763265" y="84.107375" transform="rotate(-0 373.763265 84.107375)">2</text>
    </g>
    <g id="text_28">
-    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="434.497959" y="84.107375" transform="rotate(-0 434.497959 84.107375)">1</text>
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="434.497959" y="84.107375" transform="rotate(-0 434.497959 84.107375)">2</text>
    </g>
    <g id="text_29">
-    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="495.232653" y="84.107375" transform="rotate(-0 495.232653 84.107375)">0</text>
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="495.232653" y="84.107375" transform="rotate(-0 495.232653 84.107375)">1</text>
    </g>
    <g id="text_30">
     <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="373.763265" y="152.483375" transform="rotate(-0 373.763265 152.483375)">0</text>
    </g>
    <g id="text_31">
-    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="434.497959" y="152.483375" transform="rotate(-0 434.497959 152.483375)">14</text>
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="434.497959" y="152.483375" transform="rotate(-0 434.497959 152.483375)">16</text>
    </g>
    <g id="text_32">
-    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="495.232653" y="152.483375" transform="rotate(-0 495.232653 152.483375)">5</text>
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="495.232653" y="152.483375" transform="rotate(-0 495.232653 152.483375)">3</text>
    </g>
    <g id="text_33">
     <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="373.763265" y="220.859375" transform="rotate(-0 373.763265 220.859375)">0</text>
    </g>
    <g id="text_34">
-    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="434.497959" y="220.859375" transform="rotate(-0 434.497959 220.859375)">4</text>
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="434.497959" y="220.859375" transform="rotate(-0 434.497959 220.859375)">3</text>
    </g>
    <g id="text_35">
-    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="495.232653" y="220.859375" transform="rotate(-0 495.232653 220.859375)">29</text>
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="495.232653" y="220.859375" transform="rotate(-0 495.232653 220.859375)">31</text>
    </g>
    <g id="text_36">
-    <text style="font-weight: 700; font-size: 9.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="343.395918" y="41.16" transform="rotate(-0 343.395918 41.16)">LLM + Graph, 10 of 58 targets moved</text>
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="343.395918" y="41.16" transform="rotate(-0 343.395918 41.16)">LLM + Graph, 9 of 58 targets moved</text>
    </g>
   </g>
   <g id="text_37">
