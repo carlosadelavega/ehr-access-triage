@@ -17,7 +17,7 @@ import pandas as pd
 
 from .baselines import expected_top_k, run_rules, run_templates
 from .config import Config, load_config
-from .triage import DISPOSITIONS, PRIORITIES, SYSTEM_NAMES as LLM_NAMES, SYSTEMS, VERDICTS, Views, case_facts, cited, claims_of, read_answers, read_cases
+from .triage import DISPOSITIONS, PRIORITIES, SYSTEM_NAMES as LLM_NAMES, SYSTEMS, VERDICTS, Views, case_facts, cited, claims_of, log_facts, read_answers, read_cases
 
 HARD_NEGATIVES = {
     "consult": "H1 consult",
@@ -65,11 +65,13 @@ def truth(run_dir: str | Path, units: pd.DataFrame, cfg: Config) -> pd.DataFrame
     e = events.merge(labels, on="event_id")
     e["week"] = (pd.to_datetime(e["timestamp"]) - pd.Timestamp(cfg["window_start"])).dt.days // 7
     key = ["week", "user_id", "patient_id"]
-    misuse = e[e["scenario_id"] != ""].drop_duplicates(key).set_index(key)["reason"]
+    injected = e[e["scenario_id"] != ""].drop_duplicates(key).set_index(key)
+    misuse, scenario = injected["reason"], injected["scenario_id"]
     first = e.drop_duplicates(key).set_index(key)
     index = pd.MultiIndex.from_frame(units[key])
     out = units.copy()
     out["misuse"] = misuse.reindex(index).fillna("").to_numpy()
+    out["scenario_id"] = scenario.reindex(index).fillna("").to_numpy()
     out["reason"] = first["reason"].reindex(index).to_numpy()
     out["documented"] = first["documented"].reindex(index).to_numpy()
     return out
@@ -247,11 +249,16 @@ def case_strata(run_dir: str | Path) -> pd.Series:
 
 # ---- scoring systems 3 and 4 ----
 
+RATIONALE_WORDS = 60  # the summary template's limit on the rationale (spec 10)
+
+
 def answers(results_dir: str | Path, name: str) -> pd.DataFrame | None:
     """One row per case from a results file, or None when the file is not there.
 
     An answer outside the template still has to be dealt with by someone,
-    so it counts as `verify` at medium priority.
+    so it counts as `verify` at medium priority, whatever disposition it
+    names. The template caps the rationale at 60 words, so a longer one does
+    not fit it (spec 11.6).
     """
     path = Path(results_dir) / f"{name}.jsonl"
     if not path.exists():
@@ -260,10 +267,11 @@ def answers(results_dir: str | Path, name: str) -> pd.DataFrame | None:
     for line in path.read_text().splitlines():
         r = json.loads(line)
         s = r.get("summary", {})
+        fits = bool(s.get("valid")) and len(str(s.get("rationale", "")).split()) <= RATIONALE_WORDS
         rows.append({
-            "case_id": r["case_id"], "model": r["model"], "provider": r.get("provider", ""), "valid": bool(s.get("valid")),
-            "disposition": s["disposition"] if s.get("disposition") in DISPOSITIONS else "verify",
-            "priority": s["priority"] if s.get("priority") in PRIORITIES else "medium",
+            "case_id": r["case_id"], "model": r["model"], "provider": r.get("provider", ""), "valid": fits,
+            "disposition": s["disposition"] if fits and s.get("disposition") in DISPOSITIONS else "verify",
+            "priority": s["priority"] if fits and s.get("priority") in PRIORITIES else "medium",
             "truncated": r["finish"] == "length", "verdicts": r.get("verdicts"), "absence": r.get("absence"),
             "prompt_tokens": r["prompt_tokens"], "completion_tokens": r["completion_tokens"],
             "reasoning_tokens": r["reasoning_tokens"], "usd": r["usd"]})
@@ -404,6 +412,141 @@ def average_day_top_k(score, hit, weight, k: int, days: int) -> tuple[float, flo
     return found * days, shown * days
 
 
+# ---- the matrix of spec 5.2, scored as fixed in spec 11.5 ----
+
+MATRIX_SYSTEMS = {"rules": "Rules, all five", "templates": "Templates, direct and responsibility",
+                  "llm_raw": LLM_NAMES["llm_raw"], "llm_graph": LLM_NAMES["llm_graph"]}
+_CELLS = [cell for cell, _ in MATRIX_ROWS]
+# Each prediction of spec 5.2 written as a code, one per row of MATRIX_ROWS in its order. Written on
+# 15-16 Nov 2026, after pass 1 and before the corrected pass, from the definitions in 5.2 (spec 11.5).
+PREDICTIONS = {
+    #             M1      M2a     M2b+    M2b-     M3      M4      M5      M6a     M6b     own        H1         H2a      H2b      H3         H4a      H4b              H5       H6
+    "rules":     ["flag", "flag", "miss", "miss",  "flag", "miss", "miss", "miss", "miss", "scenario", "clear",   "clear", "clear", "clear",   "false", "false",         "clear", "clear"],
+    "templates": ["flag", "flag", "flag", "flag",  "flag", "flag", "flag", "flag", "flag", "miss",     "no test", "false", "false", "no test", "clear", "no test",       "false", "false"],
+    "llm_raw":   ["miss", "miss", "miss", "miss",  "miss", "miss", "flag", "flag", "miss", "miss",     "no test", "no test", "no test", "no test", "clear", "no test",   "no test", "no test"],
+    "llm_graph": ["flag", "flag", "flag", "verify", "flag", "flag", "flag", "flag", "flag", "open",    "clear",   "clear", "verify", "clear",   "clear", "clear or verify", "clear", "clear"],
+}
+PREDICTION_WORDS = {"flag": "flag", "miss": "miss", "clear": "clear", "false": "false alert", "verify": "say it cannot confirm",
+                    "clear or verify": "clear, or say it cannot confirm", "no test": "no test", "open": "open question",
+                    "scenario": "as each case's own scenario"}
+
+
+def matches(code: str, flagged: np.ndarray, disposition: np.ndarray | None) -> np.ndarray:
+    """Whether each case's outcome is the one the code predicts. `flagged` is a rule firing, an access left
+    unexplained, or an answer of verify or escalate, which puts the access in front of a reviewer (spec 5.2)."""
+    if code in ("flag", "false"):
+        return flagged
+    if code in ("miss", "clear"):
+        return ~flagged
+    if code == "verify":
+        return disposition == "verify"
+    if code == "clear or verify":
+        return disposition != "escalate"
+    raise ValueError(code)
+
+
+def mark(code: str, matching: int, n: int) -> str:
+    """Held at 90% or more of the cases matching, partly at 50-89%, contradicted below (spec 11.5)."""
+    if code in ("no test", "open"):
+        return PREDICTION_WORDS[code]
+    if n == 0:
+        return "no cases"
+    share = matching / n
+    return "held" if share >= 0.9 else "partly" if share >= 0.5 else "contradicted"
+
+
+def matrix_scores(run_dir: str | Path, u: pd.DataFrame, frames: dict) -> pd.DataFrame:
+    """Every cell of the matrix: cases, share flagged, share escalated, cases matching the prediction, and the mark."""
+    cells = matrix_cells(run_dir, u)
+    key = ["user_id", "patient_id", "week"]
+    v = variants(u)
+    counted = {"rules": (cells, v["Rules, all five"][0].to_numpy(), None),
+               "templates": (cells, v["Templates, direct and responsibility"][0].to_numpy(), None)}
+    for s, f in frames.items():
+        mine = f[key].merge(cells, on=key, how="left").set_axis(f.index)
+        d = f["disposition"].to_numpy()
+        counted[s] = (mine, d != "clear", d)
+    rows = []
+    for system, (mine, flagged, disposition) in counted.items():
+        for (cell, label), code in zip(MATRIX_ROWS, PREDICTIONS[system]):
+            part = (mine["own_department"].astype(bool) if cell == "own" else mine["cell"] == cell).to_numpy()
+            n = int(part.sum())
+            if code == "scenario":  # each case takes the prediction of its own scenario
+                own = mine["cell"].to_numpy()
+                hit = sum(bool(matches(PREDICTIONS[system][_CELLS.index(own[i])], flagged[i:i + 1], None)[0])
+                          for i in np.flatnonzero(part))
+            elif code in ("no test", "open"):
+                hit = 0
+            else:
+                d = disposition[part] if disposition is not None else None
+                hit = int(matches(code, flagged[part], d).sum())
+            rows.append({"system": system, "cell": cell, "label": label, "predicted": PREDICTION_WORDS[code], "code": code,
+                         "cases": n, "flagged": int(flagged[part].sum()),
+                         "escalated": int((disposition[part] == "escalate").sum()) if disposition is not None else None,
+                         "matching": hit, "mark": mark(code, hit, n)})
+    return pd.DataFrame(rows)
+
+
+# ---- whether a scenario's defining cue reached the prompt (spec 11.3) ----
+
+OVERLAP_MINUTES = 15  # two lines by one account this close, on devices in different departments, read as two people
+
+
+def cue_shown(run_dir: str | Path, cfg: Config, u: pd.DataFrame, frames: dict) -> pd.DataFrame:
+    """For every news-event and shared-credential case, whether its cue was among the lines each system saw.
+
+    News event: a line by another user who opened the patient after the same news event.
+    Shared credentials: two lines by the account within OVERLAP_MINUTES on devices in different
+    departments, or a line under review outside every shift the account's owner was scheduled for.
+    The schedule is shown only to the grounded system, so only it can see the second cue.
+    """
+    run = Path(run_dir)
+    sc = pd.read_csv(run / "labels" / "scenarios.csv", keep_default_na=False)
+    group = dict(zip(sc["scenario_id"], sc["group_id"]))
+    actors = sc.groupby("group_id")["actor_user_id"].agg(set).to_dict()
+    where = pd.read_csv(run / "context" / "devices.csv", keep_default_na=False).set_index("device_id")["department_id"].to_dict()
+    schedule = pd.read_csv(run / "context" / "schedule.csv", keep_default_na=False)
+    key = ["user_id", "patient_id", "week"]
+    sid = u.set_index(key)["scenario_id"]
+    f = frames["llm_graph"]
+    cases = f[f["stratum"].isin(["M5", "M6a", "M6b"])]
+    v = Views(run_dir, "llm_raw", cfg)
+    rows = []
+    for c in cases.itertuples():
+        section, lines = None, []
+        for ident, text in log_facts(v, c.user_id, c.patient_id, c.week):
+            if not ident:
+                section = text
+                continue
+            parts = text.split(" ")
+            lines.append((section, pd.Timestamp(parts[0]), parts[2], parts[4], parts[6]))
+        scenario = sid.get((c.user_id, c.patient_id, c.week), "")
+        if c.stratum == "M5":
+            others = actors.get(group.get(scenario, ""), set()) - {c.user_id}
+            seen = any(user in others for sec, _, user, _, _ in lines if "other users" in sec)
+            rows.append({"case_id": c.case_id, "stratum": c.stratum, "llm_raw": seen, "llm_graph": seen})
+            continue
+        mine = sorted((t, where.get(dev, "")) for sec, t, user, _, dev in lines if user == c.user_id and "other users" not in sec)
+        overlap = any((b[0] - a[0]).total_seconds() <= OVERLAP_MINUTES * 60 and a[1] != b[1] for a, b in zip(mine, mine[1:]))
+        shifts = schedule[schedule["user_id"] == c.user_id]
+        starts, ends = pd.to_datetime(shifts["shift_start"]).to_numpy(), pd.to_datetime(shifts["shift_end"]).to_numpy()
+        off = any(not ((starts <= np.datetime64(t)) & (np.datetime64(t) <= ends)).any()
+                  for sec, t, user, _, _ in lines if "under review" in sec)
+        rows.append({"case_id": c.case_id, "stratum": c.stratum, "llm_raw": overlap, "llm_graph": overlap or off})
+    return pd.DataFrame(rows, columns=["case_id", "stratum", "llm_raw", "llm_graph"])
+
+
+def zero_bound(f: pd.DataFrame) -> float:
+    """A 95% upper bound on population alerts when none was seen: each kind's size times the Wilson upper bound of 0 of n."""
+    return float(sum(rows["population"].iloc[0] * wilson(0, len(rows))[1] for _, rows in f.groupby("stratum")))
+
+
+def injection_of(run_dir: str | Path) -> dict:
+    """The injection each misuse scenario row belongs to: the news event for M5, the scenario itself otherwise."""
+    sc = pd.read_csv(Path(run_dir) / "labels" / "scenarios.csv", keep_default_na=False)
+    return {r.scenario_id: (r.group_id if r.type == "M5" and r.group_id else r.scenario_id) for r in sc.itertuples()}
+
+
 def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, results_dir: str | Path,
                       covered_dir: str | Path | None = None, covered_results: str | Path | None = None) -> dict:
     frames = {s: scored_answers(run_dir, results_dir, s) for s in SYSTEMS}
@@ -435,7 +578,8 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
         f"{len(u):,}, made of every misuse first access ({int(is_misuse.sum())}) and a fixed number of each legitimate kind. "
         "Figures for the whole population are estimates weighted back from that sample, and the margin given is a 95% "
         "interval from the sampling alone. It says nothing about how the model would do on a second run. "
-        "An answer outside the template counts as verify, since someone still has to look at it.",
+        "An answer outside the template counts as verify, since someone still has to look at it. A count of zero is shown "
+        "with a 95% upper bound, since seeing none in the sample does not mean there are none.",
         "",
         "The rules and templates rows are computed on every first access, as in `baseline-results.md`.",
         "",
@@ -450,7 +594,8 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
     for name, (f, alert) in llm.items():
         total, margin = weighted_alerts(f, alert)
         caught = int((alert & f["is_misuse"]).sum())
-        rows.append([name, f"{total / days:,.0f} ± {margin / days:,.0f}", f"{total / f['weight'].sum():.1%}",
+        per_day = f"0 (95% upper bound {zero_bound(f) / days:,.0f})" if total == 0 else f"{total / days:,.0f} ± {margin / days:,.0f}"
+        rows.append([name, per_day, f"{total / f['weight'].sum():.1%}",
                      f"{caught} of {int(f['is_misuse'].sum())}", f"{caught / max(total, 1):.2%}"])
     lines += table(["System", "Alerts per day", "Share of first accesses", "Misuse caught", "Precision"], rows)
 
@@ -540,8 +685,70 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
                          f"{hit / n:.0%} ({low:.0%}-{high:.0%})" if n else "no cases"])
     lines += table(["System", "Kind of access", "Cases", "Left alone", "Verify", "Alerted", "Share alerted (95% interval)"], rows)
 
-    lines += ["## Within a daily review budget", "",
-              "A reviewer takes the highest-priority alerts each day, up to the budget. LLM alerts are ranked by disposition, "
+    scores = matrix_scores(run_dir, u, frames)
+    lines += ["## Predictions against outcomes", "",
+              "Each cell is scored on the words section 5.2 of the spec defined before any results existed. Flag means "
+              "the access is put in front of a reviewer: a rule fires, no explanation is found, or the model answers verify "
+              "or escalate. Clear and miss mean it is not. A prediction that the model should say it cannot confirm is met "
+              "by verify. A cell holds when at least 90% of its cases match the prediction, holds partly at 50% to 89%, "
+              "and is contradicted below 50%. \"No basis, any answer is a guess\" fits any answer, and so does a "
+              "false alert that only departmental responsibility could prevent, so those cells are marked no test. These "
+              "codes were written on 15 and 16 Nov 2026, after pass 1 and before the corrected pass (spec 11.5). Escalated "
+              "is shown for the LLM systems because escalate is what reaches the Privacy Officer.", ""]
+    rows = []
+    for r in scores.itertuples():
+        rows.append([MATRIX_SYSTEMS[r.system], r.label, r.predicted, f"{r.cases:,}",
+                     f"{r.flagged / r.cases:.0%}" if r.cases else "-",
+                     "-" if pd.isna(r.escalated) or not r.cases else f"{r.escalated / r.cases:.0%}",
+                     "-" if r.code in ("no test", "open") or not r.cases else f"{r.matching:,} of {r.cases:,}", r.mark])
+    lines += table(["System", "Kind of access", "Predicted", "Cases", "Flagged", "Escalated", "Matching", "Mark"], rows)
+
+    cues = cue_shown(run_dir, cfg, u, frames)
+    if len(cues):
+        lines += ["## Was the scenario's cue in the prompt?", "",
+                  "A news-event or shared-credential access can only be recognized if the prompt holds the sign of it. "
+                  "For a news-event case that is a line by another user who opened the patient after the same news. For a "
+                  f"shared-credential case it is two lines by the account within {OVERLAP_MINUTES} minutes on devices in "
+                  "different departments, or, for the grounded system, which is shown the schedule, a line under review "
+                  f"outside every shift the account's owner had. The {OVERLAP_MINUTES} minutes are an assumption. Answers are "
+                  "clear, verify and escalate, in that order.", ""]
+        rows = []
+        for kind in ("M5", "M6a", "M6b"):
+            part = cues[cues["stratum"] == kind]
+            if part.empty:
+                continue
+            row = [kind, len(part)]
+            for s in SYSTEMS:
+                d = frames[s].set_index("case_id")["disposition"]
+                for shown in (True, False):
+                    ids = part.loc[part[s] == shown, "case_id"]
+                    counts = d.reindex(ids).value_counts()
+                    row.append(f"{len(ids)}: " + " / ".join(str(int(counts.get(x, 0))) for x in DISPOSITIONS) if len(ids) else "0")
+            rows.append(row)
+        lines += table(["Scenario", "Cases"] + [f"{LLM_NAMES[s]}, {w}" for s in SYSTEMS for w in ("cue shown", "cue not shown")], rows)
+
+    inj = injection_of(run_dir)
+    bad_units = u[u["misuse"] != ""].assign(injection=lambda x: x["scenario_id"].map(inj))
+    caught = {"Rules, all five": variants(u)["Rules, all five"][0], "Rules, then direct evidence": variants(u)["Rules, then direct evidence"][0]}
+    key = ["user_id", "patient_id", "week"]
+    for s, f in frames.items():
+        hit = set(map(tuple, f.loc[f["is_misuse"] & (f["disposition"] == "escalate"), key].to_numpy()))
+        caught[f"{LLM_NAMES[s]}, escalate"] = pd.Series([tuple(k) in hit for k in u[key].to_numpy()], index=u.index)
+    lines += ["## Misuse by injection", "",
+              "Several first accesses can come from one injected scenario, such as the accounts of one shared login or "
+              "the users who read about the same news event, so they are not independent. Each cell gives first accesses "
+              "caught, then injections with at least one first access caught.", ""]
+    rows = []
+    for kind, part in bad_units.groupby("misuse"):
+        row = [kind, len(part), part["injection"].nunique()]
+        for name, flag in caught.items():
+            got = flag.loc[part.index]
+            row.append(f"{int(got.sum())} of {len(part)}; {part.loc[got, 'injection'].nunique()} of {part['injection'].nunique()}")
+        rows.append(row)
+    lines += table(["Scenario", "First accesses", "Injections"] + list(caught), rows)
+
+    lines += ["## Within a daily review budget, pooled over days", "",
+              "This is pooled-budget performance, not a daily queue. A reviewer takes the highest-priority alerts each day, up to the budget. LLM alerts are ranked by disposition, "
               "then by the priority the model gave. The sample is too thin to rank day by day, so every system here is scored "
               "on an average day, which is why the rules and templates figures differ a little from `baseline-results.md`. "
               "Recall is over all misuse first accesses.", ""]
@@ -557,7 +764,9 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
     lines += table(["Budget per day", "System", "Reviewed", "Misuse found", "Precision", "Recall"], rows)
 
     lines += ["## Faithfulness of the summaries", "",
-              "The first check is mechanical. A claim passes when it cites at least one fact and every fact it cites was in the "
+              "Claims are the items of two parts of each summary, the evidence of a job-related purpose and the risk "
+              "indicators. The narrative, the missing information and the rationale are not checked, so these figures rate "
+              "those items and not whole summaries. The first check is mechanical. A claim passes when it cites at least one fact and every fact it cites was in the "
               "prompt. A range such as L2-L31 counts as citing every fact from L2 to L31. The prompt asks for a list of IDs, "
               "so the number that pass when a range is not counted is shown beside it. The second check gives each claim "
               "that passed to a judge model, with the facts it cites and the full "
@@ -575,9 +784,12 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
         absent = sum(a for item in judged["absence"] for a in item) if judged is not None else 0
         n = citation_counts(run_dir, results_dir, s, cfg)
         share = [f"{ruled.count(v) / len(ruled):.1%}" if ruled else "not run" for v in VERDICTS]
-        rows.append([LLM_NAMES[s], f"{len(f):,}", f"{f['valid'].mean():.1%}", int(f["truncated"].sum()), f"{n['claims']:,}",
+        tries = calls(Path(results_dir) / f"{s}.pass1.jsonl")
+        rows.append([LLM_NAMES[s], f"{len(f):,}", f"{f['valid'].mean():.1%}", int((tries["finish"] == "length").sum()), f"{n['claims']:,}",
                      f"{n['exist']:,}", f"{n['listed']:,}", f"{len(ruled):,}",
                      f"{n['exist'] - len(ruled):,}", *share, f"{absent:,}"])
+    lines += ["Fit the template includes the 60-word limit on the rationale. Cut off counts every try that hit the token "
+              "limit, including tries that were sent again and later answered.", ""]
     lines += table(["System", "Summaries", "Fit the template", "Cut off by the token limit", "Claims", "Citations exist",
                     "Without counting ranges", "Claims judged", "Not yet judged", "Supported", "Partly", "Unsupported",
                     "Of which absence claims"], rows)
@@ -590,7 +802,10 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
         lines += ["## With covering accesses", "",
                   f"The paired run is identical except that each M1-M4 actor also makes {cfg['covering']['accesses']} covering "
                   "accesses around the target, chosen by the heuristic attack of Xu et al. 2023. The same target cases are "
-                  "triaged in both runs. The last column is a sample of the covering accesses themselves.", ""]
+                  "triaged in both runs. The last column is a sample of the covering accesses themselves. Each side is one "
+                  "answer from one pass, so a difference mixes the effect of the covers with the model changing its answer "
+                  "from run to run, and a test that finds no difference is not evidence that the covers have no effect. "
+                  "Repeat passes on the base run give the variation to compare against.", ""]
         rows = []
         for (name, (f, alert)), (_, (c, c_alert)) in zip(llm_variants({s: frames[s] for s in covered}).items(), llm_variants(covered).items()):
             target = c["stratum"] != "cover"
@@ -653,6 +868,15 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
                 rows.append(paired(question, len(both), "without cover", flag(graph.loc[both, "disposition"]).to_numpy(),
                                    "with cover", flag(c.loc[both, "disposition"]).to_numpy()))
         lines += table(["Question", "Cases", "Yes answers", "Disagreements", "Test", "p"], rows)
+        lines += ["The common odds ratio of the staff row pools kinds whose own odds ratios differ widely. Kind by kind, "
+                  "with 0.5 added to every cell of a table that has a zero:", ""]
+        kinds = sorted(set(graph.loc[legit, "stratum"]))
+        rows = []
+        for kind, (a, b, c, d) in zip(kinds, tables):
+            ratio = (a * d / (b * c)) if min(a, b, c, d) > 0 else ((a + 0.5) * (d + 0.5) / ((b + 0.5) * (c + 0.5)))
+            rows.append([LEGITIMATE.get(kind, kind), f"{a} of {a + b}", f"{c} of {c + d}",
+                         "none escalated" if a + c == 0 else f"{ratio:.1f}"])
+        lines += table(["Kind of access", "Staff charts escalated", "Other charts escalated", "Odds ratio"], rows)
 
     repeats = {s: sorted(int(p.stem.split("pass")[1]) for p in Path(results_dir).glob(f"{s}.pass*.jsonl")) for s in frames}
     if any(len(p) > 1 for p in repeats.values()):

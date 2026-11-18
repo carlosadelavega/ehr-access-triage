@@ -7,49 +7,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from ehr_triage import evaluate, figures, triage
+from ehr_triage import evaluate, triage
 from ehr_triage.generate import generate
 
-USAGE = {"prompt_tokens": 2000, "completion_tokens": 500, "completion_tokens_details": {"reasoning_tokens": 200}}
-
-
-def fake_model(prompt, cfg):
-    """Escalates when the graph shows no connection, clears otherwise, and cites the first fact shown."""
-    if prompt.startswith(triage.JUDGE):
-        n = prompt.count("\nClaim ")
-        return {"content": json.dumps({"claims": [{"n": i + 1, "verdict": "supported" if i == 0 else "partly"} for i in range(n)]}), "finish": "stop", "usage": USAGE}
-    escalate = "holds no connection" in prompt
-    summary = {"what_happened": "One access.", "rationale": "As cited.", "missing_information": [],
-               "disposition": "escalate" if escalate else "clear", "priority": "high" if escalate else "low",
-               "purpose_evidence": [{"claim": "The access is in the log", "sources": ["L1"]}],
-               "risk_indicators": [{"claim": "Made up", "sources": ["G999"]}] if escalate else []}
-    return {"content": json.dumps(summary), "finish": "stop", "usage": USAGE}
-
-
-def new_spend():
-    return {"usd": 0.0, "calls": 0, "failed": 0, "last_error": "", "stop": ""}
-
-
-@pytest.fixture(scope="module")
-def runs(slim, cfg, run_dir, tmp_path_factory):
-    """A copy of the test run and its paired run with covering accesses, each with a case set."""
-    base = tmp_path_factory.mktemp("llm") / "base"
-    shutil.copytree(run_dir, base)
-    with_cover = copy.deepcopy(cfg)
-    with_cover.params["covering"]["value"] = {**cfg["covering"], "enabled": True}
-    covered = base.with_name("base-covered")
-    generate(with_cover, slim, covered)
-    evaluate.build_cases(base, cfg, covered)
-    return base, covered
-
-
-@pytest.fixture(scope="module")
-def answered(runs, cfg, tmp_path_factory):
-    results = tmp_path_factory.mktemp("results")
-    for run in runs:
-        triage.triage_cases(run, cfg, results / run.name, fake_model, new_spend())
-        triage.judge_cases(run, cfg, results / run.name, fake_model, new_spend())
-    return results
+from conftest import USAGE, fake_model, new_spend  # noqa: E402
 
 
 def test_case_set_holds_every_misuse_access_and_no_label(runs, cfg):
@@ -285,12 +246,29 @@ def test_llm_results_report_runs_end_to_end(answered, runs, cfg, tmp_path):
     assert by_kind["weight"].sum().to_numpy() == pytest.approx(by_kind["population"].first().to_numpy())
 
 
-def test_figures_are_written_from_the_answers(runs, answered, cfg, tmp_path):
-    base, _ = runs
-    out = figures.build(base, cfg, tmp_path, answered / base.name)
-    names = sorted(p.name for p in tmp_path.glob("*.svg"))
-    assert names == sorted(Path(p).name for p in out["written"])
-    assert any(s.startswith("fig12") for s in out["skipped"])
-    for start in ("fig01-", "fig02-", "fig03-", "fig04-", "fig05-", "fig06-", "fig07-", "fig08-", "fig09-", "fig10-", "fig11-", "fig13-"):
-        assert any(n.startswith(start) for n in names)
-    assert all((tmp_path / n).read_text().lstrip().startswith("<?xml") for n in names)
+def test_marks_follow_the_thresholds_of_spec_11_5():
+    assert evaluate.mark("flag", 9, 10) == "held"
+    assert evaluate.mark("flag", 5, 10) == "partly"
+    assert evaluate.mark("flag", 4, 10) == "contradicted"
+    assert evaluate.mark("no test", 0, 10) == "no test"
+    assert evaluate.mark("flag", 0, 0) == "no cases"
+
+
+def test_verify_is_a_flag_and_meets_a_prediction_to_say_it_cannot_confirm():
+    import numpy as np
+    d = np.array(["clear", "verify", "escalate"])
+    flagged = d != "clear"
+    assert list(evaluate.matches("flag", flagged, d)) == [False, True, True]
+    assert list(evaluate.matches("clear", flagged, d)) == [True, False, False]
+    assert list(evaluate.matches("verify", flagged, d)) == [False, True, False]
+    assert list(evaluate.matches("clear or verify", flagged, d)) == [True, True, False]
+    assert all(len(codes) == len(evaluate.MATRIX_ROWS) for codes in evaluate.PREDICTIONS.values())
+
+
+def test_an_answer_over_the_word_limit_counts_as_verify(tmp_path):
+    long = " ".join(["word"] * 61)
+    row = {"case_id": "C0001", "model": "m", "finish": "stop", "prompt_tokens": 1, "completion_tokens": 1, "reasoning_tokens": 0,
+           "usd": 0.0, "summary": {"valid": True, "disposition": "escalate", "priority": "high", "rationale": long}}
+    (tmp_path / "llm_graph.pass1.jsonl").write_text(json.dumps(row) + "\n")
+    a = evaluate.answers(tmp_path, "llm_graph.pass1")
+    assert not a["valid"].iloc[0] and a["disposition"].iloc[0] == "verify" and a["priority"].iloc[0] == "medium"

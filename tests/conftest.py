@@ -2,12 +2,16 @@
 
 The tests never need Java or the real Synthea export.
 """
+import copy
+import json
+import shutil
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from ehr_triage import evaluate, triage
 from ehr_triage.config import load_config
 from ehr_triage.generate import generate
 from ehr_triage.report import load_run
@@ -100,3 +104,47 @@ def run_dir(slim, cfg, tmp_path_factory) -> Path:
 @pytest.fixture(scope="session")
 def run(run_dir) -> dict:
     return load_run(run_dir)
+
+
+# ---- a made-up model and a run answered by it, shared by the LLM and figure tests ----
+
+USAGE = {"prompt_tokens": 2000, "completion_tokens": 500, "completion_tokens_details": {"reasoning_tokens": 200}}
+
+
+def fake_model(prompt, cfg):
+    """Escalates when the graph shows no connection, clears otherwise, and cites the first fact shown."""
+    if prompt.startswith(triage.JUDGE):
+        n = prompt.count("\nClaim ")
+        return {"content": json.dumps({"claims": [{"n": i + 1, "verdict": "supported" if i == 0 else "partly"} for i in range(n)]}), "finish": "stop", "usage": USAGE}
+    escalate = "holds no connection" in prompt
+    summary = {"what_happened": "One access.", "rationale": "As cited.", "missing_information": [],
+               "disposition": "escalate" if escalate else "clear", "priority": "high" if escalate else "low",
+               "purpose_evidence": [{"claim": "The access is in the log", "sources": ["L1"]}],
+               "risk_indicators": [{"claim": "Made up", "sources": ["G999"]}] if escalate else []}
+    return {"content": json.dumps(summary), "finish": "stop", "usage": USAGE}
+
+
+def new_spend():
+    return {"usd": 0.0, "calls": 0, "failed": 0, "last_error": "", "stop": ""}
+
+
+@pytest.fixture(scope="session")
+def runs(slim, cfg, run_dir, tmp_path_factory):
+    """A copy of the test run and its paired run with covering accesses, each with a case set."""
+    base = tmp_path_factory.mktemp("llm") / "base"
+    shutil.copytree(run_dir, base)
+    with_cover = copy.deepcopy(cfg)
+    with_cover.params["covering"]["value"] = {**cfg["covering"], "enabled": True}
+    covered = base.with_name("base-covered")
+    generate(with_cover, slim, covered)
+    evaluate.build_cases(base, cfg, covered)
+    return base, covered
+
+
+@pytest.fixture(scope="session")
+def answered(runs, cfg, tmp_path_factory):
+    results = tmp_path_factory.mktemp("results")
+    for run in runs:
+        triage.triage_cases(run, cfg, results / run.name, fake_model, new_spend())
+        triage.judge_cases(run, cfg, results / run.name, fake_model, new_spend())
+    return results
