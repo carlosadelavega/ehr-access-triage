@@ -51,3 +51,24 @@ Two earlier versions of the check were tried on 79 summaries each and dropped. T
 ## Corrected after the outside review (18 Nov 2026)
 
 An outside review of the repository pointed out two overclaims in the first version of this page. It called the unsupported share an upper bound and derived corrected rates of 1.3% and 0.6% from it. Neither follows, for the reason now given above. It also matters what the judge rates. It sees only the items of two parts of each summary, the evidence of a job-related purpose and the risk indicators. The narrative, the missing information and the rationale are not checked, so these shares rate those items and not whole summaries. Before any faithfulness figure is quoted as a rate, a larger hand-read is needed, blinded to the verdict and spread across all three verdicts and both systems (spec 11.6).
+
+## The corrected design: a blinded read (19 Nov 2026)
+
+The judge rated the claims of the corrected pass 1 (spec section 11) as in `llm-results.md`. On 19 Nov 2026, 36 of its verdicts were read again, blind. Six claims were drawn at random for each verdict and each system, with seed 20261119, from 17,443 claims with a verdict, and shuffled. Each claim was checked against the facts it cites, and where it rested on an uncited fact, against the full list its author saw. The verdicts were sealed in a separate file until every reading was written down. The reader was Claude, the assistant that built this repository, so this is a second model's check and not a person's. The 36 claims, both readings and a note on each disagreement are in [judge-read-corrected-pass.csv](judge-read-corrected-pass.csv), and anyone can read them again.
+
+The same three verdicts were used for the reading as for the judge.
+
+| Judge said | Read as supported | Read as partly | Read as unsupported |
+|---|---|---|---|
+| Supported, 12 claims | 10 | 2 | 0 |
+| Partly, 12 claims | 3 | 8 | 1 |
+| Unsupported, 12 claims | 7 | 4 | 1 |
+
+What this shows.
+
+- **Supported held.** No claim the judge passed as supported was wrong. Two leaned on a fact they did not cite.
+- **Unsupported mostly did not hold.** Of 12, one claim was wrong on reading, J16, which put a user on a MED2 workstation that is in LAB. Seven were plainly true, such as "all three actions are A0335, a read" and "15:02 is just past the 15:00 shift end". The judge rejects true claims, the same failure the hand-read of pass 1 found.
+- **A wrong claim can hide under partly.** J03 said a user opened at least six other patients where the prompt shows five, and the judge called it partly.
+- **The counts were right more often than the citations.** Several claims counted users or patients correctly from the full list while citing only some of the lines. Under the rubric that is partly, not wrong.
+
+So the judge's unsupported share overstates the wrong claims among those it rejects, while wrong claims also sit among those it calls partly. Two of the 36 claims read here were wrong. The sample was drawn six to a cell, so it cannot give a rate for the whole pass to any useful precision, and none is given. What can be said is that the summaries cite real facts, that the judge's "supported" can be trusted on this sample, and that its "unsupported" cannot.

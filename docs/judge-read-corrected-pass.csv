@@ -1,0 +1,37 @@
+item,system,case_id,claim,judge,read,note
+J01,LLM,C1625,5,supported,partly,"True, but the 300 s durations it compares are on reviewed lines it did not cite"
+J02,LLM + Graph,C1280,3,supported,supported,
+J03,LLM,C0324,1,partly,unsupported,Says at least six other patients; the prompt shows five
+J04,LLM + Graph,C1166,6,supported,supported,
+J05,LLM,C1260,3,partly,supported,"Users, times and the 22-minute gap all check against the cited lines"
+J06,LLM + Graph,C0867,3,supported,partly,"""Not SURG"" rests on the user's department, which it did not cite"
+J07,LLM + Graph,C1644,3,supported,supported,
+J08,LLM,C0197,1,unsupported,supported,A true statement of what the reviewed lines contain
+J09,LLM,C1424,1,supported,supported,
+J10,LLM + Graph,C0071,4,unsupported,supported,"All six devices are MED1 workstations, as cited"
+J11,LLM,C0830,2,unsupported,partly,"Patients and times are right; ""the same devices"" rests on lines it did not cite"
+J12,LLM + Graph,C0147,7,partly,partly,
+J13,LLM,C0292,3,supported,supported,
+J14,LLM,C0618,3,unsupported,supported,"All seven times fall between 09:16 and 13:30, over two days"
+J15,LLM + Graph,C0480,3,partly,partly,
+J16,LLM + Graph,C1628,7,unsupported,unsupported,Says all six users worked from MED2 workstations; one device is in LAB
+J17,LLM + Graph,C0496,6,partly,partly,
+J18,LLM + Graph,C0898,2,unsupported,supported,"All three actions are A0335, a read"
+J19,LLM,C0128,2,partly,partly,
+J20,LLM,C1622,2,partly,partly,
+J21,LLM + Graph,C1427,6,supported,supported,
+J22,LLM + Graph,C0391,3,partly,supported,Both cited accesses fall inside the cited shift
+J23,LLM,C0916,2,supported,supported,
+J24,LLM + Graph,C1009,5,unsupported,partly,"Reads, queries and creates check; ""updates"" and ""visit documentation"" go beyond the cited lines"
+J25,LLM,C0806,1,unsupported,supported,"Ten patients on eight devices, as cited; the end time is rounded to the minute"
+J26,LLM,C1146,1,partly,partly,
+J27,LLM,C1340,3,unsupported,partly,"Six users check; ""642 further lines"" quotes a section title and ""not an outlier"" is an inference"
+J28,LLM + Graph,C0150,3,supported,supported,
+J29,LLM + Graph,C0658,6,unsupported,supported,15:02 is just past the 15:00 shift end
+J30,LLM,C0871,3,partly,supported,The first and last of 30 lines in time order bracket them all
+J31,LLM,C0510,2,supported,supported,
+J32,LLM + Graph,C0944,6,partly,partly,"""ICU patients"" is not in any fact, and nothing contradicts the rest"
+J33,LLM,C0022,5,supported,supported,
+J34,LLM,C1312,3,unsupported,partly,Eight other users is true in the full list; only six are cited
+J35,LLM + Graph,C0832,5,partly,partly,"""MED2 staff"" rests on the users' departments, which are not shown"
+J36,LLM + Graph,C0256,7,unsupported,supported,The only connections listed are the care-team tie and the two co-worker links
