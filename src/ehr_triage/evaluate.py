@@ -577,7 +577,8 @@ def repeat_agreement(run_dir: str | Path, results_dir: str | Path, system: str, 
 UNDOCUMENTED = ["consult", "coverage", "back_office", "hospital_wide"]  # spec 11.9
 
 
-def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.DataFrame, staff: set, days: int) -> list[str]:
+def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.DataFrame, staff: set, days: int,
+                    u: pd.DataFrame, budgets: list[int]) -> list[str]:
     """The declared variant of spec 11.9 against the grounded system's passes, scored by the criterion fixed before it ran."""
     passes = {p: scored_answers(run_dir, results_dir, "llm_graph", p) for p in sorted(
         int(x.stem.split("pass")[1]) for x in Path(results_dir).glob("llm_graph.pass*.jsonl"))}
@@ -628,6 +629,29 @@ def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.Da
             f"more of them changed than between the grounded system's own passes "
             f"({'not measurable' if noise is None else ('yes' if moved > noise else 'no')}, {moved} against "
             f"{'-' if noise is None else noise}). The wording effect is " + ("supported." if met else "not supported."), ""]
+
+    out += ["Where the alerts fall, and what a reviewer finds within a daily budget, pooled over days as in the budget "
+            "table above. Escalations per day, with 95% margins from the sampling alone.", ""]
+    rows = []
+    for name, f in [(f"{LLM_NAMES['llm_graph']}, pass {min(passes)}", passes[min(passes)]), (LLM_NAMES[VARIANT], variant)]:
+        alert = f["disposition"] == "escalate"
+        row = [name]
+        for part in (f["patient_id"].isin(staff), ~f["patient_id"].isin(staff)):
+            total, margin = weighted_alerts(f, alert & part)
+            row += [f"{total / days:,.0f} ± {margin / days:,.0f}", f"{int((alert & part & f['is_misuse']).sum())} of {int((part & f['is_misuse']).sum())}"]
+        a = f[f["disposition"] != "clear"]
+        row += [f"{average_day_top_k(a['score'], a['is_misuse'], a['weight'], k, days)[0]:.1f}" for k in budgets]
+        rows.append(row)
+    is_bad = u["misuse"] != ""
+    alert, score = variants(u)["Rules, then direct evidence"]
+    on = u["patient_id"].isin(staff)
+    row = ["Rules, then direct evidence"]
+    for part in (on, ~on):
+        row += [f"{(alert & part).sum() / days:,.0f}", f"{int((alert & part & is_bad).sum())} of {int((part & is_bad).sum())}"]
+    row += [f"{average_day_top_k(score[alert], is_bad[alert], np.ones(int(alert.sum())), k, days)[0]:.1f}" for k in budgets]
+    rows.append(row)
+    out += table(["System", "Staff charts, escalations per day", "Misuse caught", "Other charts, escalations per day", "Misuse caught"]
+                 + [f"Misuse found at {k} a day" for k in budgets], rows)
     return out
 
 
@@ -1071,7 +1095,7 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
 
     variant = scored_answers(run_dir, results_dir, VARIANT) if Path(results_dir, f"{VARIANT}.pass1.jsonl").exists() else None
     if variant is not None:
-        lines += variant_section(run_dir, results_dir, variant, staff, days)
+        lines += variant_section(run_dir, results_dir, variant, staff, days, u, cfg["review_budget_per_day"])
 
     lines += ["## Tokens and cost", "",
               "Summed from the usage and the cost each call reported. A case that was sent again is one answer and more "
