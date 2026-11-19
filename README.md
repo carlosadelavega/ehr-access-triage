@@ -88,6 +88,7 @@ python -m ehr_triage.triage run --limit 20   # a cheap trial, prints what the fu
 python -m ehr_triage.triage run              # both systems on every case, into results/
 python -m ehr_triage.triage judge            # checks each claim against the facts it cites
 python -m ehr_triage.triage run --pass 2     # a repeat pass, for run-to-run variation
+python -m ehr_triage.triage run --systems llm_graph_employment   # the declared variant of spec 11.9, about 1.10 USD
 python -m ehr_triage.evaluate llm            # writes docs/llm-results.md
 python -m ehr_triage.figures                 # rewrites the figures in docs/figures/
 python -m ehr_triage.triage render --case C0100   # one answer as the case summary an officer would read

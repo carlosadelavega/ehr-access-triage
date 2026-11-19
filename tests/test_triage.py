@@ -89,3 +89,22 @@ def test_context_lines_are_the_nearest_to_any_of_the_weeks_accesses(run_dir, cfg
             assert dist[is_shown].max() <= dist[~is_shown].min()
             checked += 1
     assert checked > 0
+
+
+def test_the_declared_variant_words_employment_as_a_fact_and_changes_nothing_else(run_dir, cfg):
+    """Spec 11.9. Same log lines and graph facts as the grounded system, except the organization co-worker line."""
+    units = triage.case_units(run_dir, cfg)
+    g, e = triage.Views(run_dir, "llm_graph", cfg), triage.Views(run_dir, triage.VARIANT, cfg)
+    changed = 0
+    for u in units.sample(300, random_state=2).itertuples():
+        a, b = triage.case_facts(g, u), triage.case_facts(e, u)
+        assert [t for i, t in a if i.startswith("L")] == [t for i, t in b if i.startswith("L")]
+        assert not any("connection 'organization co-worker'" in t for _, t in b)
+        other_a = [t for _, t in a if "organization co-worker" not in t and "holds no connection" not in t]
+        other_b = [t for _, t in b if "is a member of staff" not in t and "holds no connection" not in t]
+        assert other_a == other_b
+        if any("organization co-worker" in t for _, t in a):
+            changed += 1
+            assert any(f"patient {u.patient_id} is a member of staff" in t for _, t in b)
+    assert changed > 0
+    assert triage.VARIANT not in triage.SYSTEMS

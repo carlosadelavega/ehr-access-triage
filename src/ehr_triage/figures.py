@@ -93,7 +93,7 @@ def fig01_visibility(out_dir: Path) -> Path:
     """What each system may see: the visibility table of spec section 2, drawn from `graph.VISIBLE`."""
     tables = list(CONTEXT_NAMES)
     columns = ["Audit log"] + [CONTEXT_NAMES[t] for t in tables] + ["Labels"]
-    rows = [(SYSTEM_NAMES[s], [True] + [t in VISIBLE[s] for t in tables] + [False]) for s in VISIBLE]
+    rows = [(SYSTEM_NAMES[s], [True] + [t in VISIBLE[s] for t in tables] + [False]) for s in SYSTEM_NAMES]  # the four systems
     rows.append(("Evaluation", [True] * (len(tables) + 1) + [True]))
 
     fig, ax = plt.subplots(figsize=(8.2, 3.4))

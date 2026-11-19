@@ -17,7 +17,7 @@ import pandas as pd
 
 from .baselines import expected_top_k, run_rules, run_templates
 from .config import Config, load_config
-from .triage import DISPOSITIONS, PRIORITIES, SYSTEM_NAMES as LLM_NAMES, SYSTEMS, VERDICTS, Views, case_facts, cited, claims_of, log_facts, read_answers, read_cases
+from .triage import DISPOSITIONS, PRIORITIES, SYSTEM_NAMES as LLM_NAMES, SYSTEMS, VARIANT, VERDICTS, Views, case_facts, cited, claims_of, log_facts, read_answers, read_cases
 
 HARD_NEGATIVES = {
     "consult": "H1 consult",
@@ -574,6 +574,63 @@ def repeat_agreement(run_dir: str | Path, results_dir: str | Path, system: str, 
     return first[["stratum", "weight", "is_misuse"]].assign(same=together.nunique(axis=1).eq(1))
 
 
+UNDOCUMENTED = ["consult", "coverage", "back_office", "hospital_wide"]  # spec 11.9
+
+
+def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.DataFrame, staff: set, days: int) -> list[str]:
+    """The declared variant of spec 11.9 against the grounded system's passes, scored by the criterion fixed before it ran."""
+    passes = {p: scored_answers(run_dir, results_dir, "llm_graph", p) for p in sorted(
+        int(x.stem.split("pass")[1]) for x in Path(results_dir).glob("llm_graph.pass*.jsonl"))}
+    rows = []
+    for name, f in [(f"{LLM_NAMES['llm_graph']}, pass {p}", f) for p, f in passes.items()] + [(LLM_NAMES[VARIANT], variant)]:
+        alert = f["disposition"] == "escalate"
+        total, margin = weighted_alerts(f, alert)
+        caught = int((alert & f["is_misuse"]).sum())
+        on_staff = f["patient_id"].isin(staff)
+        focus = on_staff & f["stratum"].isin(UNDOCUMENTED)
+        rows.append([name, f"{total / days:,.0f} ± {margin / days:,.0f}", f"{caught} of {int(f['is_misuse'].sum())}",
+                     f"{caught / max(total, 1):.2%}", f"{int((alert & focus).sum())} of {int(focus.sum())}",
+                     f"{int((alert & f['stratum'].eq('M1')).sum())} of {int(f['stratum'].eq('M1').sum())}"])
+    out = ["## Declared variant: employment as a fact (spec 11.9)", "",
+           "The grounded system with one fact reworded. Where the patient is staff, the prompt says so as a fact about the "
+           "patient instead of listing an organization co-worker connection. Everything else is the same. The variant was "
+           "declared after pass 1 and before it was run, with the criterion below. Its focus is legitimate work of the four "
+           "undocumented kinds on staff charts (consult, coverage, back office, hospital-wide), where the grounded system "
+           "escalated most.", ""]
+    out += table(["System", "Escalations per day", "Misuse escalated", "Precision", "Undocumented work on staff charts escalated",
+                  "Coworker snooping escalated"], rows)
+    base = passes[min(passes)].set_index("case_id")
+    v = variant.set_index("case_id").loc[base.index]
+    focus = (base["patient_id"].isin(staff) & base["stratum"].isin(UNDOCUMENTED)).to_numpy()
+    esc = lambda f: (f["disposition"] == "escalate").to_numpy()
+    tests = []
+    only_b, only_v = int((esc(base) & ~esc(v) & focus).sum()), int((~esc(base) & esc(v) & focus).sum())
+    tests.append(["Undocumented work on staff charts, variant against pass 1", int(focus.sum()),
+                  f"{only_b} escalated only in pass 1, {only_v} only by the variant", mcnemar(only_b, only_v)])
+    noise = None
+    if len(passes) > 1:
+        second = passes[sorted(passes)[1]].set_index("case_id").loc[base.index]
+        a, b = int((esc(base) & ~esc(second) & focus).sum()), int((~esc(base) & esc(second) & focus).sum())
+        noise = a + b
+        tests.append(["The same cases, pass 1 against pass 2 (run-to-run variation)", int(focus.sum()),
+                      f"{a} escalated only in pass 1, {b} only in pass 2", mcnemar(a, b)])
+    bad = base["is_misuse"].to_numpy()
+    a, b = int((esc(base) & ~esc(v) & bad).sum()), int((~esc(base) & esc(v) & bad).sum())
+    tests.append(["Misuse, variant against pass 1", int(bad.sum()), f"{a} escalated only in pass 1, {b} only by the variant", mcnemar(a, b)])
+    out += ["", "McNemar's exact test on the same cases.", ""]
+    out += table(["Comparison", "Cases", "Disagreements", "p"],
+                 [[q, f"{n:,}", d, f"{p:.3f}" if p >= 0.001 else "under 0.001"] for q, n, d, p in tests])
+    fewer = all(int((esc(f.set_index("case_id").loc[base.index]) & focus).sum()) > int((esc(v) & focus).sum()) for f in passes.values())
+    moved = only_b + only_v
+    met = fewer and tests[0][3] < 0.05 and (noise is None or moved > noise)
+    out += [f"Criterion of spec 11.9: fewer escalations of these cases than in every pass of the grounded system "
+            f"({'yes' if fewer else 'no'}), McNemar p under 0.05 against pass 1 ({'yes' if tests[0][3] < 0.05 else 'no'}), and "
+            f"more of them changed than between the grounded system's own passes "
+            f"({'not measurable' if noise is None else ('yes' if moved > noise else 'no')}, {moved} against "
+            f"{'-' if noise is None else noise}). The wording effect is " + ("supported." if met else "not supported."), ""]
+    return out
+
+
 def zero_bound(f: pd.DataFrame, part: pd.Series | None = None) -> float:
     """A 95% upper bound on population alerts when none was seen among the cases in `part` (all cases by default):
     for each kind, the first accesses those cases stand for times the Wilson upper bound of 0 of their number."""
@@ -1011,6 +1068,10 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
                 lines += table(["Comparison", "Escalated, first", "Escalated, second", "Targets that changed"],
                                [[name, int(esc(x).sum()), int(esc(y).sum()), f"{int((esc(x) != esc(y)).sum())} of {len(targets)}"]
                                 for name, x, y in pairs])
+
+    variant = scored_answers(run_dir, results_dir, VARIANT) if Path(results_dir, f"{VARIANT}.pass1.jsonl").exists() else None
+    if variant is not None:
+        lines += variant_section(run_dir, results_dir, variant, staff, days)
 
     lines += ["## Tokens and cost", "",
               "Summed from the usage and the cost each call reported. A case that was sent again is one answer and more "

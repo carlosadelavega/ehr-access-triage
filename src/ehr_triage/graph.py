@@ -22,6 +22,8 @@ VISIBLE = {
     "llm_raw": [],
     "llm_graph": ["staff", "patients", "departments", "devices", "schedule", "encounters", "care_team", "orders", "actions"],
 }
+# The declared variant of spec 11.9 sees exactly what the grounded system sees.
+VISIBLE["llm_graph_employment"] = VISIBLE["llm_graph"]
 
 
 def load_visible(run_dir: str | Path, system: str) -> dict[str, pd.DataFrame]:

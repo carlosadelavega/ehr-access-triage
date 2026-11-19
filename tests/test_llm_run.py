@@ -281,3 +281,16 @@ def test_staff_charts_are_reweighted_to_the_target_share():
     on_staff, bad = u["patient_id"] == "s", u["misuse"] != ""
     w = np.where(on_staff & ~bad, k, 1.0)
     assert w[on_staff.to_numpy()].sum() / w.sum() == pytest.approx(0.10)
+
+
+def test_the_declared_variant_is_run_on_request_and_reported_apart(answered, runs, cfg, tmp_path):
+    base, covered = runs
+    results = tmp_path / "results"
+    shutil.copytree(answered, results)
+    triage.triage_cases(base, cfg, results / base.name, fake_model, new_spend(), systems=[triage.VARIANT])
+    assert (results / base.name / f"{triage.VARIANT}.pass1.jsonl").exists()
+    out = tmp_path / "llm-results.md"
+    evaluate.write_llm_results(base, cfg, out, results / base.name, covered, results / covered.name)
+    text = out.read_text()
+    assert "## Declared variant: employment as a fact (spec 11.9)" in text
+    assert "Criterion of spec 11.9" in text

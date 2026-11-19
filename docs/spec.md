@@ -490,3 +490,17 @@ Generation is unchanged, so the logs and context come out byte-identical. The ca
 ### 11.8 A what-if on staff charts (added 19 Nov 2026)
 
 Staff are 11% of patients here, and 12.7% of first accesses open a staff chart. In Hedda et al. the organization co-worker rule matches 3.84% of first accesses. Most of the grounded LLM's escalations fall on staff charts, so `evaluate llm` reports how every system's alerts and precision would read if staff charts were as rare as in that data. Each legitimate first access on a staff chart is weighted so that staff charts make up 3.84% of first accesses, and misuse keeps its count. Nothing is generated or run again. The question was asked after the results were seen, so the analysis is a sensitivity check and not a test of a prediction, and it is labelled that way in the report.
+
+### 11.9 A declared variant: employment as a fact (added 19 Nov 2026, before it was run)
+
+On staff charts the grounded system escalated most legitimate work whose purpose is undocumented, and the what-if of 11.8 shows the calibration gap does not explain all of it. The other suspect is wording. The prompt names "a personal connection with no job-related purpose" as a concern, and the graph lists a patient who is staff as an "organization co-worker" connection to every user.
+
+The variant, `llm_graph_employment`, is the grounded system with one fact line changed. Where the patient is staff, the prompt says "patient P is a member of staff, in department D" in place of the organization co-worker connection, and says the graph holds no connection when that was the only one. The department co-worker connection stays, since that tie is what defines coworker snooping, and Hedda et al. find it above chance. Everything else is the same, the instructions included. 463 of the 1,831 prompts differ from the grounded system's, all on staff charts, and the variant's prompts hash to `b88b864abec3`. It runs once on both runs, about 1.10 USD, with no judge.
+
+The variant was declared after the corrected passes were seen. Its prediction and criterion are fixed here, before it runs. If the wording drives the effect, legitimate work of the four undocumented kinds (consult, coverage, back office, hospital-wide) on staff charts will be escalated less. The wording effect counts as supported when all three of these hold on those cases.
+
+- The variant escalates fewer of them than the grounded system did in each of its passes.
+- McNemar's exact test against the grounded system's pass 1 gives p under 0.05.
+- More of them change escalation between the variant and pass 1 than between the grounded system's own two passes.
+
+Coworker snooping should stay escalated, since its connection is kept, and all misuse catches are reported beside it. Whatever the outcome, the variant is reported in its own section of `llm-results.md` and does not replace the grounded system in any other table.

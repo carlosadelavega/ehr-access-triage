@@ -36,7 +36,12 @@ from .config import Config, load_config
 from .graph import build_graph, evidence_paths, load_visible
 
 SYSTEMS = ("llm_raw", "llm_graph")
-SYSTEM_NAMES = {"llm_raw": "LLM on log lines", "llm_graph": "LLM with identity graph"}
+SYSTEM_NAMES = {"llm_raw": "LLM on log lines", "llm_graph": "LLM with identity graph",
+                "llm_graph_employment": "LLM with identity graph, employment as a fact"}
+# The declared variant of spec 11.9. It is run only when named with --systems and is never one of SYSTEMS,
+# so the scored systems and their reports do not change. It differs from llm_graph in one fact line.
+VARIANT = "llm_graph_employment"
+GROUNDED = ("llm_graph", VARIANT)
 RETRY_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 529}
 WAITS = (2, 5, 15, 30, 60)  # seconds to wait before each new try of a failed call
 DISPOSITIONS = ["clear", "verify", "escalate"]
@@ -95,7 +100,7 @@ class Views:
         self.events = ev.assign(week=since.dt.days // 7, t=since.dt.total_seconds())
         self.by_user = self.events.groupby("user_id").indices
         self.by_patient_week = self.events.groupby(["patient_id", "week"]).indices
-        if system == "llm_graph":
+        if system in GROUNDED:
             t = self.t
             self.graph = build_graph(t, cfg["proximity_miles"])
             self.staff = t["staff"].set_index("user_id")
@@ -188,8 +193,12 @@ def graph_facts(v: Views, user: str, patient: str, case: pd.DataFrame, lines: li
         out.append(f"patient {patient} carries the VIP flag")
     paths = evidence_paths(v.graph, user, patient, at, v.cfg["evidence_window"]["after_days"])
     for name, nodes in paths.items():
+        if v.system == VARIANT and name == "organization co-worker":  # spec 11.9: employment as a fact about the patient
+            dept = nodes[-1][1]
+            out.append(f"patient {patient} is a member of staff, in {dept} ({v.dept[dept]})")
+            continue
         out.append(f"connection '{name}': " + " - ".join(f"{kind} {ident}" for kind, ident in nodes))
-    if not paths:
+    if not [n for n in paths if not (v.system == VARIANT and n == "organization co-worker")]:
         out.append(f"the identity graph holds no connection between {user} and {patient}")
     devices = sorted({line.split(" device ")[1].split(" ")[0] for line in lines})
     for d in devices:
@@ -202,7 +211,7 @@ def graph_facts(v: Views, user: str, patient: str, case: pd.DataFrame, lines: li
 def case_facts(v: Views, unit) -> list[tuple[str, str]]:
     """Every line shown for one first access, as (fact ID, text). Section titles have no ID."""
     facts = log_facts(v, unit.user_id, unit.patient_id, unit.week)
-    if v.system == "llm_graph":
+    if v.system in GROUNDED:
         case, _ = case_events(v, unit.user_id, unit.patient_id, unit.week)
         lines = [text for ident, text in facts if ident]
         facts += [("", "-- identity graph")] + graph_facts(v, unit.user_id, unit.patient_id, case, lines)
