@@ -82,6 +82,22 @@ Dispositions by kind of access, split the same way. Cases sent to clear, verify 
 | H6 hospital-wide role | 20 | 3 / 17 / 0 | 0 / 3 / 17 | 130 | 14 / 116 / 0 | 24 / 104 / 2 |
 | order handled by a department | 29 | 4 / 25 / 0 | 24 / 5 / 0 | 171 | 23 / 148 / 0 | 168 / 2 / 1 |
 
+## What if staff charts were as rare as in the published data
+
+A sensitivity analysis asked after the results were seen (spec 11.8). In Hedda et al. the organization co-worker rule matches 3.84% of first accesses, against 12.7% here. Every legitimate first access on a staff chart is weighted by 0.27, so that staff charts make up 3.84% of first accesses, and misuse keeps its count. Nothing is run again. The figures are point estimates, and they say how much of each system's alert count rests on the calibration gap.
+
+| System | Alerts per day, as run | Alerts per day, staff charts reweighted | Misuse caught | Precision, as run | Precision, reweighted |
+|---|---|---|---|---|---|
+| Rules, all five | 282 | 87 | 42 of 123 | 0.50% | 1.62% |
+| Rules, without organization co-worker | 40 | 20 | 33 of 123 | 2.73% | 5.42% |
+| Templates, direct evidence | 1,668 | 1,515 | 122 of 123 | 0.24% | 0.27% |
+| Templates, direct and responsibility | 1,554 | 1,409 | 118 of 123 | 0.25% | 0.28% |
+| Rules, then direct evidence | 30 | 16 | 33 of 123 | 3.61% | 6.96% |
+| LLM on log lines, escalate | 0 | 0 | 0 of 123 | 0.00% | 0.00% |
+| LLM on log lines, verify or escalate | 1,902 | 1,721 | 116 of 123 | 0.20% | 0.22% |
+| LLM with identity graph, escalate | 52 | 21 | 36 of 123 | 2.32% | 5.84% |
+| LLM with identity graph, verify or escalate | 336 | 275 | 98 of 123 | 0.97% | 1.19% |
+
 ## Every row of the expected-outcome matrix
 
 Section 5.2 of the spec predicts an outcome for each system on each kind of access. This table counts what happened, so each prediction can be checked against a number. Left alone means that no rule fired, that an explanation was found, or that the model answered clear. Alerted means that a rule fired, that no explanation was found, or that the model answered escalate. Only the two LLM systems can answer verify. The rules and the templates are counted on every first access and the LLM systems on the cases they were sent, so the number of cases differs between them. Counts are not weighted. The last column is the share alerted with its 95% Wilson interval, which shows how little ten cases can pin down.

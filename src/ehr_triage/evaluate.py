@@ -487,6 +487,16 @@ def matrix_scores(run_dir: str | Path, u: pd.DataFrame, frames: dict) -> pd.Data
     return pd.DataFrame(rows)
 
 
+def staff_scale(u: pd.DataFrame, staff: set, target: float) -> float:
+    """The weight that brings legitimate first accesses on staff charts down to `target` of all first accesses,
+    misuse keeping its count (spec 11.8)."""
+    on_staff = u["patient_id"].isin(staff)
+    bad = u["misuse"] != ""
+    legit_staff, bad_staff = int((on_staff & ~bad).sum()), int((on_staff & bad).sum())
+    rest = len(u) - legit_staff
+    return (target * rest - bad_staff) / (legit_staff * (1 - target))
+
+
 def common_passes(results_dir: str | Path) -> list[int]:
     """The passes for which every LLM system has answers."""
     found = [{int(p.stem.split("pass")[1]) for p in Path(results_dir).glob(f"{s}.pass*.jsonl")} for s in SYSTEMS]
@@ -685,6 +695,29 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
         rows.append(row)
     names = [LLM_NAMES[s] for s in frames]
     lines += table(["Kind of access", "Staff charts"] + names + ["Other charts"] + names, rows)
+
+    target = cfg.targets["rule_match_share"]["value"]["organization co-worker"]
+    k = staff_scale(u, staff, target)
+    lines += ["## What if staff charts were as rare as in the published data", "",
+              f"A sensitivity analysis asked after the results were seen (spec 11.8). In Hedda et al. the organization "
+              f"co-worker rule matches {target:.2%} of first accesses, against {on_staff.mean():.1%} here. Every legitimate "
+              f"first access on a staff chart is weighted by {k:.2f}, so that staff charts make up {target:.2%} of first "
+              "accesses, and misuse keeps its count. Nothing is run again. The figures are point estimates, and they say "
+              "how much of each system's alert count rests on the calibration gap.", ""]
+    rows = []
+    for name, (alert, _) in variants(u).items():
+        w = np.where(on_staff & ~is_misuse, k, 1.0)
+        total, caught = float((w * alert).sum()), int((alert & is_misuse).sum())
+        rows.append([name, f"{alert.sum() / days:,.0f}", f"{total / days:,.0f}", f"{caught} of {int(is_misuse.sum())}",
+                     f"{caught / max(alert.sum(), 1):.2%}", f"{caught / max(total, 1):.2%}"])
+    for name, (f, alert) in llm.items():
+        w = f["weight"] * np.where(f["patient_id"].isin(staff) & ~f["is_misuse"], k, 1.0)
+        before, total = float((f["weight"] * alert).sum()), float((w * alert).sum())
+        caught = int((alert & f["is_misuse"]).sum())
+        rows.append([name, f"{before / days:,.0f}", f"{total / days:,.0f}", f"{caught} of {int(f['is_misuse'].sum())}",
+                     f"{caught / max(before, 1):.2%}", f"{caught / max(total, 1):.2%}"])
+    lines += table(["System", "Alerts per day, as run", "Alerts per day, staff charts reweighted", "Misuse caught",
+                    "Precision, as run", "Precision, reweighted"], rows)
 
     cells = matrix_cells(run_dir, u)
     key = ["user_id", "patient_id", "week"]

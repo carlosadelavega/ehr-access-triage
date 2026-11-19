@@ -4,6 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -272,3 +273,11 @@ def test_an_answer_over_the_word_limit_counts_as_verify(tmp_path):
     (tmp_path / "llm_graph.pass1.jsonl").write_text(json.dumps(row) + "\n")
     a = evaluate.answers(tmp_path, "llm_graph.pass1")
     assert not a["valid"].iloc[0] and a["disposition"].iloc[0] == "verify" and a["priority"].iloc[0] == "medium"
+
+
+def test_staff_charts_are_reweighted_to_the_target_share():
+    u = pd.DataFrame({"patient_id": ["s"] * 30 + ["o"] * 70, "misuse": ["M1"] * 2 + [""] * 98})
+    k = evaluate.staff_scale(u, {"s"}, 0.10)
+    on_staff, bad = u["patient_id"] == "s", u["misuse"] != ""
+    w = np.where(on_staff & ~bad, k, 1.0)
+    assert w[on_staff.to_numpy()].sum() / w.sum() == pytest.approx(0.10)

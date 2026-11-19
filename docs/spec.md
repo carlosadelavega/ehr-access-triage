@@ -486,3 +486,7 @@ These change no model call.
 ### 11.7 What is run again
 
 Generation is unchanged, so the logs and context come out byte-identical. The case set is drawn again, because the kinds move when evidence changes (11.2, 11.4). Carlos runs one corrected pass on the base run and the paired run, then the judge, then one repeat pass on the base run for run-to-run variation. At pass 1 prices that is about 2.20 USD for the triage pass, about 2 USD for the judge and about 2.20 USD for the repeat, about 6.40 USD in all.
+
+### 11.8 A what-if on staff charts (added 19 Nov 2026)
+
+Staff are 11% of patients here, and 12.7% of first accesses open a staff chart. In Hedda et al. the organization co-worker rule matches 3.84% of first accesses. Most of the grounded LLM's escalations fall on staff charts, so `evaluate llm` reports how every system's alerts and precision would read if staff charts were as rare as in that data. Each legitimate first access on a staff chart is weighted so that staff charts make up 3.84% of first accesses, and misuse keeps its count. Nothing is generated or run again. The question was asked after the results were seen, so the analysis is a sensitivity check and not a test of a prediction, and it is labelled that way in the report.
