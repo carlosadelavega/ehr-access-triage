@@ -851,6 +851,66 @@ def fig13_rendered_case(run: Path, cfg: Config, out_dir: Path, results: Path) ->
     return save(fig, out_dir, "fig13-one-rendered-case")
 
 
+# ---- figure 12 ----
+
+def passes_of(results: Path, system: str) -> list[int]:
+    return sorted(int(p.stem.split("pass")[1]) for p in Path(results).glob(f"{system}.pass*.jsonl"))
+
+
+def fig12_run_to_run(run: Path, cfg: Config, out_dir: Path, results: Path) -> Path | None:
+    """Agreement across repeat passes by kind of access, and escalations per day in each pass."""
+    passes = {s: passes_of(results, s) for s in ("llm_raw", "llm_graph")}
+    if any(len(p) < 2 for p in passes.values()):
+        return None
+    agree = {s: evaluate.repeat_agreement(run, results, s, p) for s, p in passes.items()}
+    kinds = [k for k in KIND_NAMES if k in set(agree["llm_graph"]["stratum"])]
+    days = cfg["window_days"]
+    fig, (left, right) = plt.subplots(1, 2, figsize=(10.2, 6.0), gridspec_kw={"width_ratios": [1.9, 1], "wspace": 0.25})
+    y = np.arange(len(kinds))[::-1]
+    styles = {"llm_graph": dict(marker="o", color=HUE, mfc=HUE, dy=0.14), "llm_raw": dict(marker="s", color=MUTED, mfc="white", dy=-0.14)}
+    for s, st in styles.items():
+        a = agree[s]
+        for yi, kind in zip(y, kinds):
+            part = a[a["stratum"] == kind]
+            k, n = int(part["same"].sum()), len(part)
+            lo, hi = evaluate.wilson(k, n)
+            left.plot([lo, hi], [yi + st["dy"]] * 2, color=st["color"], lw=1)
+            left.plot(k / n, yi + st["dy"], st["marker"], color=st["color"], mfc=st["mfc"], mew=1.3, ms=5.5)
+    left.set_yticks(y, [KIND_NAMES.get(k, k) for k in kinds])
+    left.tick_params(axis="y", length=0)
+    left.spines["left"].set_visible(False)
+    left.set_xlim(0.3, 1.02)
+    left.set_xticks([0.4, 0.6, 0.8, 1.0], ["40%", "60%", "80%", "100%"])
+    left.set_xlabel("Cases with the same answer in every pass")
+    left.set_title("Agreement between passes", fontsize=9.5)
+    misuse = [k for k in kinds if k.startswith("M")]
+    left.axhline(y[len(misuse) - 1] - 0.5, color=MUTED, lw=0.6, ls=(0, (2, 2)))
+    left.text(0.31, y[0] + 0.55, "\u25cf LLM + Graph   \u25a1 LLM", fontsize=7.5, color=INK, va="bottom")
+    f_pass = {p: evaluate.scored_answers(run, results, "llm_graph", p) for p in passes["llm_graph"]}
+    for i, (p, f) in enumerate(f_pass.items()):
+        alert = f["disposition"] == "escalate"
+        total, margin = evaluate.weighted_alerts(f, alert)
+        caught = int((alert & f["is_misuse"]).sum())
+        right.plot([(total - margin) / days, (total + margin) / days], [i, i], color=HUE, lw=1.2)
+        right.plot(total / days, i, "o", color=HUE, ms=6)
+        right.text((total + margin) / days + 2, i, f"{total / days:.0f} a day, {caught} of {int(f['is_misuse'].sum())} caught",
+                   va="center", fontsize=7.5)
+    right.set_yticks(range(len(f_pass)), [f"Pass {p}" for p in f_pass])
+    right.set_ylim(-0.8, len(f_pass) - 0.2)
+    right.invert_yaxis()
+    right.set_xlim(0, max(((evaluate.weighted_alerts(f, f["disposition"] == "escalate")[0] + evaluate.weighted_alerts(f, f["disposition"] == "escalate")[1]) / days)
+                          for f in f_pass.values()) * 2.2)
+    right.set_xlabel("Escalations per day, LLM + Graph")
+    right.tick_params(axis="y", length=0)
+    right.set_title("Escalations in each pass", fontsize=9.5)
+    fig.suptitle("Run-to-run variation", x=0.0, ha="left", fontsize=11, fontweight="bold", y=0.99)
+    note(fig, "The same prompts and settings sent again, temperature 0 included. Left, the share of cases given the same "
+              "disposition in every pass, with 95% Wilson intervals, misuse above the dashed line. Right, escalations per "
+              "day weighted back to all first accesses, with 95% intervals from the sampling alone. The LLM on log lines "
+              "escalated nothing in any pass. Same numbers as the repeat-pass tables in docs/llm-results.md.", y=0.0)
+    return save(fig, out_dir, "fig12-run-to-run-variation")
+
+
 # ---- the command ----
 
 def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path = "results") -> dict:
@@ -886,7 +946,11 @@ def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path
         fig13 = fig13_rendered_case(run, cfg, out_dir, Path(results))
         if fig13 is not None:
             written.append(fig13)
-    skipped.append("fig12, waits for triage passes 2 and 3")
+        fig12 = fig12_run_to_run(run, cfg, out_dir, Path(results))
+        if fig12 is None:
+            skipped.append("fig12, needs at least two passes of both LLM systems")
+        else:
+            written.append(fig12)
     return {"written": [str(p) for p in written], "skipped": skipped}
 
 

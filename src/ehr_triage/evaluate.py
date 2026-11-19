@@ -536,6 +536,14 @@ def cue_shown(run_dir: str | Path, cfg: Config, u: pd.DataFrame, frames: dict) -
     return pd.DataFrame(rows, columns=["case_id", "stratum", "llm_raw", "llm_graph"])
 
 
+def repeat_agreement(run_dir: str | Path, results_dir: str | Path, system: str, passes: list[int]) -> pd.DataFrame:
+    """Each case's kind, weight and whether it got the same disposition in every pass."""
+    runs = [scored_answers(run_dir, results_dir, system, p) for p in passes]
+    together = pd.concat([r.set_index("case_id")["disposition"] for r in runs], axis=1, join="inner")
+    first = runs[0].set_index("case_id").loc[together.index]
+    return first[["stratum", "weight", "is_misuse"]].assign(same=together.nunique(axis=1).eq(1))
+
+
 def zero_bound(f: pd.DataFrame) -> float:
     """A 95% upper bound on population alerts when none was seen: each kind's size times the Wilson upper bound of 0 of n."""
     return float(sum(rows["population"].iloc[0] * wilson(0, len(rows))[1] for _, rows in f.groupby("stratum")))
@@ -881,17 +889,60 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
     repeats = {s: sorted(int(p.stem.split("pass")[1]) for p in Path(results_dir).glob(f"{s}.pass*.jsonl")) for s in frames}
     if any(len(p) > 1 for p in repeats.values()):
         lines += ["## Repeat passes", "",
-                  "The same cases sent again with the same settings. Agreement is the share of cases given the same "
-                  "disposition in every pass.", ""]
+                  "The same cases sent again with the same prompts and settings, temperature 0 included. Agreement is the "
+                  "share of cases given the same disposition in every pass, over the sample and weighted back to all first "
+                  "accesses. Margins are 95% intervals from the sampling alone.", ""]
         rows = []
         for s, passes in repeats.items():
-            runs = [scored_answers(run_dir, results_dir, s, p) for p in passes]
-            together = pd.concat([r.set_index("case_id")["disposition"] for r in runs], axis=1, join="inner")
-            for p, r in zip(passes, runs):
+            agree = repeat_agreement(run_dir, results_dir, s, passes)
+            for p in passes:
+                r = scored_answers(run_dir, results_dir, s, p)
+                total, margin = weighted_alerts(r, r["disposition"] == "escalate")
+                per_day = f"0 (95% upper bound {zero_bound(r) / days:,.0f})" if total == 0 else f"{total / days:,.0f} ± {margin / days:,.0f}"
                 rows.append([LLM_NAMES[s], p, f"{int(((r['disposition'] == 'escalate') & r['is_misuse']).sum())} of {int(r['is_misuse'].sum())}",
-                             f"{weighted_alerts(r, r['disposition'] == 'escalate')[0] / days:,.0f}",
-                             f"{together.nunique(axis=1).eq(1).mean():.1%}"])
-        lines += table(["System", "Pass", "Misuse escalated", "Escalations per day", "Agreement across passes"], rows)
+                             per_day, f"{agree['same'].mean():.1%}", f"{(agree['same'] * agree['weight']).sum() / agree['weight'].sum():.1%}"])
+        lines += table(["System", "Pass", "Misuse escalated", "Escalations per day", "Agreement, sample", "Agreement, weighted"], rows)
+        both = {s: repeat_agreement(run_dir, results_dir, s, passes) for s, passes in repeats.items() if len(passes) > 1}
+        kinds = sorted(set().union(*[set(a["stratum"]) for a in both.values()]) - set(LEGITIMATE)) + \
+            [k for k in LEGITIMATE if any(k in set(a["stratum"]) for a in both.values())]
+        lines += ["Agreement by kind of access, as the share of cases with the same disposition in every pass.", ""]
+        rows = []
+        for kind in kinds:
+            row = [LEGITIMATE.get(kind, kind)]
+            for s, a in both.items():
+                part = a[a["stratum"] == kind]
+                row.append(f"{int(part['same'].sum())} of {len(part)}" if len(part) else "-")
+            rows.append(row)
+        lines += table(["Kind of access"] + [LLM_NAMES[s] for s in both], rows)
+        for s, passes in repeats.items():
+            if len(passes) != 2:
+                continue
+            a, b = (scored_answers(run_dir, results_dir, s, p).set_index("case_id")["disposition"] for p in passes)
+            moved = pd.crosstab(a, b.loc[a.index]).reindex(index=DISPOSITIONS, columns=DISPOSITIONS, fill_value=0)
+            lines += [f"{LLM_NAMES[s]}, answers in pass {passes[0]} (rows) against pass {passes[1]} (columns).", ""]
+            lines += table(["", *DISPOSITIONS], [[d, *[f"{int(moved.loc[d, e]):,}" for e in DISPOSITIONS]] for d in DISPOSITIONS])
+        if covered and covered_results is not None:
+            c_passes = sorted(int(p.stem.split("pass")[1]) for p in Path(covered_results).glob("llm_graph.pass*.jsonl"))
+            b_passes = repeats.get("llm_graph", [])
+            if len(c_passes) > 1 and len(b_passes) > 1:
+                base = {p: scored_answers(run_dir, results_dir, "llm_graph", p).set_index("case_id") for p in b_passes[:2]}
+                cov = {p: scored_answers(covered_dir, covered_results, "llm_graph", p).set_index("case_id") for p in c_passes[:2]}
+                first = cov[c_passes[0]]
+                targets = [i for i in first.index[first["stratum"] != "cover"] if i in base[b_passes[0]].index]
+                esc = lambda d: (d.loc[targets, "disposition"] == "escalate").to_numpy()
+                p1, p2 = b_passes[:2]
+                q1, q2 = c_passes[:2]
+                pairs = [(f"Without cover, pass {p1} against pass {p2}", base[p1], base[p2]),
+                         (f"With cover, pass {q1} against pass {q2}", cov[q1], cov[q2]),
+                         (f"Without against with cover, pass {p1}", base[p1], cov[q1]),
+                         (f"Without against with cover, pass {p2}", base[p2], cov[q2])]
+                lines += ["## Covering accesses against run-to-run variation", "",
+                          f"The {len(targets)} M1-M4 targets, escalated or not by the grounded LLM. The first two rows change "
+                          "nothing but the run, so they show how many escalations move by chance. The last two add the covering "
+                          "accesses. A covering effect would show as clearly more changes in the last two rows than in the first two.", ""]
+                lines += table(["Comparison", "Escalated, first", "Escalated, second", "Targets that changed"],
+                               [[name, int(esc(x).sum()), int(esc(y).sum()), f"{int((esc(x) != esc(y)).sum())} of {len(targets)}"]
+                                for name, x, y in pairs])
 
     lines += ["## Tokens and cost", "",
               "Summed from the usage and the cost each call reported. A case that was sent again is one answer and more "
