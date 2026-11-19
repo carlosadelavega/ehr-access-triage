@@ -487,6 +487,26 @@ def matrix_scores(run_dir: str | Path, u: pd.DataFrame, frames: dict) -> pd.Data
     return pd.DataFrame(rows)
 
 
+def common_passes(results_dir: str | Path) -> list[int]:
+    """The passes for which every LLM system has answers."""
+    found = [{int(p.stem.split("pass")[1]) for p in Path(results_dir).glob(f"{s}.pass*.jsonl")} for s in SYSTEMS]
+    return sorted(set.intersection(*found)) if found else []
+
+
+def matrix_over_passes(run_dir: str | Path, u: pd.DataFrame, results_dir: str | Path) -> pd.DataFrame:
+    """matrix_scores for the first pass, with the matching count and mark of every later pass beside it, and
+    `stable` false where a cell's mark differs between passes. The rule is the same in every pass (spec 11.5)."""
+    passes = common_passes(results_dir)
+    by_pass = {p: matrix_scores(run_dir, u, {s: scored_answers(run_dir, results_dir, s, p) for s in SYSTEMS}) for p in passes}
+    out = by_pass[passes[0]].copy()
+    for p in passes[1:]:
+        out[f"matching_{p}"], out[f"mark_{p}"] = by_pass[p]["matching"].to_numpy(), by_pass[p]["mark"].to_numpy()
+    marks = out[["mark"] + [f"mark_{p}" for p in passes[1:]]]
+    out["stable"] = marks.nunique(axis=1).eq(1).to_numpy()
+    out.attrs["passes"] = passes
+    return out
+
+
 # ---- whether a scenario's defining cue reached the prompt (spec 11.3) ----
 
 OVERLAP_MINUTES = 15  # two lines by one account this close, on devices in different departments, read as two people
@@ -544,9 +564,11 @@ def repeat_agreement(run_dir: str | Path, results_dir: str | Path, system: str, 
     return first[["stratum", "weight", "is_misuse"]].assign(same=together.nunique(axis=1).eq(1))
 
 
-def zero_bound(f: pd.DataFrame) -> float:
-    """A 95% upper bound on population alerts when none was seen: each kind's size times the Wilson upper bound of 0 of n."""
-    return float(sum(rows["population"].iloc[0] * wilson(0, len(rows))[1] for _, rows in f.groupby("stratum")))
+def zero_bound(f: pd.DataFrame, part: pd.Series | None = None) -> float:
+    """A 95% upper bound on population alerts when none was seen among the cases in `part` (all cases by default):
+    for each kind, the first accesses those cases stand for times the Wilson upper bound of 0 of their number."""
+    rows = f if part is None else f[part]
+    return float(sum(g["weight"].sum() * wilson(0, len(g))[1] for _, g in rows.groupby("stratum")))
 
 
 def injection_of(run_dir: str | Path) -> dict:
@@ -644,8 +666,8 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
         for part in (f["patient_id"].isin(staff), ~f["patient_id"].isin(staff)):
             total, margin = weighted_alerts(f, alert & part)
             caught = int((alert & part & f["is_misuse"]).sum())
-            row += [f"{total / days:,.0f} ± {margin / days:,.0f}", f"{caught} of {int((part & f['is_misuse']).sum())}",
-                    f"{caught / max(total, 1):.2%}"]
+            per_day = f"0 (95% upper bound {zero_bound(f, part) / days:,.0f})" if total == 0 else f"{total / days:,.0f} ± {margin / days:,.0f}"
+            row += [per_day, f"{caught} of {int((part & f['is_misuse']).sum())}", f"{caught / max(total, 1):.2%}"]
         rows.append(row)
     lines += table(["System", "Staff charts, alerts per day", "Misuse caught", "Precision",
                     "Other charts, alerts per day", "Misuse caught", "Precision"], rows)
@@ -693,7 +715,8 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
                          f"{hit / n:.0%} ({low:.0%}-{high:.0%})" if n else "no cases"])
     lines += table(["System", "Kind of access", "Cases", "Left alone", "Verify", "Alerted", "Share alerted (95% interval)"], rows)
 
-    scores = matrix_scores(run_dir, u, frames)
+    scores = matrix_over_passes(run_dir, u, results_dir)
+    later = scores.attrs["passes"][1:]
     lines += ["## Predictions against outcomes", "",
               "Each cell is scored on the words section 5.2 of the spec defined before any results existed. Flag means "
               "the access is put in front of a reviewer: a rule fires, no explanation is found, or the model answers verify "
@@ -702,14 +725,26 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
               "and is contradicted below 50%. \"No basis, any answer is a guess\" fits any answer, and so does a "
               "false alert that only departmental responsibility could prevent, so those cells are marked no test. These "
               "codes were written on 15 and 16 Nov 2026, after pass 1 and before the corrected pass (spec 11.5). Escalated "
-              "is shown for the LLM systems because escalate is what reaches the Privacy Officer.", ""]
+              "is shown for the LLM systems because escalate is what reaches the Privacy Officer. Flagged and escalated are "
+              "from pass 1." + (" The matching count and the mark are given for every pass, with the same rule, and a cell "
+                                "whose mark differs between passes is marked unstable. Such a cell sits near a threshold, and "
+                                "one pass cannot place it." if later else ""), ""]
     rows = []
-    for r in scores.itertuples():
-        rows.append([MATRIX_SYSTEMS[r.system], r.label, r.predicted, f"{r.cases:,}",
-                     f"{r.flagged / r.cases:.0%}" if r.cases else "-",
-                     "-" if pd.isna(r.escalated) or not r.cases else f"{r.escalated / r.cases:.0%}",
-                     "-" if r.code in ("no test", "open") or not r.cases else f"{r.matching:,} of {r.cases:,}", r.mark])
-    lines += table(["System", "Kind of access", "Predicted", "Cases", "Flagged", "Escalated", "Matching", "Mark"], rows)
+    for r in scores.to_dict("records"):
+        scored = r["code"] not in ("no test", "open") and r["cases"]
+        row = [MATRIX_SYSTEMS[r["system"]], r["label"], r["predicted"], f"{r['cases']:,}",
+               f"{r['flagged'] / r['cases']:.0%}" if r["cases"] else "-",
+               "-" if pd.isna(r["escalated"]) or not r["cases"] else f"{r['escalated'] / r['cases']:.0%}"]
+        for match, mark_ in [(r["matching"], r["mark"])] + [(r[f"matching_{p}"], r[f"mark_{p}"]) for p in later]:
+            row += [f"{match:,} of {r['cases']:,}" if scored else "-", mark_]
+        if later:
+            row.append("yes" if r["stable"] else "unstable")
+        rows.append(row)
+    passes = scores.attrs["passes"]
+    head = ["System", "Kind of access", "Predicted", "Cases", "Flagged", "Escalated"]
+    for p in passes:
+        head += ([f"Matching, pass {p}", f"Mark, pass {p}"] if later else ["Matching", "Mark"])
+    lines += table(head + (["Same mark in every pass"] if later else []), rows)
 
     cues = cue_shown(run_dir, cfg, u, frames)
     if len(cues):

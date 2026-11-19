@@ -644,9 +644,11 @@ MARK_WORDS = {"held": "\u2713 held", "partly": "~ partly", "contradicted": "\u27
               "no test": "\u2013 no test", "open question": "? open", "no cases": "no cases"}
 
 
-def fig09_predicted_and_observed(run: Path, out_dir: Path, frames: dict, u: pd.DataFrame) -> Path:
-    """The matrix of spec 5.2, each cell marked by the coded rule of spec 11.5 (`evaluate.matrix_scores`)."""
-    scores = evaluate.matrix_scores(run, u, frames).set_index(["system", "cell"])
+def fig09_predicted_and_observed(run: Path, out_dir: Path, results: Path, u: pd.DataFrame) -> Path:
+    """The matrix of spec 5.2, each cell marked by the coded rule of spec 11.5 in every pass (`evaluate.matrix_over_passes`)."""
+    over = evaluate.matrix_over_passes(run, u, results)
+    later = over.attrs["passes"][1:]
+    scores = over.set_index(["system", "cell"])
     systems = list(evaluate.MATRIX_SYSTEMS)
     shades = matplotlib.colors.LinearSegmentedColormap.from_list("share", ["#ffffff", HUE])
     rows = evaluate.MATRIX_ROWS
@@ -666,8 +668,13 @@ def fig09_predicted_and_observed(run: Path, out_dir: Path, frames: dict, u: pd.D
             else:
                 top = "no cases"
             ax.text(j + 0.5, y + 0.64, top, ha="center", va="center", fontsize=7, color=ink)
-            ax.text(j + 0.5, y + 0.32, MARK_WORDS.get(r["mark"], r["mark"]), ha="center", va="center", fontsize=7.5, color=ink,
-                    fontweight="bold" if r["mark"] in ("partly", "contradicted") else "normal")
+            if r["stable"]:
+                word = MARK_WORDS.get(r["mark"], r["mark"])
+            else:  # the mark differs between passes: say so and give each
+                word = "unstable: " + " / ".join([r["mark"]] + [r[f"mark_{p}"] for p in later])
+            ax.text(j + 0.5, y + 0.32, word, ha="center", va="center", fontsize=7.5 if r["stable"] else 6.8, color=ink,
+                    fontweight="bold" if (r["mark"] in ("partly", "contradicted") or not r["stable"]) else "normal",
+                    fontstyle="normal" if r["stable"] else "italic")
     ax.axhline(n_rows - 10, color=INK, lw=0.8)
     ax.set_xlim(0, len(systems))
     ax.set_ylim(0, n_rows)
@@ -682,8 +689,9 @@ def fig09_predicted_and_observed(run: Path, out_dir: Path, frames: dict, u: pd.D
               "in front of a reviewer: a rule fired, no explanation was found, or the model answered verify or escalate. "
               "Esc is the share the model escalated to the Privacy Officer. Darker tiles flag more. The mark comes from the "
               "coded rule of spec 11.5: held when 90% or more of the cases match the prediction, partly at 50-89%, "
-              "contradicted below. No test marks a prediction that any answer would meet. Misuse is above the line, "
-              "legitimate work below it. Same scores as docs/llm-results.md.", y=0.03)
+              "contradicted below. No test marks a prediction that any answer would meet. Shares are from pass 1. A cell "
+              "whose mark differs between passes is marked unstable, with the mark of each pass in order. Misuse is above "
+              "the line, legitimate work below it. Same scores as docs/llm-results.md.", y=0.03)
     return save(fig, out_dir, "fig09-predicted-against-observed")
 
 
@@ -935,7 +943,7 @@ def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path
         u = evaluate.score_run(run, cfg)
         written += [fig05_dispositions(run, cfg, out_dir, frames, u), fig06_alerts_and_catches(cfg, out_dir, frames, u),
                     fig07_review_budget(cfg, out_dir, frames, u), fig08_staff_charts(run, out_dir, frames),
-                    fig09_predicted_and_observed(run, out_dir, frames, u),
+                    fig09_predicted_and_observed(run, out_dir, Path(results), u),
                     fig10_faithfulness(run, cfg, out_dir, Path(results), frames)]
         covered_run, covered_results = run.with_name(run.name + "-covered"), Path(results).with_name(Path(results).name + "-covered")
         covered = llm_frames(covered_run, covered_results) if (covered_run / "cases.csv").exists() else None

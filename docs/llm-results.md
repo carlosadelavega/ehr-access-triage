@@ -55,7 +55,7 @@ Cases sent to clear, verify and escalate, in that order. These are counts in the
 | Templates, direct evidence | 211 | 20 of 20 | 0.32% | 1,457 | 102 of 103 | 0.23% |
 | Templates, direct and responsibility | 200 | 20 of 20 | 0.33% | 1,354 | 98 of 103 | 0.24% |
 | Rules, then direct evidence | 21 | 11 of 20 | 1.78% | 10 | 22 of 103 | 7.41% |
-| LLM on log lines, escalate | 0 ± 0 | 0 of 20 | 0.00% | 0 ± 0 | 0 of 103 | 0.00% |
+| LLM on log lines, escalate | 0 (95% upper bound 36) | 0 of 20 | 0.00% | 0 (95% upper bound 41) | 0 of 103 | 0.00% |
 | LLM on log lines, verify or escalate | 249 ± 43 | 18 of 20 | 0.24% | 1,653 ± 57 | 98 of 103 | 0.20% |
 | LLM with identity graph, escalate | 43 ± 17 | 15 of 20 | 1.15% | 8 ± 5 | 21 of 103 | 8.46% |
 | LLM with identity graph, verify or escalate | 85 ± 24 | 19 of 20 | 0.74% | 251 ± 34 | 79 of 103 | 1.05% |
@@ -165,82 +165,82 @@ Two kinds are split where the spec predicts differently. M2b is split by whether
 
 ## Predictions against outcomes
 
-Each cell is scored on the words section 5.2 of the spec defined before any results existed. Flag means the access is put in front of a reviewer: a rule fires, no explanation is found, or the model answers verify or escalate. Clear and miss mean it is not. A prediction that the model should say it cannot confirm is met by verify. A cell holds when at least 90% of its cases match the prediction, holds partly at 50% to 89%, and is contradicted below 50%. "No basis, any answer is a guess" fits any answer, and so does a false alert that only departmental responsibility could prevent, so those cells are marked no test. These codes were written on 15 and 16 Nov 2026, after pass 1 and before the corrected pass (spec 11.5). Escalated is shown for the LLM systems because escalate is what reaches the Privacy Officer.
+Each cell is scored on the words section 5.2 of the spec defined before any results existed. Flag means the access is put in front of a reviewer: a rule fires, no explanation is found, or the model answers verify or escalate. Clear and miss mean it is not. A prediction that the model should say it cannot confirm is met by verify. A cell holds when at least 90% of its cases match the prediction, holds partly at 50% to 89%, and is contradicted below 50%. "No basis, any answer is a guess" fits any answer, and so does a false alert that only departmental responsibility could prevent, so those cells are marked no test. These codes were written on 15 and 16 Nov 2026, after pass 1 and before the corrected pass (spec 11.5). Escalated is shown for the LLM systems because escalate is what reaches the Privacy Officer. Flagged and escalated are from pass 1. The matching count and the mark are given for every pass, with the same rule, and a cell whose mark differs between passes is marked unstable. Such a cell sits near a threshold, and one pass cannot place it.
 
-| System | Kind of access | Predicted | Cases | Flagged | Escalated | Matching | Mark |
-|---|---|---|---|---|---|---|---|
-| Rules, all five | M1 coworker snooping | flag | 10 | 100% | - | 10 of 10 | held |
-| Rules, all five | M2a relative in the same household | flag | 12 | 100% | - | 12 of 12 | held |
-| Rules, all five | M2b relative elsewhere, emergency contact recorded | miss | 3 | 0% | - | 3 of 3 | held |
-| Rules, all five | M2b relative elsewhere, no emergency contact | miss | 7 | 14% | - | 6 of 7 | partly |
-| Rules, all five | M3 neighbor | flag | 10 | 100% | - | 10 of 10 | held |
-| Rules, all five | M4 VIP | miss | 16 | 19% | - | 13 of 16 | partly |
-| Rules, all five | M5 curiosity after a news event | miss | 21 | 0% | - | 21 of 21 | held |
-| Rules, all five | M6a shared credentials, overlap | miss | 23 | 4% | - | 22 of 23 | held |
-| Rules, all five | M6b shared credentials, off shift | miss | 21 | 24% | - | 16 of 21 | partly |
-| Rules, all five | M1, M3 or M4 with the target seen in the actor's department | as each case's own scenario | 4 | 25% | - | 4 of 4 | held |
-| Rules, all five | H1 consult | clear | 380 | 12% | - | 333 of 380 | partly |
-| Rules, all five | H2a coverage, documented | clear | 173 | 14% | - | 148 of 173 | partly |
-| Rules, all five | H2b coverage, undocumented | clear | 156 | 13% | - | 135 of 156 | partly |
-| Rules, all five | H3 undocumented care team | clear | 16,134 | 11% | - | 14,336 of 16,134 | partly |
-| Rules, all five | H4a documented care, relationship present | false alert | 295 | 100% | - | 295 of 295 | held |
-| Rules, all five | H4b undocumented work, relationship present | false alert | 882 | 100% | - | 882 of 882 | held |
-| Rules, all five | H5 back-office work | clear | 14,166 | 11% | - | 12,576 of 14,166 | partly |
-| Rules, all five | H6 hospital-wide role | clear | 1,900 | 14% | - | 1,640 of 1,900 | partly |
-| Templates, direct and responsibility | M1 coworker snooping | flag | 10 | 100% | - | 10 of 10 | held |
-| Templates, direct and responsibility | M2a relative in the same household | flag | 12 | 100% | - | 12 of 12 | held |
-| Templates, direct and responsibility | M2b relative elsewhere, emergency contact recorded | flag | 3 | 100% | - | 3 of 3 | held |
-| Templates, direct and responsibility | M2b relative elsewhere, no emergency contact | flag | 7 | 100% | - | 7 of 7 | held |
-| Templates, direct and responsibility | M3 neighbor | flag | 10 | 100% | - | 10 of 10 | held |
-| Templates, direct and responsibility | M4 VIP | flag | 16 | 100% | - | 16 of 16 | held |
-| Templates, direct and responsibility | M5 curiosity after a news event | flag | 21 | 100% | - | 21 of 21 | held |
-| Templates, direct and responsibility | M6a shared credentials, overlap | flag | 23 | 91% | - | 21 of 23 | held |
-| Templates, direct and responsibility | M6b shared credentials, off shift | flag | 21 | 86% | - | 18 of 21 | partly |
-| Templates, direct and responsibility | M1, M3 or M4 with the target seen in the actor's department | miss | 4 | 100% | - | 0 of 4 | contradicted |
-| Templates, direct and responsibility | H1 consult | no test | 380 | 77% | - | - | no test |
-| Templates, direct and responsibility | H2a coverage, documented | false alert | 173 | 100% | - | 173 of 173 | held |
-| Templates, direct and responsibility | H2b coverage, undocumented | false alert | 156 | 100% | - | 156 of 156 | held |
-| Templates, direct and responsibility | H3 undocumented care team | no test | 16,134 | 80% | - | - | no test |
-| Templates, direct and responsibility | H4a documented care, relationship present | clear | 295 | 0% | - | 295 of 295 | held |
-| Templates, direct and responsibility | H4b undocumented work, relationship present | no test | 882 | 96% | - | - | no test |
-| Templates, direct and responsibility | H5 back-office work | false alert | 14,166 | 100% | - | 14,166 of 14,166 | held |
-| Templates, direct and responsibility | H6 hospital-wide role | false alert | 1,900 | 100% | - | 1,900 of 1,900 | held |
-| LLM on log lines | M1 coworker snooping | miss | 10 | 100% | 0% | 0 of 10 | contradicted |
-| LLM on log lines | M2a relative in the same household | miss | 12 | 100% | 0% | 0 of 12 | contradicted |
-| LLM on log lines | M2b relative elsewhere, emergency contact recorded | miss | 3 | 100% | 0% | 0 of 3 | contradicted |
-| LLM on log lines | M2b relative elsewhere, no emergency contact | miss | 7 | 86% | 0% | 1 of 7 | contradicted |
-| LLM on log lines | M3 neighbor | miss | 10 | 100% | 0% | 0 of 10 | contradicted |
-| LLM on log lines | M4 VIP | miss | 16 | 100% | 0% | 0 of 16 | contradicted |
-| LLM on log lines | M5 curiosity after a news event | flag | 21 | 95% | 0% | 20 of 21 | held |
-| LLM on log lines | M6a shared credentials, overlap | flag | 23 | 91% | 0% | 21 of 23 | held |
-| LLM on log lines | M6b shared credentials, off shift | miss | 21 | 86% | 0% | 3 of 21 | contradicted |
-| LLM on log lines | M1, M3 or M4 with the target seen in the actor's department | miss | 4 | 100% | 0% | 0 of 4 | contradicted |
-| LLM on log lines | H1 consult | no test | 100 | 98% | 0% | - | no test |
-| LLM on log lines | H2a coverage, documented | no test | 57 | 95% | 0% | - | no test |
-| LLM on log lines | H2b coverage, undocumented | no test | 43 | 100% | 0% | - | no test |
-| LLM on log lines | H3 undocumented care team | no test | 200 | 91% | 0% | - | no test |
-| LLM on log lines | H4a documented care, relationship present | clear | 100 | 93% | 0% | 7 of 100 | contradicted |
-| LLM on log lines | H4b undocumented work, relationship present | no test | 300 | 91% | 0% | - | no test |
-| LLM on log lines | H5 back-office work | no test | 200 | 88% | 0% | - | no test |
-| LLM on log lines | H6 hospital-wide role | no test | 150 | 89% | 0% | - | no test |
-| LLM with identity graph | M1 coworker snooping | flag | 10 | 100% | 100% | 10 of 10 | held |
-| LLM with identity graph | M2a relative in the same household | flag | 12 | 100% | 100% | 12 of 12 | held |
-| LLM with identity graph | M2b relative elsewhere, emergency contact recorded | flag | 3 | 100% | 100% | 3 of 3 | held |
-| LLM with identity graph | M2b relative elsewhere, no emergency contact | say it cannot confirm | 7 | 71% | 0% | 5 of 7 | partly |
-| LLM with identity graph | M3 neighbor | flag | 10 | 100% | 60% | 10 of 10 | held |
-| LLM with identity graph | M4 VIP | flag | 16 | 81% | 19% | 13 of 16 | partly |
-| LLM with identity graph | M5 curiosity after a news event | flag | 21 | 76% | 0% | 16 of 21 | partly |
-| LLM with identity graph | M6a shared credentials, overlap | flag | 23 | 91% | 4% | 21 of 23 | held |
-| LLM with identity graph | M6b shared credentials, off shift | flag | 21 | 38% | 5% | 8 of 21 | contradicted |
-| LLM with identity graph | M1, M3 or M4 with the target seen in the actor's department | open question | 4 | 50% | 25% | - | open question |
-| LLM with identity graph | H1 consult | clear | 100 | 95% | 31% | 5 of 100 | contradicted |
-| LLM with identity graph | H2a coverage, documented | clear | 57 | 9% | 0% | 52 of 57 | held |
-| LLM with identity graph | H2b coverage, undocumented | say it cannot confirm | 43 | 95% | 21% | 32 of 43 | partly |
-| LLM with identity graph | H3 undocumented care team | clear | 200 | 2% | 1% | 195 of 200 | held |
-| LLM with identity graph | H4a documented care, relationship present | clear | 100 | 0% | 0% | 100 of 100 | held |
-| LLM with identity graph | H4b undocumented work, relationship present | clear, or say it cannot confirm | 300 | 37% | 12% | 264 of 300 | partly |
-| LLM with identity graph | H5 back-office work | clear | 200 | 45% | 6% | 110 of 200 | partly |
-| LLM with identity graph | H6 hospital-wide role | clear | 150 | 84% | 13% | 24 of 150 | contradicted |
+| System | Kind of access | Predicted | Cases | Flagged | Escalated | Matching, pass 1 | Mark, pass 1 | Matching, pass 2 | Mark, pass 2 | Same mark in every pass |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Rules, all five | M1 coworker snooping | flag | 10 | 100% | - | 10 of 10 | held | 10 of 10 | held | yes |
+| Rules, all five | M2a relative in the same household | flag | 12 | 100% | - | 12 of 12 | held | 12 of 12 | held | yes |
+| Rules, all five | M2b relative elsewhere, emergency contact recorded | miss | 3 | 0% | - | 3 of 3 | held | 3 of 3 | held | yes |
+| Rules, all five | M2b relative elsewhere, no emergency contact | miss | 7 | 14% | - | 6 of 7 | partly | 6 of 7 | partly | yes |
+| Rules, all five | M3 neighbor | flag | 10 | 100% | - | 10 of 10 | held | 10 of 10 | held | yes |
+| Rules, all five | M4 VIP | miss | 16 | 19% | - | 13 of 16 | partly | 13 of 16 | partly | yes |
+| Rules, all five | M5 curiosity after a news event | miss | 21 | 0% | - | 21 of 21 | held | 21 of 21 | held | yes |
+| Rules, all five | M6a shared credentials, overlap | miss | 23 | 4% | - | 22 of 23 | held | 22 of 23 | held | yes |
+| Rules, all five | M6b shared credentials, off shift | miss | 21 | 24% | - | 16 of 21 | partly | 16 of 21 | partly | yes |
+| Rules, all five | M1, M3 or M4 with the target seen in the actor's department | as each case's own scenario | 4 | 25% | - | 4 of 4 | held | 4 of 4 | held | yes |
+| Rules, all five | H1 consult | clear | 380 | 12% | - | 333 of 380 | partly | 333 of 380 | partly | yes |
+| Rules, all five | H2a coverage, documented | clear | 173 | 14% | - | 148 of 173 | partly | 148 of 173 | partly | yes |
+| Rules, all five | H2b coverage, undocumented | clear | 156 | 13% | - | 135 of 156 | partly | 135 of 156 | partly | yes |
+| Rules, all five | H3 undocumented care team | clear | 16,134 | 11% | - | 14,336 of 16,134 | partly | 14,336 of 16,134 | partly | yes |
+| Rules, all five | H4a documented care, relationship present | false alert | 295 | 100% | - | 295 of 295 | held | 295 of 295 | held | yes |
+| Rules, all five | H4b undocumented work, relationship present | false alert | 882 | 100% | - | 882 of 882 | held | 882 of 882 | held | yes |
+| Rules, all five | H5 back-office work | clear | 14,166 | 11% | - | 12,576 of 14,166 | partly | 12,576 of 14,166 | partly | yes |
+| Rules, all five | H6 hospital-wide role | clear | 1,900 | 14% | - | 1,640 of 1,900 | partly | 1,640 of 1,900 | partly | yes |
+| Templates, direct and responsibility | M1 coworker snooping | flag | 10 | 100% | - | 10 of 10 | held | 10 of 10 | held | yes |
+| Templates, direct and responsibility | M2a relative in the same household | flag | 12 | 100% | - | 12 of 12 | held | 12 of 12 | held | yes |
+| Templates, direct and responsibility | M2b relative elsewhere, emergency contact recorded | flag | 3 | 100% | - | 3 of 3 | held | 3 of 3 | held | yes |
+| Templates, direct and responsibility | M2b relative elsewhere, no emergency contact | flag | 7 | 100% | - | 7 of 7 | held | 7 of 7 | held | yes |
+| Templates, direct and responsibility | M3 neighbor | flag | 10 | 100% | - | 10 of 10 | held | 10 of 10 | held | yes |
+| Templates, direct and responsibility | M4 VIP | flag | 16 | 100% | - | 16 of 16 | held | 16 of 16 | held | yes |
+| Templates, direct and responsibility | M5 curiosity after a news event | flag | 21 | 100% | - | 21 of 21 | held | 21 of 21 | held | yes |
+| Templates, direct and responsibility | M6a shared credentials, overlap | flag | 23 | 91% | - | 21 of 23 | held | 21 of 23 | held | yes |
+| Templates, direct and responsibility | M6b shared credentials, off shift | flag | 21 | 86% | - | 18 of 21 | partly | 18 of 21 | partly | yes |
+| Templates, direct and responsibility | M1, M3 or M4 with the target seen in the actor's department | miss | 4 | 100% | - | 0 of 4 | contradicted | 0 of 4 | contradicted | yes |
+| Templates, direct and responsibility | H1 consult | no test | 380 | 77% | - | - | no test | - | no test | yes |
+| Templates, direct and responsibility | H2a coverage, documented | false alert | 173 | 100% | - | 173 of 173 | held | 173 of 173 | held | yes |
+| Templates, direct and responsibility | H2b coverage, undocumented | false alert | 156 | 100% | - | 156 of 156 | held | 156 of 156 | held | yes |
+| Templates, direct and responsibility | H3 undocumented care team | no test | 16,134 | 80% | - | - | no test | - | no test | yes |
+| Templates, direct and responsibility | H4a documented care, relationship present | clear | 295 | 0% | - | 295 of 295 | held | 295 of 295 | held | yes |
+| Templates, direct and responsibility | H4b undocumented work, relationship present | no test | 882 | 96% | - | - | no test | - | no test | yes |
+| Templates, direct and responsibility | H5 back-office work | false alert | 14,166 | 100% | - | 14,166 of 14,166 | held | 14,166 of 14,166 | held | yes |
+| Templates, direct and responsibility | H6 hospital-wide role | false alert | 1,900 | 100% | - | 1,900 of 1,900 | held | 1,900 of 1,900 | held | yes |
+| LLM on log lines | M1 coworker snooping | miss | 10 | 100% | 0% | 0 of 10 | contradicted | 0 of 10 | contradicted | yes |
+| LLM on log lines | M2a relative in the same household | miss | 12 | 100% | 0% | 0 of 12 | contradicted | 0 of 12 | contradicted | yes |
+| LLM on log lines | M2b relative elsewhere, emergency contact recorded | miss | 3 | 100% | 0% | 0 of 3 | contradicted | 0 of 3 | contradicted | yes |
+| LLM on log lines | M2b relative elsewhere, no emergency contact | miss | 7 | 86% | 0% | 1 of 7 | contradicted | 0 of 7 | contradicted | yes |
+| LLM on log lines | M3 neighbor | miss | 10 | 100% | 0% | 0 of 10 | contradicted | 0 of 10 | contradicted | yes |
+| LLM on log lines | M4 VIP | miss | 16 | 100% | 0% | 0 of 16 | contradicted | 1 of 16 | contradicted | yes |
+| LLM on log lines | M5 curiosity after a news event | flag | 21 | 95% | 0% | 20 of 21 | held | 17 of 21 | partly | unstable |
+| LLM on log lines | M6a shared credentials, overlap | flag | 23 | 91% | 0% | 21 of 23 | held | 22 of 23 | held | yes |
+| LLM on log lines | M6b shared credentials, off shift | miss | 21 | 86% | 0% | 3 of 21 | contradicted | 2 of 21 | contradicted | yes |
+| LLM on log lines | M1, M3 or M4 with the target seen in the actor's department | miss | 4 | 100% | 0% | 0 of 4 | contradicted | 0 of 4 | contradicted | yes |
+| LLM on log lines | H1 consult | no test | 100 | 98% | 0% | - | no test | - | no test | yes |
+| LLM on log lines | H2a coverage, documented | no test | 57 | 95% | 0% | - | no test | - | no test | yes |
+| LLM on log lines | H2b coverage, undocumented | no test | 43 | 100% | 0% | - | no test | - | no test | yes |
+| LLM on log lines | H3 undocumented care team | no test | 200 | 91% | 0% | - | no test | - | no test | yes |
+| LLM on log lines | H4a documented care, relationship present | clear | 100 | 93% | 0% | 7 of 100 | contradicted | 2 of 100 | contradicted | yes |
+| LLM on log lines | H4b undocumented work, relationship present | no test | 300 | 91% | 0% | - | no test | - | no test | yes |
+| LLM on log lines | H5 back-office work | no test | 200 | 88% | 0% | - | no test | - | no test | yes |
+| LLM on log lines | H6 hospital-wide role | no test | 150 | 89% | 0% | - | no test | - | no test | yes |
+| LLM with identity graph | M1 coworker snooping | flag | 10 | 100% | 100% | 10 of 10 | held | 10 of 10 | held | yes |
+| LLM with identity graph | M2a relative in the same household | flag | 12 | 100% | 100% | 12 of 12 | held | 12 of 12 | held | yes |
+| LLM with identity graph | M2b relative elsewhere, emergency contact recorded | flag | 3 | 100% | 100% | 3 of 3 | held | 3 of 3 | held | yes |
+| LLM with identity graph | M2b relative elsewhere, no emergency contact | say it cannot confirm | 7 | 71% | 0% | 5 of 7 | partly | 5 of 7 | partly | yes |
+| LLM with identity graph | M3 neighbor | flag | 10 | 100% | 60% | 10 of 10 | held | 10 of 10 | held | yes |
+| LLM with identity graph | M4 VIP | flag | 16 | 81% | 19% | 13 of 16 | partly | 15 of 16 | held | unstable |
+| LLM with identity graph | M5 curiosity after a news event | flag | 21 | 76% | 0% | 16 of 21 | partly | 19 of 21 | held | unstable |
+| LLM with identity graph | M6a shared credentials, overlap | flag | 23 | 91% | 4% | 21 of 23 | held | 19 of 23 | partly | unstable |
+| LLM with identity graph | M6b shared credentials, off shift | flag | 21 | 38% | 5% | 8 of 21 | contradicted | 6 of 21 | contradicted | yes |
+| LLM with identity graph | M1, M3 or M4 with the target seen in the actor's department | open question | 4 | 50% | 25% | - | open question | - | open question | yes |
+| LLM with identity graph | H1 consult | clear | 100 | 95% | 31% | 5 of 100 | contradicted | 5 of 100 | contradicted | yes |
+| LLM with identity graph | H2a coverage, documented | clear | 57 | 9% | 0% | 52 of 57 | held | 54 of 57 | held | yes |
+| LLM with identity graph | H2b coverage, undocumented | say it cannot confirm | 43 | 95% | 21% | 32 of 43 | partly | 30 of 43 | partly | yes |
+| LLM with identity graph | H3 undocumented care team | clear | 200 | 2% | 1% | 195 of 200 | held | 193 of 200 | held | yes |
+| LLM with identity graph | H4a documented care, relationship present | clear | 100 | 0% | 0% | 100 of 100 | held | 100 of 100 | held | yes |
+| LLM with identity graph | H4b undocumented work, relationship present | clear, or say it cannot confirm | 300 | 37% | 12% | 264 of 300 | partly | 265 of 300 | partly | yes |
+| LLM with identity graph | H5 back-office work | clear | 200 | 45% | 6% | 110 of 200 | partly | 96 of 200 | contradicted | unstable |
+| LLM with identity graph | H6 hospital-wide role | clear | 150 | 84% | 13% | 24 of 150 | contradicted | 21 of 150 | contradicted | yes |
 
 ## Was the scenario's cue in the prompt?
 
