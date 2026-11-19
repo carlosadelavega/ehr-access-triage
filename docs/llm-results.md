@@ -350,6 +350,66 @@ The common odds ratio of the staff row pools kinds whose own odds ratios differ 
 | order handled by a department | 0 of 29 | 1 of 171 | 1.9 |
 | H3 undocumented care team | 2 of 23 | 0 of 177 | 41.3 |
 
+## Repeat passes
+
+The same cases sent again with the same prompts and settings, temperature 0 included. Agreement is the share of cases given the same disposition in every pass, over the sample and weighted back to all first accesses. Margins are 95% intervals from the sampling alone.
+
+| System | Pass | Misuse escalated | Escalations per day | Agreement, sample | Agreement, weighted |
+|---|---|---|---|---|---|
+| LLM on log lines | 1 | 0 of 123 | 0 (95% upper bound 42) | 86.7% | 84.0% |
+| LLM on log lines | 2 | 0 of 123 | 0 (95% upper bound 42) | 86.7% | 84.0% |
+| LLM with identity graph | 1 | 36 of 123 | 52 ± 18 | 83.7% | 86.8% |
+| LLM with identity graph | 2 | 35 of 123 | 54 ± 18 | 83.7% | 86.8% |
+
+Agreement by kind of access, as the share of cases with the same disposition in every pass.
+
+| Kind of access | LLM on log lines | LLM with identity graph |
+|---|---|---|
+| M1 | 10 of 10 | 10 of 10 |
+| M2a | 12 of 12 | 12 of 12 |
+| M2b | 9 of 10 | 9 of 10 |
+| M3 | 10 of 10 | 6 of 10 |
+| M4 | 15 of 16 | 14 of 16 |
+| M5 | 16 of 21 | 18 of 21 |
+| M6a | 20 of 23 | 21 of 23 |
+| M6b | 18 of 21 | 15 of 21 |
+| explained by direct evidence | 179 of 200 | 198 of 200 |
+| H4a documented, relationship present | 91 of 100 | 100 of 100 |
+| H4b undocumented, relationship present | 266 of 300 | 222 of 300 |
+| H1 consult | 96 of 100 | 71 of 100 |
+| H2 coverage | 90 of 100 | 92 of 100 |
+| H3 undocumented care team | 171 of 200 | 191 of 200 |
+| H5 back office | 163 of 200 | 112 of 200 |
+| H6 hospital-wide role | 125 of 150 | 117 of 150 |
+| order handled by a department | 159 of 200 | 193 of 200 |
+
+LLM on log lines, answers in pass 1 (rows) against pass 2 (columns).
+
+|  | clear | verify | escalate |
+|---|---|---|---|
+| clear | 10 | 139 | 0 |
+| verify | 84 | 1,440 | 0 |
+| escalate | 0 | 0 | 0 |
+
+LLM with identity graph, answers in pass 1 (rows) against pass 2 (columns).
+
+|  | clear | verify | escalate |
+|---|---|---|---|
+| clear | 980 | 108 | 4 |
+| verify | 96 | 308 | 32 |
+| escalate | 4 | 28 | 113 |
+
+## Covering accesses against run-to-run variation
+
+The 58 M1-M4 targets, escalated or not by the grounded LLM. The first two rows change nothing but the run, so they show how many escalations move by chance. The last two add the covering accesses. A covering effect would show as clearly more changes in the last two rows than in the first two.
+
+| Comparison | Escalated, first | Escalated, second | Targets that changed |
+|---|---|---|---|
+| Without cover, pass 1 against pass 2 | 34 | 33 | 5 of 58 |
+| With cover, pass 1 against pass 2 | 35 | 34 | 3 of 58 |
+| Without against with cover, pass 1 | 34 | 35 | 7 of 58 |
+| Without against with cover, pass 2 | 33 | 34 | 5 of 58 |
+
 ## Tokens and cost
 
 Summed from the usage and the cost each call reported. A case that was sent again is one answer and more than one call, and every call is counted.
@@ -359,8 +419,12 @@ Summed from the usage and the cost each call reported. A case that was sent agai
 | seed42/judge.llm_graph.pass1.jsonl | 1,673 | 1,673 | 7,838,682 | 4,186,136 | 4,027,745 | $0.59 |
 | seed42/judge.llm_raw.pass1.jsonl | 1,672 | 1,672 | 7,120,992 | 4,304,691 | 4,202,616 | $0.57 |
 | seed42/llm_graph.pass1.jsonl | 1,673 | 1,683 | 5,980,567 | 9,799,647 | 8,037,483 | $1.00 |
+| seed42/llm_graph.pass2.jsonl | 1,673 | 1,681 | 5,979,097 | 9,945,457 | 8,130,641 | $1.01 |
 | seed42/llm_raw.pass1.jsonl | 1,673 | 1,679 | 4,891,739 | 11,056,530 | 9,076,566 | $1.06 |
+| seed42/llm_raw.pass2.jsonl | 1,673 | 1,681 | 4,898,725 | 11,666,443 | 9,517,070 | $1.11 |
 | seed42-covered/judge.llm_graph.pass1.jsonl | 158 | 158 | 618,715 | 399,597 | 385,115 | $0.05 |
 | seed42-covered/judge.llm_raw.pass1.jsonl | 158 | 158 | 565,273 | 362,038 | 352,687 | $0.05 |
 | seed42-covered/llm_graph.pass1.jsonl | 158 | 159 | 461,907 | 876,423 | 722,601 | $0.08 |
+| seed42-covered/llm_graph.pass2.jsonl | 158 | 158 | 457,790 | 883,257 | 727,457 | $0.08 |
 | seed42-covered/llm_raw.pass1.jsonl | 158 | 158 | 374,663 | 1,021,104 | 849,432 | $0.09 |
+| seed42-covered/llm_raw.pass2.jsonl | 158 | 158 | 374,663 | 986,118 | 809,250 | $0.09 |
