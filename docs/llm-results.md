@@ -426,6 +426,35 @@ The 58 M1-M4 targets, escalated or not by the grounded LLM. The first two rows c
 | Without against with cover, pass 1 | 34 | 35 | 7 of 58 |
 | Without against with cover, pass 2 | 33 | 34 | 5 of 58 |
 
+## Declared variant: employment as a fact (spec 11.9)
+
+The grounded system with one fact reworded. Where the patient is staff, the prompt says so as a fact about the patient instead of listing an organization co-worker connection. Everything else is the same. The variant was declared after pass 1 and before it was run, with the criterion below. Its focus is legitimate work of the four undocumented kinds on staff charts (consult, coverage, back office, hospital-wide), where the grounded system escalated most.
+
+| System | Escalations per day | Misuse escalated | Precision | Undocumented work on staff charts escalated | Coworker snooping escalated |
+|---|---|---|---|---|---|
+| LLM with identity graph, pass 1 | 52 ± 18 | 36 of 123 | 2.32% | 50 of 68 | 10 of 10 |
+| LLM with identity graph, pass 2 | 54 ± 18 | 35 of 123 | 2.18% | 55 of 68 | 10 of 10 |
+| LLM with identity graph, employment as a fact | 11 ± 5 | 31 of 123 | 9.01% | 8 of 68 | 10 of 10 |
+
+
+McNemar's exact test on the same cases.
+
+| Comparison | Cases | Disagreements | p |
+|---|---|---|---|
+| Undocumented work on staff charts, variant against pass 1 | 68 | 42 escalated only in pass 1, 0 only by the variant | under 0.001 |
+| The same cases, pass 1 against pass 2 (run-to-run variation) | 68 | 3 escalated only in pass 1, 8 only in pass 2 | 0.227 |
+| Misuse, variant against pass 1 | 123 | 7 escalated only in pass 1, 2 only by the variant | 0.180 |
+
+Criterion of spec 11.9: fewer escalations of these cases than in every pass of the grounded system (yes), McNemar p under 0.05 against pass 1 (yes), and more of them changed than between the grounded system's own passes (yes, 42 against 11). The wording effect is supported.
+
+Where the alerts fall, and what a reviewer finds within a daily budget, pooled over days as in the budget table above. Escalations per day, with 95% margins from the sampling alone.
+
+| System | Staff charts, escalations per day | Misuse caught | Other charts, escalations per day | Misuse caught | Misuse found at 10 a day | Misuse found at 25 a day | Misuse found at 50 a day |
+|---|---|---|---|---|---|---|---|
+| LLM with identity graph, pass 1 | 43 ± 17 | 15 of 20 | 8 ± 5 | 21 of 103 | 6.5 | 16.6 | 34.8 |
+| LLM with identity graph, employment as a fact | 5 ± 1 | 11 of 20 | 7 ± 5 | 20 of 103 | 23.7 | 36.8 | 47.4 |
+| Rules, then direct evidence | 21 | 11 of 20 | 10 | 22 of 103 | 16.6 | 29.6 | 33.0 |
+
 ## Tokens and cost
 
 Summed from the usage and the cost each call reported. A case that was sent again is one answer and more than one call, and every call is counted.
@@ -436,11 +465,13 @@ Summed from the usage and the cost each call reported. A case that was sent agai
 | seed42/judge.llm_raw.pass1.jsonl | 1,672 | 1,672 | 7,120,992 | 4,304,691 | 4,202,616 | $0.57 |
 | seed42/llm_graph.pass1.jsonl | 1,673 | 1,683 | 5,980,567 | 9,799,647 | 8,037,483 | $1.00 |
 | seed42/llm_graph.pass2.jsonl | 1,673 | 1,681 | 5,979,097 | 9,945,457 | 8,130,641 | $1.01 |
+| seed42/llm_graph_employment.pass1.jsonl | 1,673 | 1,680 | 5,975,419 | 10,057,435 | 8,246,124 | $1.02 |
 | seed42/llm_raw.pass1.jsonl | 1,673 | 1,679 | 4,891,739 | 11,056,530 | 9,076,566 | $1.06 |
 | seed42/llm_raw.pass2.jsonl | 1,673 | 1,681 | 4,898,725 | 11,666,443 | 9,517,070 | $1.11 |
 | seed42-covered/judge.llm_graph.pass1.jsonl | 158 | 158 | 618,715 | 399,597 | 385,115 | $0.05 |
 | seed42-covered/judge.llm_raw.pass1.jsonl | 158 | 158 | 565,273 | 362,038 | 352,687 | $0.05 |
 | seed42-covered/llm_graph.pass1.jsonl | 158 | 159 | 461,907 | 876,423 | 722,601 | $0.08 |
 | seed42-covered/llm_graph.pass2.jsonl | 158 | 158 | 457,790 | 883,257 | 727,457 | $0.08 |
+| seed42-covered/llm_graph_employment.pass1.jsonl | 158 | 158 | 457,892 | 849,024 | 700,876 | $0.08 |
 | seed42-covered/llm_raw.pass1.jsonl | 158 | 158 | 374,663 | 1,021,104 | 849,432 | $0.09 |
 | seed42-covered/llm_raw.pass2.jsonl | 158 | 158 | 374,663 | 986,118 | 809,250 | $0.09 |
