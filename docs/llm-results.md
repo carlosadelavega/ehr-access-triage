@@ -434,7 +434,8 @@ The grounded system with one fact reworded. Where the patient is staff, the prom
 |---|---|---|---|---|---|
 | LLM with identity graph, pass 1 | 52 ± 18 | 36 of 123 | 2.32% | 50 of 68 | 10 of 10 |
 | LLM with identity graph, pass 2 | 54 ± 18 | 35 of 123 | 2.18% | 55 of 68 | 10 of 10 |
-| LLM with identity graph, employment as a fact | 11 ± 5 | 31 of 123 | 9.01% | 8 of 68 | 10 of 10 |
+| LLM with identity graph, employment as a fact, pass 1 | 11 ± 5 | 31 of 123 | 9.01% | 8 of 68 | 10 of 10 |
+| LLM with identity graph, employment as a fact, pass 2 | 9 ± 2 | 32 of 123 | 11.33% | 4 of 68 | 9 of 10 |
 
 
 McNemar's exact test on the same cases.
@@ -452,8 +453,10 @@ Where the alerts fall, and what a reviewer finds within a daily budget, pooled o
 | System | Staff charts, escalations per day | Misuse caught | Other charts, escalations per day | Misuse caught | Misuse found at 10 a day | Misuse found at 25 a day | Misuse found at 50 a day |
 |---|---|---|---|---|---|---|---|
 | LLM with identity graph, pass 1 | 43 ± 17 | 15 of 20 | 8 ± 5 | 21 of 103 | 6.5 | 16.6 | 34.8 |
-| LLM with identity graph, employment as a fact | 5 ± 1 | 11 of 20 | 7 ± 5 | 20 of 103 | 23.7 | 36.8 | 47.4 |
+| LLM with identity graph, employment as a fact, pass 1 | 5 ± 1 | 11 of 20 | 7 ± 5 | 20 of 103 | 23.7 | 36.8 | 47.4 |
 | Rules, then direct evidence | 21 | 11 of 20 | 10 | 22 of 103 | 16.6 | 29.6 | 33.0 |
+
+A repeat pass of the variant. The criterion was fixed for its first pass, and the second asks whether the result holds. In the second pass it escalated 4 of 68 of the same staff-chart cases, against pass 1 of the grounded system 46 one way and 0 the other (McNemar p under 0.001). Its two passes gave the same answer on 80.9% of cases, against 83.7% for the grounded system.
 
 ## Tokens and cost
 
@@ -466,6 +469,7 @@ Summed from the usage and the cost each call reported. A case that was sent agai
 | seed42/llm_graph.pass1.jsonl | 1,673 | 1,683 | 5,980,567 | 9,799,647 | 8,037,483 | $1.00 |
 | seed42/llm_graph.pass2.jsonl | 1,673 | 1,681 | 5,979,097 | 9,945,457 | 8,130,641 | $1.01 |
 | seed42/llm_graph_employment.pass1.jsonl | 1,673 | 1,680 | 5,975,419 | 10,057,435 | 8,246,124 | $1.02 |
+| seed42/llm_graph_employment.pass2.jsonl | 1,673 | 1,680 | 5,973,026 | 9,936,921 | 8,147,545 | $1.01 |
 | seed42/llm_raw.pass1.jsonl | 1,673 | 1,679 | 4,891,739 | 11,056,530 | 9,076,566 | $1.06 |
 | seed42/llm_raw.pass2.jsonl | 1,673 | 1,681 | 4,898,725 | 11,666,443 | 9,517,070 | $1.11 |
 | seed42-covered/judge.llm_graph.pass1.jsonl | 158 | 158 | 618,715 | 399,597 | 385,115 | $0.05 |
@@ -473,5 +477,6 @@ Summed from the usage and the cost each call reported. A case that was sent agai
 | seed42-covered/llm_graph.pass1.jsonl | 158 | 159 | 461,907 | 876,423 | 722,601 | $0.08 |
 | seed42-covered/llm_graph.pass2.jsonl | 158 | 158 | 457,790 | 883,257 | 727,457 | $0.08 |
 | seed42-covered/llm_graph_employment.pass1.jsonl | 158 | 158 | 457,892 | 849,024 | 700,876 | $0.08 |
+| seed42-covered/llm_graph_employment.pass2.jsonl | 158 | 158 | 457,892 | 881,338 | 726,101 | $0.09 |
 | seed42-covered/llm_raw.pass1.jsonl | 158 | 158 | 374,663 | 1,021,104 | 849,432 | $0.09 |
 | seed42-covered/llm_raw.pass2.jsonl | 158 | 158 | 374,663 | 986,118 | 809,250 | $0.09 |
