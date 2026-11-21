@@ -582,8 +582,11 @@ def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.Da
     """The declared variant of spec 11.9 against the grounded system's passes, scored by the criterion fixed before it ran."""
     passes = {p: scored_answers(run_dir, results_dir, "llm_graph", p) for p in sorted(
         int(x.stem.split("pass")[1]) for x in Path(results_dir).glob("llm_graph.pass*.jsonl"))}
+    v_passes = {p: scored_answers(run_dir, results_dir, VARIANT, p) for p in sorted(
+        int(x.stem.split("pass")[1]) for x in Path(results_dir).glob(f"{VARIANT}.pass*.jsonl"))}
     rows = []
-    for name, f in [(f"{LLM_NAMES['llm_graph']}, pass {p}", f) for p, f in passes.items()] + [(LLM_NAMES[VARIANT], variant)]:
+    for name, f in [(f"{LLM_NAMES['llm_graph']}, pass {p}", f) for p, f in passes.items()] + \
+            [(f"{LLM_NAMES[VARIANT]}, pass {p}", f) for p, f in v_passes.items()]:
         alert = f["disposition"] == "escalate"
         total, margin = weighted_alerts(f, alert)
         caught = int((alert & f["is_misuse"]).sum())
@@ -633,7 +636,7 @@ def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.Da
     out += ["Where the alerts fall, and what a reviewer finds within a daily budget, pooled over days as in the budget "
             "table above. Escalations per day, with 95% margins from the sampling alone.", ""]
     rows = []
-    for name, f in [(f"{LLM_NAMES['llm_graph']}, pass {min(passes)}", passes[min(passes)]), (LLM_NAMES[VARIANT], variant)]:
+    for name, f in [(f"{LLM_NAMES['llm_graph']}, pass {min(passes)}", passes[min(passes)]), (f"{LLM_NAMES[VARIANT]}, pass 1", variant)]:
         alert = f["disposition"] == "escalate"
         row = [name]
         for part in (f["patient_id"].isin(staff), ~f["patient_id"].isin(staff)):
@@ -652,6 +655,24 @@ def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.Da
     rows.append(row)
     out += table(["System", "Staff charts, escalations per day", "Misuse caught", "Other charts, escalations per day", "Misuse caught"]
                  + [f"Misuse found at {k} a day" for k in budgets], rows)
+
+    if len(v_passes) > 1:
+        second = v_passes[sorted(v_passes)[1]].set_index("case_id").loc[base.index]
+        same = (v["disposition"] == second["disposition"]).to_numpy()
+        a, b = int((esc(base) & ~esc(second) & focus).sum()), int((~esc(base) & esc(second) & focus).sum())
+        out += [f"A repeat pass of the variant. The criterion was fixed for its first pass, and the second asks whether the "
+                f"result holds. In the second pass it escalated {int((esc(second) & focus).sum())} of {int(focus.sum())} "
+                f"of the same staff-chart cases, against pass 1 of the grounded system {a} one way and {b} the other "
+                f"(McNemar p {'under 0.001' if mcnemar(a, b) < 0.001 else f'{mcnemar(a, b):.3f}'}). Its two passes gave the "
+                f"same answer on {same.mean():.1%} of cases, against "
+                f"{repeat_agreement(run_dir, results_dir, 'llm_graph', sorted(passes)[:2])['same'].mean():.1%} for the "
+                "grounded system.", ""]
+    judged = answers(results_dir, f"judge.{VARIANT}.pass1")
+    if judged is not None:
+        verdicts = [x for item in judged["verdicts"] for x in item if x is not None]
+        out += ["Faithfulness of the variant's pass 1, as for the other systems.", ""]
+        out += table(["Claims judged"] + [x.capitalize() for x in VERDICTS],
+                     [[f"{len(verdicts):,}"] + [f"{verdicts.count(x) / len(verdicts):.1%}" if verdicts else "-" for x in VERDICTS]])
     return out
 
 
