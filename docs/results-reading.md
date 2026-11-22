@@ -1,6 +1,6 @@
 # Reading of the LLM triage results
 
-Written on 19 Nov 2026 from the corrected design (spec section 11), passes 1 and 2, and the declared variant of spec 11.9. Every number here comes from `llm-results.md`, `baseline-results.md` or `calibration-report.md`, which are written by code, except the blinded read of the judge, which is in `judge-review.md`. The exploratory pass 1 of 14 Nov 2026, run before an outside review corrected what the models were shown, is kept apart under the tag `pass1-exploratory` and is not used here.
+Written on 19 Nov 2026 from the corrected design (spec section 11), passes 1 and 2, and the declared variant of spec 11.9 (two passes and a judge run, 21 Nov 2026). Every number here comes from `llm-results.md`, `baseline-results.md` or `calibration-report.md`, which are written by code, except the blinded read of the judge, which is in `judge-review.md`. The exploratory pass 1 of 14 Nov 2026, run before an outside review corrected what the models were shown, is kept apart under the tag `pass1-exploratory` and is not used here.
 
 This is one model, GLM 5.3 Flash on a 4-bit endpoint, on one synthetic hospital. Read every result with that in mind.
 
@@ -9,7 +9,7 @@ This is one model, GLM 5.3 Flash on a 4-bit endpoint, on one synthetic hospital.
 - **An LLM that reads audit-log lines alone cannot triage.** In both passes it escalated nothing and asked for a human on 89% of first accesses. Its precision is the base rate of misuse.
 - **With the identity graph it becomes useful, and it is not better than a simple baseline.** It escalated 36 of 123 misuse accesses in pass 1 and 35 in pass 2. Rules followed by an explanation filter catch 33, with 30 alerts a day against its 52.
 - **It catches misuse that a relationship explains, and misses misuse that only behavior shows.** It escalated every coworker and household-relative case and none of the 21 news-event cases, even with the other readers of the news in its prompt. It cleared 13 of 21 off-shift shared-credential cases while being shown the off-shift line.
-- **Its extra alerts fall on staff charts, and the wording of one fact causes most of them.** Told that a patient is a member of staff instead of being shown an "organization co-worker connection", it escalated 8 of 68 undocumented legitimate accesses on staff charts instead of 50, and fell from 52 alerts a day to 11. Its precision rose to 9.0%, against the baseline's 3.6%, and within every daily review budget it found more misuse than the baseline. It gave up 5 misuse catches, mostly misuse on staff patients. This variant was declared after the results and has one pass, so it is the leading result to confirm, not a settled one. On other charts the original wording already matched the baseline with fewer alerts. This synthetic hospital opens staff charts about three times as often as the published data. Weighted down to the published share, it raises 21 alerts a day against the baseline's 16, at 5.8% precision against 7.0%. The gap narrows and does not close.
+- **Its extra alerts fall on staff charts, and the wording of one fact causes most of them.** Told that a patient is a member of staff instead of being shown an "organization co-worker connection", it escalated 8 of 68 undocumented legitimate accesses on staff charts instead of 50, and fell from 52 alerts a day to 11. Its precision rose to 9.0%, against the baseline's 3.6%, and within every daily review budget it found more misuse than the baseline. It gave up 5 misuse catches, mostly misuse on staff patients. A second pass of the variant held: 4 of 68 escalated, 9 alerts a day, 11.3% precision, with summaries as faithful as the grounded system's. The variant was declared after the results were seen, so it is the strongest result here and the one most in need of a fresh test. On other charts the original wording already matched the baseline with fewer alerts. This synthetic hospital opens staff charts about three times as often as the published data. Weighted down to the published share, it raises 21 alerts a day against the baseline's 16, at 5.8% precision against 7.0%. The gap narrows and does not close.
 - **One answer is one draw.** At temperature 0, 16% of its cases got a different answer on rerun. The totals barely moved.
 - **Covering accesses did not hide targets.** Adding them changed about as many answers as rerunning did.
 - **Its summaries cite what they were shown.** Nearly every claim points to real facts. A blinded read of 36 judged claims found 2 wrong. The judge's "supported" held on all 12 read, and its "unsupported" on only 1 of 12.
@@ -248,15 +248,15 @@ For the LLM + Graph, 204 cases moved between clear and verify and 60 between ver
 
 **What was compared.** The grounded system and a declared variant that differs in one fact line (spec 11.9). Where the patient is staff, the variant's prompt says "patient P is a member of staff, in department D" in place of an organization co-worker connection. The department co-worker connection stays. 463 of 1,831 prompts differ, all on staff charts. The criterion was fixed before the variant ran. It looks at legitimate consult, coverage, back-office and hospital-wide work on staff charts, 68 cases.
 
-| | Grounded, pass 1 | Grounded, pass 2 | Variant |
-|---|---|---|---|
-| Undocumented work on staff charts escalated, of 68 | 50 | 55 | 8 |
-| Coworker snooping escalated, of 10 | 10 | 10 | 10 |
-| Misuse escalated, of 123 | 36 | 35 | 31 |
-| Escalations a day | 52 | 54 | 11 |
-| Precision | 2.32% | 2.18% | 9.01% |
+| | Grounded, pass 1 | Grounded, pass 2 | Variant, pass 1 | Variant, pass 2 |
+|---|---|---|---|---|
+| Undocumented work on staff charts escalated, of 68 | 50 | 55 | 8 | 4 |
+| Coworker snooping escalated, of 10 | 10 | 10 | 10 | 9 |
+| Misuse escalated, of 123 | 36 | 35 | 31 | 32 |
+| Escalations a day | 52 | 54 | 11 | 9 |
+| Precision | 2.32% | 2.18% | 9.01% | 11.33% |
 
-**Test.** McNemar's exact test on the 68 cases, variant against pass 1. 42 were escalated only in pass 1 and none only by the variant (p under 0.001). Between the grounded system's own two passes, 11 of the same cases changed (3 one way, 8 the other, p = 0.23). All three parts of the criterion hold. On misuse the variant and pass 1 disagree 7 times one way and 2 the other (p = 0.18).
+**Test.** McNemar's exact test on the 68 cases, variant against pass 1. 42 were escalated only in pass 1 and none only by the variant (p under 0.001). Between the grounded system's own two passes, 11 of the same cases changed (3 one way, 8 the other, p = 0.23). All three parts of the criterion hold. On misuse the variant and pass 1 disagree 7 times one way and 2 the other (p = 0.18). The criterion was fixed for the variant's first pass. Its second pass, run to check that the result holds, escalated 4 of the 68 against pass 1 of the grounded system's 50 (46 one way, none the other, p under 0.001). The variant's two passes agreed on 80.9% of all cases, the grounded system's on 83.7%.
 
 | | Staff charts, a day | Other charts, a day | Found at 10 a day | At 25 | At 50 |
 |---|---|---|---|---|---|
@@ -266,7 +266,11 @@ For the LLM + Graph, 204 cases moved between clear and verify and 60 between ver
 
 **Reading.** Yes, most of it. Named as a connection, employment read to the model as the "personal connection with no job-related purpose" its instructions warn about. Named as a fact, it did not, and the staff-chart escalations of undocumented work fell from 50 to 8. Alerts on other charts barely moved. With that change the grounded LLM is the first system here to beat the baseline. It raises a third of the baseline's alerts at more than twice its precision, and within each review budget it finds more misuse, because its escalations and its higher-priority verify answers rank the misuse first. It paid for this on staff patients. The three accesses to a VIP who is also staff and one shared-credential access on a staff patient, all escalated before, went to verify. The other changes were neighbor cases that also flip between the grounded system's own passes.
 
-Two cautions. The variant was conceived after the results were seen, so the criterion protects against reading noise as an effect, not against having chosen a good question in hindsight. And it has one pass. A repeat pass, about 1.10 USD, would show whether the totals hold the way the grounded system's did.
+**Faithfulness.** The judge read the variant's pass 1 the same way as the other systems. Of 11,024 claims judged, 66.5% were supported, 31.9% partly and 1.7% unsupported, against 65.5%, 32.8% and 1.7% for the grounded system. 11,113 of 11,119 citations point to facts that exist. Rewording the fact did not make the summaries less faithful. The blinded read of question 6 applies here too: "supported" can be trusted, "unsupported" cannot be read as wrong.
+
+**The repeat.** It held. The second pass escalated fewer of the 68, raised fewer alerts and kept the misuse total. One coworker snooping case went from escalate to verify, the first coworker case any grounded pass did not escalate. With 10 such cases, one miss in one pass is within run-to-run variation, and it is worth watching.
+
+One caution remains. The variant was conceived after the results were seen. The criterion protects against reading noise as an effect and the repeat against a lucky pass, but neither protects against having chosen a good question in hindsight. Only a fresh test would, for example on a new seed of the hospital.
 
 ## The matrix
 
@@ -359,14 +363,13 @@ How to read some of the marks. The Rules' "partly" on legitimate work comes from
 - 123 misuse accesses from 62 injections, 60 scenarios and 2 news events. The 21 news-event accesses come from 2 events and the 44 shared-credential accesses from 10 shared logins, so they are not independent.
 - Staff charts are opened about three times as often as in the published data, a gap reported and not tuned. Every alert count on staff charts carries it.
 - The scoring rule was written after the exploratory pass 1 and before this design was run.
-- The variant of question 9 was declared after the corrected passes, has one pass and has not been judged for faithfulness.
+- The variant of question 9 was declared after the corrected passes were seen. It has two passes and a judge run.
 - The judge's ratings were checked on 36 claims by a second model, not by a person, and give no error rate for the pass.
 - The review budget is pooled over the month, not simulated day by day.
 - The 7-day window after an encounter and the 15 minutes that define overlapping sessions are assumptions with no published source.
 
 ## What to do next
 
-1. **A repeat pass of the variant**, about 1.10 USD, to check that its totals hold across runs as the grounded system's did. Its precision and budget results are the strongest in the project and rest on one pass.
-2. **The judge on the variant**, about 1 USD, so its summaries are checked the same way.
-3. **Then decide the stretch goal again.** Break-the-glass prompts and reason codes on staff and VIP charts would put a missing purpose on record. With the wording fixed, the staff-chart false alerts mostly go away without them, so the case for building it rests on the misuse the variant now leaves at verify and on legitimate work that is undocumented on any chart. The feasibility memo has the design and the costs.
-4. **A person's read of the judge**, if any faithfulness figure is to be quoted as a rate. The 36 claims in the CSV are a ready start.
+1. **Decide the stretch goal again.** Break-the-glass prompts and reason codes on staff and VIP charts would put a missing purpose on record. With the wording fixed, the staff-chart false alerts mostly go away without them, so the case for building it rests on the misuse the variant now leaves at verify and on legitimate work that is undocumented on any chart. The feasibility memo has the design and the costs.
+2. **A fresh test of the variant**, on a new seed of the hospital, if its result is to be claimed rather than reported as found after the fact.
+3. **A person's read of the judge**, if any faithfulness figure is to be quoted as a rate. The 36 claims in the CSV are a ready start.
