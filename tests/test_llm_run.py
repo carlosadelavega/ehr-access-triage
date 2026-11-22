@@ -296,4 +296,5 @@ def test_the_declared_variant_is_run_on_request_and_reported_apart(answered, run
     text = out.read_text()
     assert "## Declared variant: employment as a fact (spec 11.9)" in text
     assert "Criterion of spec 11.9" in text
-    assert "Faithfulness of the variant's pass 1" in text
+    assert "Faithfulness of pass 1 of the variant beside the grounded system's" in text
+    assert "| LLM with identity graph, employment as a fact |" in text

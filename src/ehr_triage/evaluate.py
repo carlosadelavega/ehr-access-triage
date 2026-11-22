@@ -578,8 +578,9 @@ UNDOCUMENTED = ["consult", "coverage", "back_office", "hospital_wide"]  # spec 1
 
 
 def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.DataFrame, staff: set, days: int,
-                    u: pd.DataFrame, budgets: list[int]) -> list[str]:
+                    u: pd.DataFrame, cfg: Config) -> list[str]:
     """The declared variant of spec 11.9 against the grounded system's passes, scored by the criterion fixed before it ran."""
+    budgets = cfg["review_budget_per_day"]
     passes = {p: scored_answers(run_dir, results_dir, "llm_graph", p) for p in sorted(
         int(x.stem.split("pass")[1]) for x in Path(results_dir).glob("llm_graph.pass*.jsonl"))}
     v_passes = {p: scored_answers(run_dir, results_dir, VARIANT, p) for p in sorted(
@@ -670,9 +671,17 @@ def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.Da
     judged = answers(results_dir, f"judge.{VARIANT}.pass1")
     if judged is not None:
         verdicts = [x for item in judged["verdicts"] for x in item if x is not None]
-        out += ["Faithfulness of the variant's pass 1, as for the other systems.", ""]
-        out += table(["Claims judged"] + [x.capitalize() for x in VERDICTS],
-                     [[f"{len(verdicts):,}"] + [f"{verdicts.count(x) / len(verdicts):.1%}" if verdicts else "-" for x in VERDICTS]])
+        out += ["Faithfulness of pass 1 of the variant beside the grounded system's, measured the same way as in the "
+                "faithfulness table above. A claim with no verdict passed the first check and the judge's answer was cut off.", ""]
+        rows = []
+        for system in ("llm_graph", VARIANT):
+            n = citation_counts(run_dir, results_dir, system, cfg)
+            j = answers(results_dir, f"judge.{system}.pass1")
+            given = [x for item in j["verdicts"] for x in item if x is not None] if j is not None else []
+            rows.append([LLM_NAMES[system], f"{n['claims']:,}", f"{n['exist']:,}", f"{n['listed']:,}", f"{len(given):,}",
+                         *[f"{given.count(x) / len(given):.1%}" if given else "-" for x in VERDICTS]])
+        out += table(["System", "Claims", "Citations exist", "Without counting ranges", "Claims judged"]
+                     + [x.capitalize() for x in VERDICTS], rows)
     return out
 
 
@@ -1116,7 +1125,7 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
 
     variant = scored_answers(run_dir, results_dir, VARIANT) if Path(results_dir, f"{VARIANT}.pass1.jsonl").exists() else None
     if variant is not None:
-        lines += variant_section(run_dir, results_dir, variant, staff, days, u, cfg["review_budget_per_day"])
+        lines += variant_section(run_dir, results_dir, variant, staff, days, u, cfg)
 
     lines += ["## Tokens and cost", "",
               "Summed from the usage and the cost each call reported. A case that was sent again is one answer and more "

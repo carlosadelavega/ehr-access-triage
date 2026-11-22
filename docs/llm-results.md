@@ -458,6 +458,13 @@ Where the alerts fall, and what a reviewer finds within a daily budget, pooled o
 
 A repeat pass of the variant. The criterion was fixed for its first pass, and the second asks whether the result holds. In the second pass it escalated 4 of 68 of the same staff-chart cases, against pass 1 of the grounded system 46 one way and 0 the other (McNemar p under 0.001). Its two passes gave the same answer on 80.9% of cases, against 83.7% for the grounded system.
 
+Faithfulness of pass 1 of the variant beside the grounded system's, measured the same way as in the faithfulness table above. A claim with no verdict passed the first check and the judge's answer was cut off.
+
+| System | Claims | Citations exist | Without counting ranges | Claims judged | Supported | Partly | Unsupported |
+|---|---|---|---|---|---|---|---|
+| LLM with identity graph | 10,957 | 10,952 | 10,522 | 10,914 | 65.5% | 32.8% | 1.7% |
+| LLM with identity graph, employment as a fact | 11,119 | 11,113 | 10,745 | 11,024 | 66.5% | 31.9% | 1.7% |
+
 ## Tokens and cost
 
 Summed from the usage and the cost each call reported. A case that was sent again is one answer and more than one call, and every call is counted.
@@ -465,6 +472,7 @@ Summed from the usage and the cost each call reported. A case that was sent agai
 | File | Answers | Calls | Prompt tokens | Completion tokens | Of which reasoning | Cost |
 |---|---|---|---|---|---|---|
 | seed42/judge.llm_graph.pass1.jsonl | 1,673 | 1,673 | 7,838,682 | 4,186,136 | 4,027,745 | $0.59 |
+| seed42/judge.llm_graph_employment.pass1.jsonl | 1,673 | 1,673 | 7,812,775 | 4,372,198 | 4,211,909 | $0.73 |
 | seed42/judge.llm_raw.pass1.jsonl | 1,672 | 1,672 | 7,120,992 | 4,304,691 | 4,202,616 | $0.57 |
 | seed42/llm_graph.pass1.jsonl | 1,673 | 1,683 | 5,980,567 | 9,799,647 | 8,037,483 | $1.00 |
 | seed42/llm_graph.pass2.jsonl | 1,673 | 1,681 | 5,979,097 | 9,945,457 | 8,130,641 | $1.01 |
@@ -473,6 +481,7 @@ Summed from the usage and the cost each call reported. A case that was sent agai
 | seed42/llm_raw.pass1.jsonl | 1,673 | 1,679 | 4,891,739 | 11,056,530 | 9,076,566 | $1.06 |
 | seed42/llm_raw.pass2.jsonl | 1,673 | 1,681 | 4,898,725 | 11,666,443 | 9,517,070 | $1.11 |
 | seed42-covered/judge.llm_graph.pass1.jsonl | 158 | 158 | 618,715 | 399,597 | 385,115 | $0.05 |
+| seed42-covered/judge.llm_graph_employment.pass1.jsonl | 158 | 158 | 616,228 | 352,421 | 337,706 | $0.06 |
 | seed42-covered/judge.llm_raw.pass1.jsonl | 158 | 158 | 565,273 | 362,038 | 352,687 | $0.05 |
 | seed42-covered/llm_graph.pass1.jsonl | 158 | 159 | 461,907 | 876,423 | 722,601 | $0.08 |
 | seed42-covered/llm_graph.pass2.jsonl | 158 | 158 | 457,790 | 883,257 | 727,457 | $0.08 |
