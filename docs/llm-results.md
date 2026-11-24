@@ -97,6 +97,17 @@ A sensitivity analysis asked after the results were seen (spec 11.8). In Hedda e
 | LLM on log lines, verify or escalate | 1,902 | 1,721 | 116 of 123 | 0.20% | 0.22% |
 | LLM with identity graph, escalate | 52 | 21 | 36 of 123 | 2.32% | 5.84% |
 | LLM with identity graph, verify or escalate | 336 | 275 | 98 of 123 | 0.97% | 1.19% |
+| LLM with identity graph, employment as a fact, pass 1, escalate | 11 | 8 | 31 of 123 | 9.01% | 12.33% |
+| LLM with identity graph, employment as a fact, pass 2, escalate | 9 | 7 | 32 of 123 | 11.33% | 16.27% |
+
+Within a daily review budget, with staff charts reweighted the same way, pooled over days and ranked as in the budget table below. A system with fewer alerts a day than the budget has nothing more to show, so the larger budgets favor a system with a longer list, such as an LLM whose verify answers rank below its escalations.
+
+| System | Escalations per day, reweighted | Misuse found at 10 a day | Misuse found at 25 a day | Misuse found at 50 a day |
+|---|---|---|---|---|
+| Rules, then direct evidence | 16 | 28.3 | 33.0 | 33.0 |
+| LLM with identity graph, pass 1 | 21 | 13.6 | 38.1 | 49.6 |
+| LLM with identity graph, employment as a fact, pass 1 | 8 | 31.9 | 40.5 | 54.7 |
+| LLM with identity graph, employment as a fact, pass 2 | 7 | 33.8 | 41.5 | 54.3 |
 
 ## Every row of the expected-outcome matrix
 

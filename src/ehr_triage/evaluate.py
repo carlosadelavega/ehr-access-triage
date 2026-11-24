@@ -827,8 +827,36 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
         caught = int((alert & f["is_misuse"]).sum())
         rows.append([name, f"{before / days:,.0f}", f"{total / days:,.0f}", f"{caught} of {int(f['is_misuse'].sum())}",
                      f"{caught / max(before, 1):.2%}", f"{caught / max(total, 1):.2%}"])
+    v_passes = sorted(int(x.stem.split("pass")[1]) for x in Path(results_dir).glob(f"{VARIANT}.pass*.jsonl"))
+    reweighted = {f"{LLM_NAMES['llm_graph']}, pass 1": frames["llm_graph"]} if "llm_graph" in frames else {}
+    if reweighted:
+        reweighted.update({f"{LLM_NAMES[VARIANT]}, pass {p}": scored_answers(run_dir, results_dir, VARIANT, p) for p in v_passes})
+    for name, f in list(reweighted.items())[1:]:
+        alert = f["disposition"] == "escalate"
+        w = f["weight"] * np.where(f["patient_id"].isin(staff) & ~f["is_misuse"], k, 1.0)
+        before, total = float((f["weight"] * alert).sum()), float((w * alert).sum())
+        caught = int((alert & f["is_misuse"]).sum())
+        rows.append([f"{name}, escalate", f"{before / days:,.0f}", f"{total / days:,.0f}", f"{caught} of {int(f['is_misuse'].sum())}",
+                     f"{caught / max(before, 1):.2%}", f"{caught / max(total, 1):.2%}"])
     lines += table(["System", "Alerts per day, as run", "Alerts per day, staff charts reweighted", "Misuse caught",
                     "Precision, as run", "Precision, reweighted"], rows)
+    if len(reweighted) > 1:
+        budgets = cfg["review_budget_per_day"]
+        lines += ["Within a daily review budget, with staff charts reweighted the same way, pooled over days and ranked as in "
+                  "the budget table below. A system with fewer alerts a day than the budget has nothing more to show, so the "
+                  "larger budgets favor a system with a longer list, such as an LLM whose verify answers rank below its "
+                  "escalations.", ""]
+        alert, score = variants(u)["Rules, then direct evidence"]
+        w = np.where(on_staff & ~is_misuse, k, 1.0)
+        brows = [["Rules, then direct evidence", f"{(w * alert).sum() / days:,.0f}"]
+                 + [f"{average_day_top_k(score[alert], is_misuse[alert], w[alert], b, days)[0]:.1f}" for b in budgets]]
+        for name, f in reweighted.items():
+            w = f["weight"] * np.where(f["patient_id"].isin(staff) & ~f["is_misuse"], k, 1.0)
+            flagged = f["disposition"] != "clear"
+            brows.append([name, f"{(w * (f['disposition'] == 'escalate')).sum() / days:,.0f}"]
+                         + [f"{average_day_top_k(f.loc[flagged, 'score'], f.loc[flagged, 'is_misuse'], w[flagged], b, days)[0]:.1f}"
+                            for b in budgets])
+        lines += table(["System", "Escalations per day, reweighted"] + [f"Misuse found at {b} a day" for b in budgets], brows)
 
     cells = matrix_cells(run_dir, u)
     key = ["user_id", "patient_id", "week"]
