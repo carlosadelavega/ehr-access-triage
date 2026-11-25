@@ -593,16 +593,25 @@ def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.Da
         caught = int((alert & f["is_misuse"]).sum())
         on_staff = f["patient_id"].isin(staff)
         focus = on_staff & f["stratum"].isin(UNDOCUMENTED)
+        verify, v_margin = weighted_alerts(f, f["disposition"] == "verify")
+        flagged, f_margin = weighted_alerts(f, f["disposition"] != "clear")
+        f_caught = int(((f["disposition"] != "clear") & f["is_misuse"]).sum())
         rows.append([name, f"{total / days:,.0f} ± {margin / days:,.0f}", f"{caught} of {int(f['is_misuse'].sum())}",
-                     f"{caught / max(total, 1):.2%}", f"{int((alert & focus).sum())} of {int(focus.sum())}",
+                     f"{caught / max(total, 1):.2%}", f"{verify / days:,.0f} ± {v_margin / days:,.0f}",
+                     f"{flagged / days:,.0f} ± {f_margin / days:,.0f}", f"{f_caught} of {int(f['is_misuse'].sum())}",
+                     f"{int((alert & focus).sum())} of {int(focus.sum())}",
                      f"{int((alert & f['stratum'].eq('M1')).sum())} of {int(f['stratum'].eq('M1').sum())}"])
     out = ["## Declared variant: employment as a fact (spec 11.9)", "",
            "The grounded system with one fact reworded. Where the patient is staff, the prompt says so as a fact about the "
-           "patient instead of listing an organization co-worker connection. Everything else is the same. The variant was "
+           "patient instead of listing an organization co-worker connection, and where that was the only connection it also "
+           "says the identity graph holds no connection between user and patient. Everything else is the same. The variant was "
            "declared after pass 1 and before it was run, with the criterion below. Its focus is legitimate work of the four "
            "undocumented kinds on staff charts (consult, coverage, back office, hospital-wide), where the grounded system "
            "escalated most.", ""]
-    out += table(["System", "Escalations per day", "Misuse escalated", "Precision", "Undocumented work on staff charts escalated",
+    out += ["Escalate sends an access to the Privacy Officer and verify asks the user's supervisor, so the two queues are "
+            "shown apart, with the review queue they make together. Precision is at escalate.", ""]
+    out += table(["System", "Escalations per day", "Misuse escalated", "Precision", "Verify per day", "Verify or escalate per day",
+                  "Misuse at verify or escalate", "Undocumented work on staff charts escalated",
                   "Coworker snooping escalated"], rows)
     base = passes[min(passes)].set_index("case_id")
     v = variant.set_index("case_id").loc[base.index]
@@ -634,6 +643,15 @@ def variant_section(run_dir: str | Path, results_dir: str | Path, variant: pd.Da
             f"({'not measurable' if noise is None else ('yes' if moved > noise else 'no')}, {moved} against "
             f"{'-' if noise is None else noise}). The wording effect is " + ("supported." if met else "not supported."), ""]
 
+    units = {u.case_id: u for u in read_cases(run_dir).itertuples()}
+    views = {s: Views(run_dir, s, cfg) for s in ("llm_graph", VARIANT)}
+    says_none = lambda s, cid: any("holds no connection" in text for _, text in case_facts(views[s], units[cid]))
+    focus_ids = list(base.index[focus])
+    added = sum(says_none(VARIANT, cid) and not says_none("llm_graph", cid) for cid in focus_ids)
+    out += [f"In {added} of these {len(focus_ids)} cases the variant's prompt also states that the identity graph holds no "
+            "connection between user and patient, a line the grounded prompt does not have. The variant therefore changes two "
+            "statements on those cases, the wording of employment and that added line, and the criterion cannot tell their "
+            "effects apart.", ""]
     out += ["Where the alerts fall, and what a reviewer finds within a daily budget, pooled over days as in the budget "
             "table above. Escalations per day, with 95% margins from the sampling alone.", ""]
     rows = []
@@ -1106,9 +1124,12 @@ def write_llm_results(run_dir: str | Path, cfg: Config, out_path: str | Path, re
                 r = scored_answers(run_dir, results_dir, s, p)
                 total, margin = weighted_alerts(r, r["disposition"] == "escalate")
                 per_day = f"0 (95% upper bound {zero_bound(r) / days:,.0f})" if total == 0 else f"{total / days:,.0f} ± {margin / days:,.0f}"
+                flagged, f_margin = weighted_alerts(r, r["disposition"] != "clear")
                 rows.append([LLM_NAMES[s], p, f"{int(((r['disposition'] == 'escalate') & r['is_misuse']).sum())} of {int(r['is_misuse'].sum())}",
-                             per_day, f"{agree['same'].mean():.1%}", f"{(agree['same'] * agree['weight']).sum() / agree['weight'].sum():.1%}"])
-        lines += table(["System", "Pass", "Misuse escalated", "Escalations per day", "Agreement, sample", "Agreement, weighted"], rows)
+                             per_day, f"{flagged / days:,.0f} ± {f_margin / days:,.0f}", f"{flagged / r['weight'].sum():.1%}",
+                             f"{agree['same'].mean():.1%}", f"{(agree['same'] * agree['weight']).sum() / agree['weight'].sum():.1%}"])
+        lines += table(["System", "Pass", "Misuse escalated", "Escalations per day", "Verify or escalate per day",
+                        "Share of first accesses at verify or escalate", "Agreement, sample", "Agreement, weighted"], rows)
         both = {s: repeat_agreement(run_dir, results_dir, s, passes) for s, passes in repeats.items() if len(passes) > 1}
         kinds = sorted(set().union(*[set(a["stratum"]) for a in both.values()]) - set(LEGITIMATE)) + \
             [k for k in LEGITIMATE if any(k in set(a["stratum"]) for a in both.values())]

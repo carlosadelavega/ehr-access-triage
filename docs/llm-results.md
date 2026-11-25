@@ -381,12 +381,12 @@ The common odds ratio of the staff row pools kinds whose own odds ratios differ 
 
 The same cases sent again with the same prompts and settings, temperature 0 included. Agreement is the share of cases given the same disposition in every pass, over the sample and weighted back to all first accesses. Margins are 95% intervals from the sampling alone.
 
-| System | Pass | Misuse escalated | Escalations per day | Agreement, sample | Agreement, weighted |
-|---|---|---|---|---|---|
-| LLM on log lines | 1 | 0 of 123 | 0 (95% upper bound 42) | 86.7% | 84.0% |
-| LLM on log lines | 2 | 0 of 123 | 0 (95% upper bound 42) | 86.7% | 84.0% |
-| LLM with identity graph | 1 | 36 of 123 | 52 ± 18 | 83.7% | 86.8% |
-| LLM with identity graph | 2 | 35 of 123 | 54 ± 18 | 83.7% | 86.8% |
+| System | Pass | Misuse escalated | Escalations per day | Verify or escalate per day | Share of first accesses at verify or escalate | Agreement, sample | Agreement, weighted |
+|---|---|---|---|---|---|---|---|
+| LLM on log lines | 1 | 0 of 123 | 0 (95% upper bound 42) | 1,902 ± 43 | 89.3% | 86.7% | 84.0% |
+| LLM on log lines | 2 | 0 of 123 | 0 (95% upper bound 42) | 1,984 ± 35 | 93.2% | 86.7% | 84.0% |
+| LLM with identity graph | 1 | 36 of 123 | 52 ± 18 | 336 ± 38 | 15.8% | 83.7% | 86.8% |
+| LLM with identity graph | 2 | 35 of 123 | 54 ± 18 | 361 ± 37 | 16.9% | 83.7% | 86.8% |
 
 Agreement by kind of access, as the share of cases with the same disposition in every pass.
 
@@ -439,14 +439,16 @@ The 58 M1-M4 targets, escalated or not by the grounded LLM. The first two rows c
 
 ## Declared variant: employment as a fact (spec 11.9)
 
-The grounded system with one fact reworded. Where the patient is staff, the prompt says so as a fact about the patient instead of listing an organization co-worker connection. Everything else is the same. The variant was declared after pass 1 and before it was run, with the criterion below. Its focus is legitimate work of the four undocumented kinds on staff charts (consult, coverage, back office, hospital-wide), where the grounded system escalated most.
+The grounded system with one fact reworded. Where the patient is staff, the prompt says so as a fact about the patient instead of listing an organization co-worker connection, and where that was the only connection it also says the identity graph holds no connection between user and patient. Everything else is the same. The variant was declared after pass 1 and before it was run, with the criterion below. Its focus is legitimate work of the four undocumented kinds on staff charts (consult, coverage, back office, hospital-wide), where the grounded system escalated most.
 
-| System | Escalations per day | Misuse escalated | Precision | Undocumented work on staff charts escalated | Coworker snooping escalated |
-|---|---|---|---|---|---|
-| LLM with identity graph, pass 1 | 52 ± 18 | 36 of 123 | 2.32% | 50 of 68 | 10 of 10 |
-| LLM with identity graph, pass 2 | 54 ± 18 | 35 of 123 | 2.18% | 55 of 68 | 10 of 10 |
-| LLM with identity graph, employment as a fact, pass 1 | 11 ± 5 | 31 of 123 | 9.01% | 8 of 68 | 10 of 10 |
-| LLM with identity graph, employment as a fact, pass 2 | 9 ± 2 | 32 of 123 | 11.33% | 4 of 68 | 9 of 10 |
+Escalate sends an access to the Privacy Officer and verify asks the user's supervisor, so the two queues are shown apart, with the review queue they make together. Precision is at escalate.
+
+| System | Escalations per day | Misuse escalated | Precision | Verify per day | Verify or escalate per day | Misuse at verify or escalate | Undocumented work on staff charts escalated | Coworker snooping escalated |
+|---|---|---|---|---|---|---|---|---|
+| LLM with identity graph, pass 1 | 52 ± 18 | 36 of 123 | 2.32% | 285 ± 37 | 336 ± 38 | 98 of 123 | 50 of 68 | 10 of 10 |
+| LLM with identity graph, pass 2 | 54 ± 18 | 35 of 123 | 2.18% | 307 ± 37 | 361 ± 37 | 100 of 123 | 55 of 68 | 10 of 10 |
+| LLM with identity graph, employment as a fact, pass 1 | 11 ± 5 | 31 of 123 | 9.01% | 380 ± 39 | 392 ± 39 | 103 of 123 | 8 of 68 | 10 of 10 |
+| LLM with identity graph, employment as a fact, pass 2 | 9 ± 2 | 32 of 123 | 11.33% | 380 ± 37 | 390 ± 37 | 97 of 123 | 4 of 68 | 9 of 10 |
 
 
 McNemar's exact test on the same cases.
@@ -458,6 +460,8 @@ McNemar's exact test on the same cases.
 | Misuse, variant against pass 1 | 123 | 7 escalated only in pass 1, 2 only by the variant | 0.180 |
 
 Criterion of spec 11.9: fewer escalations of these cases than in every pass of the grounded system (yes), McNemar p under 0.05 against pass 1 (yes), and more of them changed than between the grounded system's own passes (yes, 42 against 11). The wording effect is supported.
+
+In 66 of these 68 cases the variant's prompt also states that the identity graph holds no connection between user and patient, a line the grounded prompt does not have. The variant therefore changes two statements on those cases, the wording of employment and that added line, and the criterion cannot tell their effects apart.
 
 Where the alerts fall, and what a reviewer finds within a daily budget, pooled over days as in the budget table above. Escalations per day, with 95% margins from the sampling alone.
 
