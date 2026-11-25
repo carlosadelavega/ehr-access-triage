@@ -504,3 +504,15 @@ The variant was declared after the corrected passes were seen. Its prediction an
 - More of them change escalation between the variant and pass 1 than between the grounded system's own two passes.
 
 Coworker snooping should stay escalated, since its connection is kept, and all misuse catches are reported beside it. Whatever the outcome, the variant is reported in its own section of `llm-results.md` and does not replace the grounded system in any other table.
+
+### 11.10 Limits found by a second outside audit (added 25 Nov 2026)
+
+A second review, by another model given a copy of the repository, reproduced the logs, cases and reports and found the following. None is corrected here. Each is reported as a limit, since fixing the generator or the prompt would need a new run.
+
+- **The variant changes two statements.** Besides stating employment as a fact, it says the identity graph holds no connection where employment was the only one, which shifts the IDs of the facts after it. This is in 11.9 above, but the criterion of 11.9 cannot separate the two. On its 68 cases the added line appears in 66 (`llm-results.md`).
+- **Two queues, not one.** Escalate goes to the Privacy Officer and verify to the user's supervisor. The variant's escalations fall while its verify queue grows, and `llm-results.md` now reports both.
+- **Later encounters are shown.** 11.2 bounds which encounters explain an access, but the grounded prompt lists every encounter of the patient whatever its date. The audit counted 786 of 1,673 prompts that show an encounter beginning after the case's week, and 90 summaries that cite one as purpose evidence. The task is a review after the fact.
+- **Consults differ from 5.1.** 5.1 describes 2-6 events, a matching specialty and a note. The generator draws 2-6 visits, each of several events, can pick the consulting department at random, does not check the consultant's schedule, and ends on a generic create. The audit found most sampled consults fall outside the consultant's shifts. Verify on them is a defensible answer, and the prediction of clear in 5.2 was too strong for them and for hospital-wide work.
+- **Durations.** 3.6 and the calibration report describe a duration as the time to the user's next action, capped at five minutes. Durations are drawn independently, so the audit found 123,110 of 675,998 events where the two differ and over 3,000 overlapping pairs of ordinary events. Prompts show durations, and the nurse chart-time check rests on them.
+- **The log-lines condition is thinner than the grounded one by more than the graph.** It lacks roles, device locations and action meanings, which the grounded condition gets. The comparison shows that this information matters to this model and prompt, not that a graph is required.
+
