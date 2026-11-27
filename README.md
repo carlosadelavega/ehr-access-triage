@@ -2,6 +2,8 @@
 
 Can an LLM triage anomalous accesses to electronic health records (EHR) and draft the case summary a hospital Privacy Officer would review? This repo tests that question on synthetic data.
 
+The write-up for a general reader is the article [Can an LLM triage EHR snooping alerts?](https://carlosadelavega.github.io/can-an-llm-triage-ehr-snooping-alerts/).
+
 ## What it found
 
 One model, GLM 5.3 Flash on a 4-bit endpoint, on one synthetic hospital, two passes. The full reading is in [docs/results-reading.md](docs/results-reading.md) and the numbers in [docs/llm-results.md](docs/llm-results.md).
