@@ -111,6 +111,10 @@ data/      Synthea output and generated runs (not in git)
 vendor/    Synthea jar (not in git)
 ```
 
+## Acknowledgements
+
+I thank the two outside reviewers of this repository, each a model given the code and results and none of my notes, whose findings led to the corrected design in section 11 of the spec and to the limits it lists. The project was built in close, back and forth collaboration with Claude (Anthropic) through Claude Code, which drafted most of the specification, code, tests and documentation within decisions I made. The research question, the design and the reading of the results are mine. The model runs reported here cost under 9 USD, paid from my own account.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

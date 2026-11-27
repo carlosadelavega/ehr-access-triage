@@ -27,7 +27,7 @@ Research repo testing LLM triage of EHR access anomalies on synthetic data. The 
 - Keep abstractions to what the current milestone needs. A working pipeline and an honest README beat a platform.
 - If a session drifts into re-planning instead of shipping, say so.
 - Changes to the spec get reviewed by Carlos before code that depends on them.
-- Commit in small steps. Messages explain why, not only what. No session links and no AI co-author trailers in commit messages.
+- Commit in small steps. Messages explain why, not only what. No session links and no AI co-author trailers in commit messages. The acknowledgements in the README record the assistant's part.
 - If a paper or standard needed for a design choice is not available in full, tell Carlos straight away.
 - Generated data, the Synthea jar and `.env` stay out of git. The API key lives only in `.env` or the environment.
 - Never run `triage run` or `triage judge` against a real endpoint without Carlos asking for it. They spend his money.
