@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="701.904531pt" height="277.997594pt" viewBox="0 0 701.904531 277.997594" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.9, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M -0 277.997594 
+L 701.904531 277.997594 
+L 701.904531 0 
+L -0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 176.932656 202.966281 
+L 645.652656 202.966281 
+L 645.652656 25.558281 
+L 176.932656 25.558281 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 176.932656 68.408164 
+L 197.798052 68.408164 
+L 197.798052 33.622281 
+L 176.932656 33.622281 
+z
+" clip-path="url(#p100d6dfe28)" style="fill: #2f6690"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 197.798052 68.408164 
+L 197.798052 68.408164 
+L 197.798052 33.622281 
+L 197.798052 33.622281 
+z
+" clip-path="url(#p100d6dfe28)" style="fill: #a9c4da"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 176.932656 131.655222 
+L 212.302732 131.655222 
+L 212.302732 96.86934 
+L 176.932656 96.86934 
+z
+" clip-path="url(#p100d6dfe28)" style="fill: #2f6690"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 212.302732 131.655222 
+L 407.054938 131.655222 
+L 407.054938 96.86934 
+L 212.302732 96.86934 
+z
+" clip-path="url(#p100d6dfe28)" style="fill: #a9c4da"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 176.932656 194.902281 
+L 184.778425 194.902281 
+L 184.778425 160.116399 
+L 176.932656 160.116399 
+z
+" clip-path="url(#p100d6dfe28)" style="fill: #2f6690"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 184.778425 194.902281 
+L 444.772656 194.902281 
+L 444.772656 160.116399 
+L 184.778425 160.116399 
+z
+" clip-path="url(#p100d6dfe28)" style="fill: #a9c4da"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <defs>
+       <path id="m44072edfdf" d="M 0 0 
+L 0 3.5 
+" style="stroke: #222222; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m44072edfdf" x="176.932656" y="202.966281" style="fill: #222222; stroke: #222222; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="176.932656" y="216.804875" transform="rotate(-0 176.932656 216.804875)">0</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_2">
+      <g>
+       <use xlink:href="#m44072edfdf" x="245.343789" y="202.966281" style="fill: #222222; stroke: #222222; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="245.343789" y="216.804875" transform="rotate(-0 245.343789 216.804875)">100</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_3">
+      <g>
+       <use xlink:href="#m44072edfdf" x="313.754923" y="202.966281" style="fill: #222222; stroke: #222222; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="313.754923" y="216.804875" transform="rotate(-0 313.754923 216.804875)">200</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_4">
+      <g>
+       <use xlink:href="#m44072edfdf" x="382.166056" y="202.966281" style="fill: #222222; stroke: #222222; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="382.166056" y="216.804875" transform="rotate(-0 382.166056 216.804875)">300</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_5">
+      <g>
+       <use xlink:href="#m44072edfdf" x="450.577189" y="202.966281" style="fill: #222222; stroke: #222222; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="450.577189" y="216.804875" transform="rotate(-0 450.577189 216.804875)">400</text>
+     </g>
+    </g>
+    <g id="text_6">
+     <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="411.292656" y="229.515188" transform="rotate(-0 411.292656 229.515188)">First accesses a day sent to a person</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_6">
+      <defs>
+       <path id="m143ca2081b" d="M 0 0 
+L -3.5 0 
+" style="stroke: #222222; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m143ca2081b" x="176.932656" y="51.015222" style="fill: #222222; stroke: #222222; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_7">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="169.932656" y="54.434519" transform="rotate(-0 169.932656 54.434519)">Best baseline</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_7">
+      <g>
+       <use xlink:href="#m143ca2081b" x="176.932656" y="114.262281" style="fill: #222222; stroke: #222222; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_8">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="169.932656" y="117.681578" transform="rotate(-0 169.932656 117.681578)">LLM + Graph</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_8">
+      <g>
+       <use xlink:href="#m143ca2081b" x="176.932656" y="177.50934" style="fill: #222222; stroke: #222222; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_9">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #222222" x="169.932656" y="180.928637" transform="rotate(-0 169.932656 180.928637)">LLM + Graph, employment as a fact</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_9">
+    <path d="M 176.932656 202.966281 
+L 176.932656 25.558281 
+" style="fill: none; stroke: #8a8a8a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 176.932656 202.966281 
+L 645.652656 202.966281 
+" style="fill: none; stroke: #8a8a8a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 8px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="201.815652" y="45.000605" transform="rotate(-0 201.815652 45.000605)">30 to the Privacy Officer</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #8a8a8a" x="201.815652" y="63.836754" transform="rotate(-0 201.815652 63.836754)">33 of 123 misuse escalated, 3.6% precision</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 8px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="411.072538" y="108.247664" transform="rotate(-0 411.072538 108.247664)">52 to the Privacy Officer, 285 to a supervisor</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #8a8a8a" x="411.072538" y="127.083813" transform="rotate(-0 411.072538 127.083813)">36 of 123 misuse escalated, 2.3% precision</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 8px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="448.790256" y="171.494722" transform="rotate(-0 448.790256 171.494722)">11 to the Privacy Officer, 380 to a supervisor</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #8a8a8a" x="448.790256" y="190.330871" transform="rotate(-0 448.790256 190.330871)">31 of 123 misuse escalated, 9.0% precision</text>
+   </g>
+   <g id="text_16">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="176.932656" y="15.558281" transform="rotate(-0 176.932656 15.558281)">Where the doubt lands</text>
+   </g>
+  </g>
+  <g id="text_17">
+   <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #8a8a8a" transform="translate(101.332656 252.441109)">Dark is escalate, which goes to the Privacy Officer. Light is verify, which asks the user's supervisor. The rules raise alerts only, so all of theirs go to the officer.</text>
+   <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #8a8a8a" transform="translate(101.332656 260.839469)">Precision is at escalate. LLM figures are pass 1, weighted back from the case set. The variant states employment as a fact and adds that the graph holds no</text>
+   <text style="font-size: 7.5px; font-family: 'DejaVu Sans'; fill: #8a8a8a" transform="translate(101.332656 269.237828)">connection where that was the only one (spec 11.9 and 11.10). Same numbers as the variant section of docs/llm-results.md.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p100d6dfe28">
+   <rect x="176.932656" y="25.558281" width="468.72" height="177.408"/>
+  </clipPath>
+ </defs>
+</svg>

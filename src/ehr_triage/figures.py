@@ -921,6 +921,51 @@ def fig12_run_to_run(run: Path, cfg: Config, out_dir: Path, results: Path) -> Pa
 
 # ---- the command ----
 
+
+# ---- figure 14 ----
+
+def fig14_where_the_doubt_lands(run: Path, cfg: Config, out_dir: Path, results: Path, frames: dict, u: pd.DataFrame) -> Path | None:
+    """The declared variant of spec 11.9 beside the grounded system and the best baseline, with both human queues."""
+    variant = evaluate.scored_answers(run, results, evaluate.VARIANT, 1) if (results / f"{evaluate.VARIANT}.pass1.jsonl").exists() else None
+    if variant is None or "llm_graph" not in frames:
+        return None
+    days = cfg["window_days"]
+    is_misuse = u["misuse"] != ""
+    n_misuse = int(is_misuse.sum())
+    alert, _ = evaluate.variants(u)["Rules, then direct evidence"]
+    rows = [{"name": "Best baseline", "officer": alert.sum() / days, "supervisor": 0.0,
+             "caught": int((alert & is_misuse).sum()), "precision": (alert & is_misuse).sum() / max(alert.sum(), 1)}]
+    for name, f in [("LLM + Graph", frames["llm_graph"]), ("LLM + Graph, employment as a fact", variant)]:
+        esc = f["disposition"] == "escalate"
+        officer, _ = evaluate.weighted_alerts(f, esc)
+        supervisor, _ = evaluate.weighted_alerts(f, f["disposition"] == "verify")
+        caught = int((esc & f["is_misuse"]).sum())
+        rows.append({"name": name, "officer": officer / days, "supervisor": supervisor / days,
+                     "caught": caught, "precision": caught / max(officer, 1)})
+    fig, ax = plt.subplots(figsize=(8.4, 3.2))
+    ys = list(range(len(rows)))[::-1]
+    top = max(r["officer"] + r["supervisor"] for r in rows)
+    for y, r in zip(ys, rows):
+        ax.barh(y, r["officer"], color=HUE, height=0.55)
+        ax.barh(y, r["supervisor"], left=r["officer"], color=HUE_LIGHT, height=0.55)
+        x = r["officer"] + r["supervisor"] + top * 0.015
+        ax.text(x, y + 0.13, f"{r['officer']:,.0f} to the Privacy Officer" + (f", {r['supervisor']:,.0f} to a supervisor" if r["supervisor"] else ""),
+                va="center", fontsize=8)
+        ax.text(x, y - 0.17, f"{r['caught']} of {n_misuse} misuse escalated, {r['precision']:.1%} precision",
+                va="center", fontsize=7.5, color=MUTED)
+    ax.set_yticks(ys, [r["name"] for r in rows])
+    ax.set_xlim(0, top * 1.75)
+    ax.set_xticks([0, 100, 200, 300, 400])
+    ax.set_xlabel("First accesses a day sent to a person")
+    ax.set_title("Where the doubt lands", pad=10)
+    note(fig, "Dark is escalate, which goes to the Privacy Officer. Light is verify, which asks the user's supervisor. The "
+              "rules raise alerts only, so all of theirs go to the officer. Precision is at escalate. LLM figures are pass 1, "
+              "weighted back from the case set. The variant states employment as a fact and adds that the graph holds no "
+              "connection where that was the only one (spec 11.9 and 11.10). Same numbers as the variant section of "
+              "docs/llm-results.md.", y=-0.08)
+    return save(fig, out_dir, "fig14-where-the-doubt-lands")
+
+
 def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path = "results") -> dict:
     """Write every figure whose inputs exist. Returns written paths and skipped figures."""
     run, out_dir = Path(run), Path(out_dir)
@@ -954,6 +999,11 @@ def build(run: str | Path, cfg: Config, out_dir: str | Path, results: str | Path
         fig13 = fig13_rendered_case(run, cfg, out_dir, Path(results))
         if fig13 is not None:
             written.append(fig13)
+        fig14 = fig14_where_the_doubt_lands(run, cfg, out_dir, Path(results), frames, u)
+        if fig14 is None:
+            skipped.append("fig14, no answers from the declared variant")
+        else:
+            written.append(fig14)
         fig12 = fig12_run_to_run(run, cfg, out_dir, Path(results))
         if fig12 is None:
             skipped.append("fig12, needs at least two passes of both LLM systems")
